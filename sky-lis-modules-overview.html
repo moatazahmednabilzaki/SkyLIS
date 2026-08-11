@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sky LIS — خريطة الموديولات</title>
+<style>
+  :root{
+    --navy:#101d2c; --blue:#0369a1; --blue2:#0284c7; --cyan:#74bce2;
+    --ink:#0e1726; --muted:#5b6b82; --line:#e5e8f0; --bg:#f7f9fc; --card:#ffffff;
+    --chip:#e7f4fd; --chip-ink:#0369a1; --shadow:0 1px 2px rgba(13,30,63,.06),0 8px 24px rgba(13,30,63,.06);
+    --accent:var(--blue2);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --navy:#0a1420; --blue:#38bdf8; --blue2:#0ea5e9; --cyan:#74bce2;
+      --ink:#e9eef7; --muted:#93a4bd; --line:#1e2c44; --bg:#070d1a; --card:#0f1d2e;
+      --chip:#0c2436; --chip-ink:#74bce2; --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --navy:#0a1420; --blue:#38bdf8; --blue2:#0ea5e9; --cyan:#74bce2;
+    --ink:#e9eef7; --muted:#93a4bd; --line:#1e2c44; --bg:#070d1a; --card:#0f1d2e;
+    --chip:#0c2436; --chip-ink:#74bce2; --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+  }
+  :root[data-theme="light"]{
+    --navy:#101d2c; --blue:#0369a1; --blue2:#0284c7; --cyan:#74bce2;
+    --ink:#0e1726; --muted:#5b6b82; --line:#e5e8f0; --bg:#f7f9fc; --card:#ffffff;
+    --chip:#e7f4fd; --chip-ink:#0369a1; --shadow:0 1px 2px rgba(13,30,63,.06),0 8px 24px rgba(13,30,63,.06);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Segoe UI","Noto Sans Arabic",system-ui,-apple-system,Tahoma,Arial,sans-serif;
+    line-height:1.6; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:0 20px}
+
+  /* Header */
+  header.hero{
+    background:linear-gradient(135deg,var(--navy),var(--blue) 70%,var(--blue2));
+    color:#fff; padding:44px 0 30px; border-bottom:3px solid var(--cyan);
+  }
+  .hero h1{margin:0 0 6px; font-size:clamp(24px,4vw,38px); font-weight:800; letter-spacing:.2px}
+  .hero .sub{opacity:.9; font-size:15px; max-width:760px}
+  .badges{display:flex; flex-wrap:wrap; gap:8px; margin-top:16px}
+  .badge{background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22);
+    padding:5px 11px; border-radius:999px; font-size:12.5px; font-weight:600}
+
+  /* Stats */
+  .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:26px 0 8px}
+  @media(max-width:720px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px 18px; box-shadow:var(--shadow)}
+  .stat .n{font-size:30px; font-weight:800; color:var(--blue2); line-height:1}
+  .stat .l{font-size:13px; color:var(--muted); margin-top:6px}
+
+  /* Toolbar */
+  .toolbar{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:22px 0 8px}
+  .toolbar input{
+    flex:1; min-width:200px; padding:11px 14px; border:1px solid var(--line);
+    border-radius:11px; background:var(--card); color:var(--ink); font-size:14px; font-family:inherit;
+  }
+  .toolbar input:focus{outline:2px solid var(--blue2); outline-offset:1px}
+  .btn{border:1px solid var(--line); background:var(--card); color:var(--ink);
+    padding:10px 14px; border-radius:11px; font-size:13px; cursor:pointer; font-family:inherit; font-weight:600}
+  .btn:hover{border-color:var(--blue2)}
+
+  /* Group */
+  .group{margin-top:34px}
+  .group-head{display:flex; align-items:center; gap:12px; margin-bottom:14px}
+  .group-head .dot{width:12px; height:12px; border-radius:4px; background:var(--accent)}
+  .group-head h2{margin:0; font-size:19px; font-weight:800}
+  .group-head .cnt{color:var(--muted); font-size:13px; font-weight:600}
+
+  /* Cards grid */
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:16px}
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:16px;
+    padding:18px 18px 16px; box-shadow:var(--shadow); border-top:3px solid var(--accent);
+    display:flex; flex-direction:column;
+  }
+  .card .top{display:flex; align-items:flex-start; gap:12px; margin-bottom:8px}
+  .mid{
+    flex-shrink:0; width:46px; height:46px; border-radius:12px; display:grid; place-items:center;
+    background:linear-gradient(135deg,var(--blue),var(--blue2)); color:#fff; font-weight:800; font-size:15px;
+  }
+  .card h3{margin:0; font-size:16px; font-weight:800; line-height:1.35}
+  .card .desc{color:var(--muted); font-size:13.5px; margin:2px 0 12px}
+  .pages{display:flex; flex-wrap:wrap; gap:6px; margin-top:auto}
+  .chip{
+    background:var(--chip); color:var(--chip-ink); border:1px solid transparent;
+    padding:4px 9px; border-radius:8px; font-size:12px; font-weight:600; direction:ltr;
+  }
+  .chip b{font-weight:800; opacity:.75; margin-inline-end:4px}
+  .pcount{font-size:11.5px; color:var(--muted); margin-bottom:8px; font-weight:700}
+  .lic{display:inline-block; margin-inline-start:6px; font-size:10.5px; font-weight:800;
+    color:#b26a00; background:#fff3dc; border-radius:6px; padding:1px 6px; vertical-align:middle}
+  @media (prefers-color-scheme: dark){.lic{color:#ffcf7a; background:#3a2a08}}
+
+  /* Footer */
+  footer{margin:44px 0 30px; padding-top:22px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  footer h4{color:var(--ink); margin:0 0 8px; font-size:14px}
+  footer code{background:var(--chip); color:var(--chip-ink); padding:1px 6px; border-radius:5px; font-size:12px; direction:ltr; display:inline-block}
+  .hide{display:none !important}
+  .toc{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px}
+  .toc a{font-size:12.5px; text-decoration:none; color:var(--chip-ink); background:var(--chip);
+    padding:5px 10px; border-radius:8px; font-weight:600}
+  .toc a:hover{outline:1px solid var(--blue2)}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>Sky LIS — خريطة الموديولات</h1>
+    <div class="sub">نظام معلومات معامل طبية (LIS) سحابي متعدّد العملاء — شرح كامل للموديولات الـ 25 والصفحات المكوّنة لها، مطابق لوثيقة المواصفات <b>SLIS-SRS-001 (Rev 1.1)</b>.</div>
+    <div class="badges">
+      <span class="badge">SaaS · Multi-Tenant</span>
+      <span class="badge">.NET 10 / ASP.NET Core</span>
+      <span class="badge">PostgreSQL 17</span>
+      <span class="badge">Angular 19+</span>
+      <span class="badge">Clean Architecture + DDD</span>
+      <span class="badge">HIPAA · GDPR · ISO 15189</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="stats">
+    <div class="stat"><div class="n">25</div><div class="l">موديول وظيفي</div></div>
+    <div class="stat"><div class="n">95</div><div class="l">صفحة / شاشة</div></div>
+    <div class="stat"><div class="n">8</div><div class="l">مجموعات وظيفية</div></div>
+    <div class="stat"><div class="n">2</div><div class="l">وكلاء On-Prem</div></div>
+  </div>
+
+  <div class="toolbar">
+    <input id="search" type="search" placeholder="🔎 ابحث في الموديولات أو الصفحات… (مثال: bank, results, HL7)">
+    <button class="btn" id="expandAll">عرض التفاصيل</button>
+    <button class="btn" id="theme">🌓 الوضع</button>
+  </div>
+
+  <div class="toc" id="toc"></div>
+
+  <div id="content"></div>
+
+  <footer>
+    <h4>ملاحظات مرجعية</h4>
+    <p>• كل صفحة في المواصفات لها مُعرّف <code>P&lt;module&gt;.&lt;n&gt;</code> و متطلبات مرقّمة <code>FR-&lt;MODULE&gt;-nnn</code> + مؤشر حالة (Progress Pipeline) + قواعد تحقّق.</p>
+    <p>• خصائص مشتركة عبر كل الموديولات: سجل تدقيق غير قابل للتعديل، توقيعات إلكترونية (21 CFR Part 11)، صلاحيات RBAC + فصل مهام SoD، إشعارات متعددة القنوات، دعم عربي/إنجليزي RTL.</p>
+    <p>• الأهداف غير الوظيفية: أداء p95 ≤ 2 ث · توافرية 99.9% · RPO ≤ 5 د / RTO ≤ 1 س · TLS 1.2+ / AES-256 · WCAG 2.1 AA.</p>
+    <p style="margin-top:14px; opacity:.75">المصدر: <code>SLIS-SRS-001 Rev 1.1</code> — National Technology · Sky LIS</p>
+  </footer>
+
+</div>
+
+<script>
+const GROUPS = [
+  { title:"المنصة والإدارة", color:"#0284c7", mods:[
+    {id:"M01", name:"Tenant & Subscription Administration", ar:"كونسول داخلي لـ National Technology لتوفير وإدارة العملاء (Tenants) والخطط وصحة المنصة — بدون الوصول لبيانات المرضى إلا بإذن مؤقت.", pages:["Tenant Directory","Tenant Onboarding Wizard","Plans, Subscription & Metering","Platform Health & Support Access"]},
+    {id:"M02", name:"User, Role & Access Management", ar:"إدارة المستخدمين والأدوار والصلاحيات وسياسات الأمان على مستوى العميل — تطبيق نموذج الأمان بالكامل.", pages:["Users Directory","Roles & Permissions Editor","Security Policies"]},
+    {id:"M03", name:"Master Data & System Setup", ar:"العمود الفقري للإعدادات: الهيكل التنظيمي، كتالوج التحاليل، الباقات، النطاقات المرجعية، أنواع العينات، قوائم الأسعار، وقوالب التقارير.", pages:["Setup Wizard (First Run)","Branches & Departments","Test Catalog","Panels, Profiles & Order Sets","Sample Types, Containers & Rejection Reasons","Price Lists & Payers","Report Template Designer"]},
+  ]},
+  { title:"المرضى ودورة الطلب", color:"#0284c7", mods:[
+    {id:"M04", name:"Patient Management", ar:"الفهرس الرئيسي للمرضى: التسجيل، البحث، العرض الطولي (360)، الموافقات، وضبط التكرار. كل الموديولات الإكلينيكية بترجع لهوية المريض دي.", pages:["Patient Search & Registry","Patient Registration","Patient 360","Duplicate Merge Console","Data Subject Requests (Export & Erasure)"]},
+    {id:"M05", name:"Order Management", ar:"إنشاء ودورة حياة الطلبات من كل القنوات (الاستقبال، بوابة الطبيب، شركاء B2B، HL7). الطلب هو المرساة التجارية والإكلينيكية للنظام.", pages:["Orders Dashboard","New Order (Registration Wizard)","Order Details","Standing Orders & Schedules"]},
+    {id:"M06", name:"Phlebotomy & Collection", ar:"سحب العينات في الفرع، بالمنزل، وفي مواقع الشركاء: قوائم الانتظار، السحب الموجّه، التحقق من الملصقات، وتوثيق السحب.", pages:["Collection Queue","Collection Session","Home Collection & Route Planning"]},
+    {id:"M07", name:"Accessioning & Sample Tracking", ar:"الاستلام الرسمي للعينات وتتبع دورة حياتها الكاملة حتى التخزين والإتلاف — نواة سلسلة العُهدة (Chain of Custody).", pages:["Accessioning Station","Rejection & Recollection","Sample Tracking Board","Send-Out & Inter-Branch Transfer","Storage & Disposal Manager"]},
+    {id:"M08", name:"Worklists & Processing", ar:"تنظيم عمل الأقسام: إيه اللي يتشغّل، فين، وبأي ترتيب — للمناضد اليدوية والعمل المربوط بالأجهزة.", pages:["Department Worklist","Batch & Run Builder","Pending & Overdue Monitor"]},
+  ]},
+  { title:"النتائج والتقارير", color:"#0ea5a5", mods:[
+    {id:"M09", name:"Results Entry & Validation", ar:"قلب النظام الإكلينيكي: إدخال النتائج (يدوي وآلي)، المراجعة بالقواعد، الاعتماد على مرحلتين مع فصل المهام، إدارة القيم الحرجة، والتعديلات المنضبطة.", pages:["Result Entry Workbench","Technical Validation Queue","Medical Validation & Sign-Out","Critical Values Console","Amendments & Corrected Results"]},
+    {id:"M10", name:"Reporting & Delivery", ar:"إخراج وتوقيع وتسليم التقارير عبر قنوات متعددة — تقارير مبدئية ونهائية ومعدّلة وتراكمية.", pages:["Report Queue","Report Viewer & Verification","Cumulative & Trend Reports"]},
+  ]},
+  { title:"الأقسام المتخصصة", color:"#6d5ce0", mods:[
+    {id:"M11", name:"Microbiology", ar:"مسارات المزارع متعددة الأيام: التزريع، قراءات الحضانة، تحديد الميكروب، اختبارات الحساسية، والتقارير المهيكلة مع مراقبة العدوى.", pages:["Micro Bench Worklist","Culture Workbench","Susceptibility & Antibiogram","Micro Report Composer"]},
+    {id:"M12", name:"Histopathology & Cytology", ar:"الباثولوجي التشريحي: الفحص العياني، معالجة الأنسجة بتتبّع البلوكات/الشرائح، تقارير الباثولوجي، وفرز الخلايا.", pages:["Case Registration & Grossing","Block & Slide Tracking","Pathologist Workstation","Cytology Screening"]},
+    {id:"M13", name:"Blood Bank & Transfusion", ar:"تتبّع من المتبرّع للمريض بضوابط أمان صارمة: إدارة المتبرعين، مخزون الوحدات بملصقات ISBT 128، المطابقة، الصرف، والتتبّع الرجعي.", lic:true, pages:["Donor Management","Unit Inventory","Immunohematology & Crossmatch","Issue & Transfusion Traceability"]},
+    {id:"M14", name:"Molecular Diagnostics", ar:"مسارات PCR والتسلسل: دفعات الاستخلاص، تخطيط الأطباق، إدارة التشغيل مع الضوابط، والتفسير المهيكل مع بوابات ضد التلوث.", pages:["Extraction & Plate Layout","Run Review & Interpretation"]},
+  ]},
+  { title:"الجودة والمخزون والمالية", color:"#c7841e", mods:[
+    {id:"M15", name:"Quality Control (IQC / EQA)", ar:"ضبط جودة إحصائي برسوم Levey-Jennings وقواعد Westgard، بوابة ربط الجودة بنتائج المرضى، دورات التقييم الخارجي، وربط CAPA.", pages:["QC Setup","QC Entry & Levey-Jennings","EQA / Proficiency Testing"]},
+    {id:"M16", name:"Inventory Management", ar:"الكواشف والمستهلكات عبر الفروع: الكتالوج، ضبط التشغيلات/الصلاحية، عمليات المخزون، الاستهلاك المرتبط بحجم التحاليل، وإعادة الطلب الآلية.", pages:["Item Catalog & Suppliers","Stock Operations","Reorder & Purchase Requests"]},
+    {id:"M17", name:"Billing, Insurance & Finance", ar:"عمليات الإيرادات: التسعير، الفواتير، المدفوعات، الموافقات المسبقة والمطالبات التأمينية، الحسابات الآجلة، والمرتجعات — مدفوعة بالأحداث بالكامل.", pages:["Billing Workbench (Invoice & Payment)","Insurance Pre-Approvals & Claims","Credit Accounts & Statements","Cashier Shift & Daily Close"]},
+  ]},
+  { title:"البوابات الخارجية", color:"#177245", mods:[
+    {id:"M18", name:"B2B Referral Portal", ar:"بوابة خدمة ذاتية لمعامل الشركاء والعيادات: تقديم الطلبات، بيانات الشحن، استرجاع النتائج، وكشوف الحساب — قناة إيرادات رئيسية.", pages:["Partner Dashboard","Partner Order Placement","Partner Reports & Statements","Partner Account & Contract Setup"]},
+    {id:"M19", name:"Patient Portal", ar:"تجربة المريض على الويب/الموبايل: الوصول للنتائج، حجز المواعيد والسحب المنزلي، المدفوعات، وإدارة الموافقات — بتحقّق هوية صارم.", pages:["Enrollment & Sign-In","My Results & Reports","Appointments, Home Collection & Payments"]},
+    {id:"M20", name:"Physician Portal", ar:"تجربة الطبيب المُحيل: الطلب الإلكتروني، متابعة الحالة الحيّة، النتائج مع الاتجاهات عبر مرضاه، والإقرار بالقيم الحرجة.", pages:["Physician Ordering","Results Review & Critical Acknowledgment","Physician Enrollment & Verification"]},
+  ]},
+  { title:"التكامل والتشغيل البيني", color:"#3f7cd6", mods:[
+    {id:"M21", name:"Instrument Integration Middleware", ar:"ربط ثنائي الاتجاه مع الأجهزة كمحرك واجهات مدمج: معالجة البروتوكولات (ASTM/HL7)، تنزيل الطلبات، رفع النتائج، وتتبّع كامل للرسائل الخام عبر الوكيل المحلي.", pages:["Instrument Registry & Channel Setup","Live Monitor","Message Log, Exceptions & Replay","Host Query & QC Feed"]},
+    {id:"M22", name:"Interoperability (HL7 / FHIR / API)", ar:"التكامل بين الأنظمة مع أنظمة المستشفيات HIS/EMR والمنصات الصحية: رسائل HL7 v2، واجهة FHIR R4، Webhooks، واستوديو التخطيط (Mapping).", pages:["Interface Engine Dashboard","HL7 v2 Order & Result Flows","FHIR R4 API & Webhooks","Mapping Studio"]},
+  ]},
+  { title:"التحليلات والامتثال والإشعارات", color:"#8a63d2", mods:[
+    {id:"M23", name:"Analytics & Dashboards", ar:"ذكاء القرار فوق مخزن تحليلي مبني على الأحداث: رؤى تشغيلية وإكلينيكية ومالية مع التصدير والتوزيع المجدوَل.", pages:["Executive Dashboard","TAT & Operations Analysis","Financial & Volume Analytics","Quality & Rejection KPIs"]},
+    {id:"M24", name:"Document Control & Compliance", ar:"الوثائق المُتحكَّم بها (SOPs، السياسات) بالإصدارات والاعتماد، حملات القراءة والإقرار، سجلات الكفاءة، إدارة CAPA، ومستكشف سجل التدقيق — العمود الفقري للاعتماد.", pages:["Controlled Document Library","Read & Acknowledge Campaigns","CAPA & Nonconformity Management","Audit Trail Explorer"]},
+    {id:"M25", name:"Notification Center", ar:"الإدارة المركزية لكل رسالة يرسلها النظام: القوالب، القنوات والمزوّدون، قواعد التشغيل، وصندوق الإرسال (Outbox) — تستهلكه كل الموديولات.", pages:["Templates & Branding","Channels & Providers","Rules & Outbox"]},
+  ]},
+];
+
+const content = document.getElementById('content');
+const toc = document.getElementById('toc');
+
+GROUPS.forEach((g, gi) => {
+  const modCount = g.mods.length;
+  const pageCount = g.mods.reduce((s,m)=>s+m.pages.length,0);
+
+  const a = document.createElement('a');
+  a.href = '#g'+gi; a.textContent = g.title;
+  toc.appendChild(a);
+
+  const section = document.createElement('section');
+  section.className = 'group'; section.id = 'g'+gi;
+  section.innerHTML = `
+    <div class="group-head">
+      <span class="dot" style="background:${g.color}"></span>
+      <h2>${g.title}</h2>
+      <span class="cnt">${modCount} موديول · ${pageCount} صفحة</span>
+    </div>`;
+  const grid = document.createElement('div');
+  grid.className = 'grid';
+
+  g.mods.forEach(m => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.borderTopColor = g.color;
+    const num = m.id.replace('M','');
+    const chips = m.pages.map((p,i)=>`<span class="chip"><b>${m.id}.${i+1}</b>${p}</span>`).join('');
+    card.innerHTML = `
+      <div class="top">
+        <div class="mid" style="background:linear-gradient(135deg,${g.color},${g.color}cc)">${m.id}</div>
+        <div>
+          <h3>${m.name}${m.lic?'<span class="lic">مرخّص</span>':''}</h3>
+        </div>
+      </div>
+      <div class="desc">${m.ar}</div>
+      <div class="pcount">${m.pages.length} صفحات</div>
+      <div class="pages">${chips}</div>`;
+    card.dataset.search = (m.id+' '+m.name+' '+m.ar+' '+m.pages.join(' ')).toLowerCase();
+    grid.appendChild(card);
+  });
+  section.appendChild(grid);
+  content.appendChild(section);
+});
+
+// Search
+const search = document.getElementById('search');
+search.addEventListener('input', () => {
+  const q = search.value.trim().toLowerCase();
+  document.querySelectorAll('.group').forEach(sec => {
+    let anyVisible = false;
+    sec.querySelectorAll('.card').forEach(c => {
+      const match = !q || c.dataset.search.includes(q);
+      c.classList.toggle('hide', !match);
+      if (match) anyVisible = true;
+    });
+    sec.classList.toggle('hide', !anyVisible);
+  });
+});
+
+// Theme toggle
+const root = document.documentElement;
+document.getElementById('theme').addEventListener('click', () => {
+  const cur = root.getAttribute('data-theme')
+    || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  root.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark');
+});
+
+// Expand-all = smooth scroll cue (placeholder toggle kept simple)
+document.getElementById('expandAll').addEventListener('click', () => {
+  window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'});
+});
+</script>
+</body>
+</html>

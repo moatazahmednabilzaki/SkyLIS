@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sky LIS — خريطة الموديولات التفصيلية</title>
+<style>
+  :root{
+    --navy:#101d2c; --blue:#0369a1; --blue2:#0284c7; --cyan:#74bce2;
+    --ink:#0e1726; --muted:#5b6b82; --line:#e5e8f0; --bg:#f7f9fc; --card:#ffffff;
+    --chip:#e7f4fd; --chip-ink:#0369a1; --shadow:0 1px 2px rgba(13,30,63,.06),0 8px 24px rgba(13,30,63,.06);
+    --ok:#177245; --warn:#b26a00; --warnbg:#fff3dc; --fr:#0d7a6f; --frbg:#dff5f1;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --navy:#0a1420; --blue:#38bdf8; --blue2:#0ea5e9; --cyan:#74bce2;
+      --ink:#e9eef7; --muted:#93a4bd; --line:#1e2c44; --bg:#070d1a; --card:#0f1d2e;
+      --chip:#0c2436; --chip-ink:#74bce2; --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+      --warn:#ffcf7a; --warnbg:#3a2a08; --fr:#57e0cf; --frbg:#0c2b28;
+    }
+  }
+  :root[data-theme="dark"]{
+    --navy:#0a1420; --blue:#38bdf8; --blue2:#0ea5e9; --cyan:#74bce2;
+    --ink:#e9eef7; --muted:#93a4bd; --line:#1e2c44; --bg:#070d1a; --card:#0f1d2e;
+    --chip:#0c2436; --chip-ink:#74bce2; --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+    --warn:#ffcf7a; --warnbg:#3a2a08; --fr:#57e0cf; --frbg:#0c2b28;
+  }
+  :root[data-theme="light"]{
+    --navy:#101d2c; --blue:#0369a1; --blue2:#0284c7; --cyan:#74bce2;
+    --ink:#0e1726; --muted:#5b6b82; --line:#e5e8f0; --bg:#f7f9fc; --card:#ffffff;
+    --chip:#e7f4fd; --chip-ink:#0369a1; --shadow:0 1px 2px rgba(13,30,63,.06),0 8px 24px rgba(13,30,63,.06);
+    --warn:#b26a00; --warnbg:#fff3dc; --fr:#0d7a6f; --frbg:#dff5f1;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Segoe UI","Noto Sans Arabic",system-ui,-apple-system,Tahoma,Arial,sans-serif; line-height:1.6}
+  .wrap{max-width:1180px; margin:0 auto; padding:0 20px}
+  header.hero{background:linear-gradient(135deg,var(--navy),var(--blue) 70%,var(--blue2));
+    color:#fff; padding:44px 0 30px; border-bottom:3px solid var(--cyan)}
+  .hero h1{margin:0 0 6px; font-size:clamp(24px,4vw,38px); font-weight:800}
+  .hero .sub{opacity:.9; font-size:15px; max-width:780px}
+  .badges{display:flex; flex-wrap:wrap; gap:8px; margin-top:16px}
+  .badge{background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22);
+    padding:5px 11px; border-radius:999px; font-size:12.5px; font-weight:600}
+  .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:26px 0 8px}
+  @media(max-width:720px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px 18px; box-shadow:var(--shadow)}
+  .stat .n{font-size:30px; font-weight:800; color:var(--blue2); line-height:1}
+  .stat .l{font-size:13px; color:var(--muted); margin-top:6px}
+  .toolbar{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:22px 0 8px}
+  .toolbar input{flex:1; min-width:200px; padding:11px 14px; border:1px solid var(--line);
+    border-radius:11px; background:var(--card); color:var(--ink); font-size:14px; font-family:inherit}
+  .toolbar input:focus{outline:2px solid var(--blue2); outline-offset:1px}
+  .btn{border:1px solid var(--line); background:var(--card); color:var(--ink);
+    padding:10px 14px; border-radius:11px; font-size:13px; cursor:pointer; font-family:inherit; font-weight:600}
+  .btn:hover{border-color:var(--blue2)}
+  .toc{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px}
+  .toc a{font-size:12.5px; text-decoration:none; color:var(--chip-ink); background:var(--chip);
+    padding:5px 10px; border-radius:8px; font-weight:600}
+  .toc a:hover{outline:1px solid var(--blue2)}
+  .group{margin-top:34px}
+  .group-head{display:flex; align-items:center; gap:12px; margin-bottom:14px; flex-wrap:wrap}
+  .group-head .dot{width:12px; height:12px; border-radius:4px}
+  .group-head h2{margin:0; font-size:19px; font-weight:800}
+  .group-head .cnt{color:var(--muted); font-size:13px; font-weight:600}
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(390px,1fr)); gap:16px}
+  @media(max-width:520px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:16px;
+    padding:18px; box-shadow:var(--shadow); border-top:3px solid; display:flex; flex-direction:column}
+  .card .top{display:flex; align-items:flex-start; gap:12px; margin-bottom:8px}
+  .mid{flex-shrink:0; width:46px; height:46px; border-radius:12px; display:grid; place-items:center;
+    color:#fff; font-weight:800; font-size:15px}
+  .card h3{margin:0; font-size:16px; font-weight:800; line-height:1.35}
+  .card .desc{color:var(--muted); font-size:13.5px; margin:2px 0 12px}
+  .lic{display:inline-block; margin-inline-start:6px; font-size:10.5px; font-weight:800;
+    color:var(--warn); background:var(--warnbg); border-radius:6px; padding:1px 6px; vertical-align:middle}
+  .pcount{font-size:11.5px; color:var(--muted); margin-bottom:10px; font-weight:700}
+
+  details.page{border:1px solid var(--line); border-radius:11px; margin-bottom:8px; background:transparent; overflow:hidden}
+  details.page[open]{border-color:var(--blue2)}
+  details.page > summary{list-style:none; cursor:pointer; padding:9px 12px; display:flex; align-items:center; gap:8px;
+    font-size:13px; font-weight:600}
+  details.page > summary::-webkit-details-marker{display:none}
+  summary .pid{direction:ltr; font-weight:800; opacity:.7; font-size:11.5px; min-width:44px}
+  summary .ptitle{flex:1; direction:ltr; text-align:left}
+  summary .caret{transition:transform .2s; color:var(--muted)}
+  details.page[open] summary .caret{transform:rotate(90deg)}
+  .pbody{padding:2px 12px 12px; font-size:12.8px; border-top:1px dashed var(--line); margin-top:2px}
+  .kv{margin:8px 0 0}
+  .kv .k{color:var(--muted); font-weight:700; font-size:11.5px; margin-inline-end:6px}
+  .frcode{direction:ltr; display:inline-block; background:var(--frbg); color:var(--fr);
+    padding:1px 7px; border-radius:6px; font-weight:800; font-size:11.5px}
+  .prio{display:inline-block; font-size:10.5px; font-weight:800; border-radius:6px; padding:1px 7px;
+    background:var(--warnbg); color:var(--warn)}
+  .roles{direction:ltr; color:var(--ink); font-size:12px}
+  .purpose{margin-top:8px; color:var(--ink)}
+  .pipe{display:flex; flex-wrap:wrap; gap:0; align-items:center; margin-top:10px; direction:ltr}
+  .step{display:flex; align-items:center; font-size:10.8px; color:var(--chip-ink)}
+  .step .b{background:var(--chip); border-radius:7px; padding:3px 8px; font-weight:700}
+  .step .arrow{color:var(--muted); margin:0 5px; opacity:.6}
+  .step:last-child .b{background:linear-gradient(135deg,var(--ok),#0b8a4d); color:#fff}
+  footer{margin:44px 0 30px; padding-top:22px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  footer h4{color:var(--ink); margin:0 0 8px; font-size:14px}
+  footer code{background:var(--chip); color:var(--chip-ink); padding:1px 6px; border-radius:5px; font-size:12px; direction:ltr; display:inline-block}
+  .hide{display:none !important}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <h1>Sky LIS — خريطة الموديولات التفصيلية</h1>
+    <div class="sub">شرح تفصيلي للموديولات الـ 25 و 95 صفحة — لكل صفحة: كود المتطلب <b>(FR)</b>، الأدوار المسؤولة، الأولوية، الهدف، ومؤشر الحالة (Progress Pipeline). مطابق لوثيقة <b>SLIS-SRS-001 (Rev 1.1)</b>. <b>اضغط على أي صفحة لفتح تفاصيلها.</b></div>
+    <div class="badges">
+      <span class="badge">SaaS · Multi-Tenant</span>
+      <span class="badge">.NET 10 / ASP.NET Core</span>
+      <span class="badge">PostgreSQL 17</span>
+      <span class="badge">Angular 19+</span>
+      <span class="badge">Clean Architecture + DDD</span>
+      <span class="badge">HIPAA · GDPR · ISO 15189</span>
+    </div>
+  </div>
+</header>
+<div class="wrap">
+  <div class="stats">
+    <div class="stat"><div class="n">25</div><div class="l">موديول وظيفي</div></div>
+    <div class="stat"><div class="n">95</div><div class="l">صفحة / شاشة</div></div>
+    <div class="stat"><div class="n">8</div><div class="l">مجموعات وظيفية</div></div>
+    <div class="stat"><div class="n">95</div><div class="l">متطلب FR موثّق</div></div>
+  </div>
+  <div class="toolbar">
+    <input id="search" type="search" placeholder="🔎 ابحث في الموديولات، الصفحات، الأدوار، أو أكواد FR… (مثال: FR-RES, crossmatch, Cashier)">
+    <button class="btn" id="openAll">فتح الكل</button>
+    <button class="btn" id="closeAll">إغلاق الكل</button>
+    <button class="btn" id="theme">🌓 الوضع</button>
+  </div>
+  <div class="toc" id="toc"></div>
+  <div id="content"></div>
+  <footer>
+    <h4>ملاحظات مرجعية</h4>
+    <p>• كل صفحة لها متطلب مرقّم <code>FR-&lt;MODULE&gt;-nnn</code> ثابت لا يُعاد استخدامه، ومؤشر حالة (Progress Pipeline) الحالة الأخيرة فيه هي الحالة النهائية (المكتملة، بالأخضر).</p>
+    <p>• الأولوية بنظام MoSCoW: <b>Must</b> / Should / Could / Won't. حالياً كل الصفحات <b>Must</b> (يُعاد ضبطها قبل التقدير حسب §1.8).</p>
+    <p>• خصائص مشتركة عبر كل الموديولات: سجل تدقيق غير قابل للتعديل، توقيعات إلكترونية (21 CFR Part 11)، صلاحيات RBAC + فصل مهام SoD، إشعارات متعددة القنوات، دعم عربي/إنجليزي RTL.</p>
+    <p>• الأهداف غير الوظيفية: أداء p95 ≤ 2 ث · توافرية 99.9% · RPO ≤ 5 د / RTO ≤ 1 س · TLS 1.2+ / AES-256 · WCAG 2.1 AA.</p>
+    <p style="margin-top:14px; opacity:.75">المصدر: <code>SLIS-SRS-001 Rev 1.1</code> — National Technology · Sky LIS</p>
+  </footer>
+</div>
+<script>
+const PAGES = [{"id":"P01.1","mod":"M01","title":"Tenant Directory","fr":"FR-TEN-001","roles":"Platform Super Admin, Platform Support","prio":"Must","purpose":"Searchable registry of all tenants with plan, isolation tier, region, usage, health, and lifecycle status; entry point to every tenant operation.","steps":["Trial","Active","Past Due","Suspended","Offboarded"]},{"id":"P01.2","mod":"M01","title":"Tenant Onboarding Wizard","fr":"FR-TEN-010","roles":"Platform Super Admin","prio":"Must","purpose":"Guided provisioning of a new tenant: identity, isolation tier, region, plan, initial admin, and starter configuration seeding.","steps":["Organization","Plan & Modules","Seed Data","Admin Account","Provisioned"]},{"id":"P01.3","mod":"M01","title":"Plans, Subscription & Metering","fr":"FR-TEN-020","roles":"Platform Super Admin, Finance Ops","prio":"Must","purpose":"Define plans (modules, quotas, prices), manage tenant subscriptions, and review metered usage that drives invoicing.","steps":["Draft Plan","Published","Assigned","Metered","Invoiced"]},{"id":"P01.4","mod":"M01","title":"Platform Health & Support Access","fr":"FR-TEN-030","roles":"Platform Super Admin, Platform Support","prio":"Must","purpose":"Operational overview (queues, job failures, interface backlogs, agent connectivity per tenant) and the controlled support-access mechanism.","steps":["Requested","Tenant Approved","Active (audited)","Expired"]},{"id":"P02.1","mod":"M02","title":"Users Directory","fr":"FR-USR-001","roles":"Tenant Admin, Branch Manager (read)","prio":"Must","purpose":"Manage all tenant users: invite, activate, scope, lock, and review activity.","steps":["Invited","Activated","Active","Locked/Deactivated"]},{"id":"P02.2","mod":"M02","title":"Roles & Permissions Editor","fr":"FR-USR-010","roles":"Tenant Admin","prio":"Must","purpose":"View system roles, clone them into tenant roles, and edit permission bundles with SoD guardrails.","steps":["Draft","SoD Checked","Published"]},{"id":"P02.3","mod":"M02","title":"Security Policies","fr":"FR-USR-020","roles":"Tenant Admin","prio":"Must","purpose":"Tenant security posture: password policy, MFA enforcement, session timeouts, IP allowlists, SSO federation, workstation mode.","steps":["Draft","Validated","Enforced"]},{"id":"P03.1","mod":"M03","title":"Setup Wizard (First Run)","fr":"FR-MDM-001","roles":"Tenant Admin","prio":"Must","purpose":"Guided path from empty tenant to first live order: organization, branches, departments, catalog import, printers, and go-live checklist.","steps":["Organization","Structure","Samples & Labels","Catalog","Pricing","Users","Devices","Live"]},{"id":"P03.2","mod":"M03","title":"Branches & Departments","fr":"FR-MDM-010","roles":"Tenant Admin","prio":"Must","purpose":"Maintain facilities (main lab, satellites, collection centers) and their departments/sections with routing rules.","steps":["Draft","Configured","Active"]},{"id":"P03.3","mod":"M03","title":"Test Catalog","fr":"FR-MDM-020","roles":"Tenant Admin, Lab Director (approve)","prio":"Must","purpose":"Registry of every orderable test with scientific, operational, and billing attributes; the single source consumed by ordering, processing, results, billing, and interfaces.","steps":["Draft","In Review","Approved","Active","Retired"]},{"id":"P03.4","mod":"M03","title":"Panels, Profiles & Order Sets","fr":"FR-MDM-030","roles":"Tenant Admin","prio":"Must","purpose":"Bundle tests into panels (fixed), profiles (marketed bundles with pricing), and physician order sets.","steps":["Draft","Published","Retired"]},{"id":"P03.5","mod":"M03","title":"Sample Types, Containers & Rejection Reasons","fr":"FR-MDM-040","roles":"Tenant Admin","prio":"Must","purpose":"Define specimen taxonomy (type, container/tube, additive, minimum volume, stability, storage temperature) and the controlled vocabulary of rejection reasons.","steps":["Draft","Published"]},{"id":"P03.6","mod":"M03","title":"Price Lists & Payers","fr":"FR-MDM-050","roles":"Tenant Admin, Insurance Coordinator","prio":"Must","purpose":"Maintain price lists (walk-in, corporate, insurer, B2B partner) with effective dates, and payer contracts (coverage, discounts, pre-approval rules, claim formats).","steps":["Draft","Approved","Effective","Superseded"]},{"id":"P03.7","mod":"M03","title":"Report Template Designer","fr":"FR-MDM-060","roles":"Tenant Admin, Lab Director (approve)","prio":"Must","purpose":"WYSIWYG design of report layouts: headers/footers, dual language, cumulative layouts, department-specific blocks (antibiogram grid, histopath narrative), signature blocks, and QR verification.","steps":["Draft","Preview Passed","Approved","Active"]},{"id":"P04.1","mod":"M04","title":"Patient Search & Registry","fr":"FR-PAT-001","roles":"Receptionist, Phlebotomist, Technologist (read), Billing (read)","prio":"Must","purpose":"Fast, forgiving patient lookup (name, MRN, phone, national ID, DOB) as the entry point of every visit; shows possible duplicates inline.","steps":["Search","Match Review","Selected"]},{"id":"P04.2","mod":"M04","title":"Patient Registration","fr":"FR-PAT-010","roles":"Receptionist","prio":"Must","purpose":"Create or update the patient record: demographics, identifiers, contacts, default payer, consents, and portal enrollment.","steps":["Demographics","Duplicate Check","Consents","Registered"]},{"id":"P04.3","mod":"M04","title":"Patient 360","fr":"FR-PAT-020","roles":"All clinical roles (scope-trimmed)","prio":"Must","purpose":"Longitudinal view of one patient: demographics, visit/order history, cumulative results with trends, documents, balances, consents, and portal activity.","steps":["Loaded","Reviewed"]},{"id":"P04.4","mod":"M04","title":"Duplicate Merge Console","fr":"FR-PAT-030","roles":"Tenant Admin, Quality Manager","prio":"Must","purpose":"Detect and merge duplicate patient records with full traceability and reversibility window.","steps":["Candidate","Under Review","Merged","Confirmed"]},{"id":"P04.5","mod":"M04","title":"Data Subject Requests (Export & Erasure)","fr":"FR-PAT-040","roles":"Tenant Admin, Quality Manager","prio":"Must","purpose":"Handle GDPR/HIPAA data-subject requests against the patient registry: subject access (export), rectification, and right-to-erasure — the functional implementation of NFR-006, preserving legally mandated clinical records via pseudonymization.","steps":["Request Logged","Identity Verified","Approved","Fulfilled","Closed"]},{"id":"P05.1","mod":"M05","title":"Orders Dashboard","fr":"FR-ORD-001","roles":"Receptionist, Supervisor, Branch Manager","prio":"Must","purpose":"Branch-level command view of today’s orders across all statuses with TAT risk highlighting and quick actions.","steps":["Registered","Collected","Received","In Process","Validated","Reported"]},{"id":"P05.2","mod":"M05","title":"New Order (Registration Wizard)","fr":"FR-ORD-010","roles":"Receptionist","prio":"Must","purpose":"The highest-traffic screen: create an order end-to-end in under 90 seconds — patient, tests, payer/pricing, specimen plan, payment, and labels.","steps":["Patient","Tests","Pricing & Payment","Confirmed"]},{"id":"P05.3","mod":"M05","title":"Order Details","fr":"FR-ORD-020","roles":"All clinical roles (scope-trimmed)","prio":"Must","purpose":"Single source of truth for one order: full status timeline, per-test progress, samples, results, documents, billing, and communications.","steps":["Registered","Collected","Received","In Process","Validated","Reported","Closed"]},{"id":"P05.4","mod":"M05","title":"Standing Orders & Schedules","fr":"FR-ORD-030","roles":"Receptionist, Physician (portal)","prio":"Must","purpose":"Recurring orders (e.g., weekly INR, monthly HbA1c) generated automatically on schedule with patient reminders.","steps":["Defined","Active","Instance Generated","Completed/Stopped"]},{"id":"P06.1","mod":"M06","title":"Collection Queue","fr":"FR-COL-001","roles":"Phlebotomist","prio":"Must","purpose":"Live queue of patients awaiting collection with token display, priority ordering, and room assignment.","steps":["Waiting","Called","In Room","Collected"]},{"id":"P06.2","mod":"M06","title":"Collection Session","fr":"FR-COL-010","roles":"Phlebotomist","prio":"Must","purpose":"Guided draw for one patient: identity verification, tube-by-tube checklist with barcode confirmation, and collection metadata capture.","steps":["Identity Verified","Drawing","Labels Confirmed","Completed"]},{"id":"P06.3","mod":"M06","title":"Home Collection & Route Planning","fr":"FR-COL-020","roles":"Dispatcher, Phlebotomist (mobile view), Courier","prio":"Must","purpose":"Schedule home-visit collections, plan routes, and track specimen custody from home to lab.","steps":["Booked","Assigned","En Route","Collected","In Transit","Delivered to Lab"]},{"id":"P07.1","mod":"M07","title":"Accessioning Station","fr":"FR-SAM-001","roles":"Technologist (receiving bench)","prio":"Must","purpose":"High-throughput scan-and-receive: verify each arriving specimen, assess acceptability, and route to departments.","steps":["Expected","Scanned","Assessed","Received & Routed"]},{"id":"P07.2","mod":"M07","title":"Rejection & Recollection","fr":"FR-SAM-010","roles":"Technologist, Supervisor (approve)","prio":"Must","purpose":"Controlled rejection with coded reasons, stakeholder notification, and automatic recollection workflow.","steps":["Flagged","Reason Coded","Approved","Rejected & Recollection Issued"]},{"id":"P07.3","mod":"M07","title":"Sample Tracking Board","fr":"FR-SAM-020","roles":"Supervisor, Technologist, Quality Manager","prio":"Must","purpose":"Locate any sample instantly and visualize the population of samples by state, department, and age.","steps":["Collected","In Transit","Received","In Process","Stored","Disposed"]},{"id":"P07.4","mod":"M07","title":"Send-Out & Inter-Branch Transfer","fr":"FR-SAM-030","roles":"Technologist, Supervisor","prio":"Must","purpose":"Route tests to a reference laboratory or another branch: manifest creation, dispatch, external tracking, and result return capture.","steps":["Queued","Manifested","Dispatched","At Reference Lab","Results Returned","Integrated"]},{"id":"P07.5","mod":"M07","title":"Storage & Disposal Manager","fr":"FR-SAM-040","roles":"Technologist, Inventory Officer","prio":"Must","purpose":"Hierarchical storage (room → unit → shelf → rack → position), retention policies, retrieval, and compliant disposal.","steps":["Stored","Retrieval Requested","Retrieved","Restored / Disposed"]},{"id":"P08.1","mod":"M08","title":"Department Worklist","fr":"FR-WRK-001","roles":"Technologist, Supervisor","prio":"Must","purpose":"The technologist’s home screen: pending tests for the department/bench with priority, sample availability, and instrument routing.","steps":["Pending","Assigned","On Instrument / In Process","Resulted"]},{"id":"P08.2","mod":"M08","title":"Batch & Run Builder","fr":"FR-WRK-010","roles":"Technologist","prio":"Must","purpose":"Compose manual runs/batches (e.g., ELISA plates, manual chemistry) with QC placement and worksheet printing.","steps":["Composing","QC Placed","Running","Resulting","Completed"]},{"id":"P08.3","mod":"M08","title":"Pending & Overdue Monitor","fr":"FR-WRK-020","roles":"Supervisor, Branch Manager","prio":"Must","purpose":"Exception console for everything stuck: overdue TAT, awaiting sample, awaiting approval, QC-held, uncollected.","steps":["Detected","Acknowledged","In Resolution","Cleared"]},{"id":"P09.1","mod":"M09","title":"Result Entry Workbench","fr":"FR-RES-001","roles":"Technologist","prio":"Must","purpose":"Fast, safe entry and review of results per sample or per batch, with instrument results pre-populated and rule flags computed live.","steps":["Awaiting Result","Entered","Auto/Tech Review","Technically Valid"]},{"id":"P09.2","mod":"M09","title":"Technical Validation Queue","fr":"FR-RES-010","roles":"Section Supervisor","prio":"Must","purpose":"Departmental review of entered results that did not auto-verify: QC context, delta review, rerun arbitration.","steps":["Entered","Under Technical Review","Technically Valid / Rerun Ordered"]},{"id":"P09.3","mod":"M09","title":"Medical Validation & Sign-Out","fr":"FR-RES-020","roles":"Lab Director, Pathologist (per department)","prio":"Must","purpose":"Final clinical authorization of results with e-signature; releases results to reporting.","steps":["Technically Valid","Under Medical Review","Signed (Medically Valid)","Released to Reporting"]},{"id":"P09.4","mod":"M09","title":"Critical Values Console","fr":"FR-RES-030","roles":"Technologist, Supervisor, Lab Director","prio":"Must","purpose":"Guarantee that every critical (panic) value is communicated to a responsible caregiver and documented with read-back confirmation.","steps":["Flagged","Notifying","Physician Reached","Read-Back Documented","Closed"]},{"id":"P09.5","mod":"M09","title":"Amendments & Corrected Results","fr":"FR-RES-040","roles":"Lab Director (approve), Supervisor (request)","prio":"Must","purpose":"Controlled correction of released results with versioning, mandatory reasoning, and stakeholder re-notification.","steps":["Requested","Under Review","Approved & Versioned","Re-Issued","Acknowledged"]},{"id":"P10.1","mod":"M10","title":"Report Queue","fr":"FR-REP-001","roles":"Receptionist, Supervisor","prio":"Must","purpose":"Operational queue of reports ready to print/dispatch and reports awaiting completion, with delivery status per channel.","steps":["Pending Results","Interim Available","Final Rendered","Delivered","Acknowledged"]},{"id":"P10.2","mod":"M10","title":"Report Viewer & Verification","fr":"FR-REP-010","roles":"All clinical roles; external via QR","prio":"Must","purpose":"Faithful rendering of any report version with authenticity verification (QR/code lookup) for third parties.","steps":["Rendered","Verified"]},{"id":"P10.3","mod":"M10","title":"Cumulative & Trend Reports","fr":"FR-REP-020","roles":"Physician (portal), Lab Director, Receptionist (print)","prio":"Must","purpose":"Longitudinal report across orders: analyte columns over date rows with flags and charts for chronic-care monitoring.","steps":["Configured","Rendered","Issued"]},{"id":"P11.1","mod":"M11","title":"Micro Bench Worklist","fr":"FR-MIC-001","roles":"Micro Technologist, Supervisor","prio":"Must","purpose":"Day-structured worklist: new specimens to plate, cultures due for reading (day 1/2/3…), and pending confirmations.","steps":["Received","Plated","Incubating","Reading Cycle","Reported"]},{"id":"P11.2","mod":"M11","title":"Culture Workbench","fr":"FR-MIC-010","roles":"Micro Technologist","prio":"Must","purpose":"The daily read screen for one culture: record growth observations per plate, isolate management, and progression decisions.","steps":["Direct Smear","Day Reads","Isolation","ID / AST","Finalized"]},{"id":"P11.3","mod":"M11","title":"Susceptibility & Antibiogram","fr":"FR-MIC-020","roles":"Micro Technologist, Micro Supervisor","prio":"Must","purpose":"Capture AST results (disk diffusion zones or MIC from analyzers), interpret against CLSI/EUCAST breakpoint tables, and apply cascade reporting rules.","steps":["Panel Assigned","Values Captured","Interpreted","Expert-Rule Review","Validated"]},{"id":"P11.4","mod":"M11","title":"Micro Report Composer","fr":"FR-MIC-030","roles":"Micro Supervisor, Medical Microbiologist","prio":"Must","purpose":"Assemble the structured microbiology report: specimen quality, smear, growth summary, isolates with ID + susceptibilities, and interpretive comments.","steps":["Draft","Reviewed","Signed","Issued"]},{"id":"P12.1","mod":"M12","title":"Case Registration & Grossing","fr":"FR-HIS-001","roles":"Pathology Technologist, Pathologist","prio":"Must","purpose":"Register anatomic-pathology cases (specimen containers, clinical history), perform gross examination dictation, and plan cassettes.","steps":["Registered","Grossing","Cassettes Planned","To Processing"]},{"id":"P12.2","mod":"M12","title":"Block & Slide Tracking","fr":"FR-HIS-010","roles":"Pathology Technologist","prio":"Must","purpose":"Track embedding, microtomy, staining (routine + special/IHC), and slide distribution to pathologists.","steps":["Processing","Embedded","Cut","Stained","QC Passed","Distributed"]},{"id":"P12.3","mod":"M12","title":"Pathologist Workstation","fr":"FR-HIS-020","roles":"Pathologist","prio":"Must","purpose":"Case review and sign-out: clinical context, gross, slide inventory, microscopic findings, synoptic reporting for tumors, diagnosis coding, and e-sign-out.","steps":["Assigned","Under Review","Ancillary Pending","Consultation","Signed Out"]},{"id":"P12.4","mod":"M12","title":"Cytology Screening","fr":"FR-HIS-030","roles":"Cytotechnologist, Pathologist","prio":"Must","purpose":"Two-tier cytology flow: cytotechnologist screening with Bethesda-style categorical results; abnormal/borderline cases escalate to pathologist review.","steps":["Received","Screened","QA / Pathologist Review","Finalized"]},{"id":"P13.1","mod":"M13","title":"Donor Management","fr":"FR-BBK-001","roles":"Blood Bank Technologist, Medical Director","prio":"Must","purpose":"Donor registration, eligibility screening, donation session recording, and deferral registry.","steps":["Registered","Screened","Donated","Testing (Quarantine)","Released / Discarded"]},{"id":"P13.2","mod":"M13","title":"Unit Inventory","fr":"FR-BBK-010","roles":"Blood Bank Technologist","prio":"Must","purpose":"Real-time inventory of blood components by group/type, expiry, and status, with ISBT 128 scanning throughout.","steps":["Quarantine","Available","Reserved","Issued","Transfused / Returned / Discarded"]},{"id":"P13.3","mod":"M13","title":"Immunohematology & Crossmatch","fr":"FR-BBK-020","roles":"Blood Bank Technologist, Supervisor","prio":"Must","purpose":"Patient blood grouping, antibody screening/identification, and electronic or serologic crossmatch with strict compatibility interlocks.","steps":["Sample Received","Grouped","Screened","Crossmatch","Compatible & Reserved"]},{"id":"P13.4","mod":"M13","title":"Issue & Transfusion Traceability","fr":"FR-BBK-030","roles":"Blood Bank Technologist, Ward Nurse (portal-lite), Courier","prio":"Must","purpose":"Controlled issue of units against a patient, bedside verification support, transfusion outcome capture, and reaction reporting — completing vein-to-vein traceability.","steps":["Requested","Issued","In Transit","Transfused","Outcome Documented"]},{"id":"P14.1","mod":"M14","title":"Extraction & Plate Layout","fr":"FR-MOL-001","roles":"Molecular Technologist","prio":"Must","purpose":"Compose extraction batches and PCR plates: sample placement, controls (NTC/positive/IC), and lot capture.","steps":["Batch Composed","Extracted","Plate Ready","On Instrument","Run Complete"]},{"id":"P14.2","mod":"M14","title":"Run Review & Interpretation","fr":"FR-MOL-010","roles":"Molecular Technologist, Molecular Supervisor","prio":"Must","purpose":"Import run data, evaluate controls and amplification quality, and derive qualitative/quantitative results with interpretation rules.","steps":["Imported","Controls Evaluated","Results Derived","Technically Valid","Released"]},{"id":"P15.1","mod":"M15","title":"QC Setup","fr":"FR-QCM-001","roles":"Quality Manager, Section Supervisor","prio":"Must","purpose":"Define QC materials, lots, levels, targets/SDs, run schedules, and the Westgard rule set per test/instrument.","steps":["Registered","Provisional","Parallel Testing","Active","Retired"]},{"id":"P15.2","mod":"M15","title":"QC Entry & Levey-Jennings","fr":"FR-QCM-010","roles":"Technologist, Supervisor","prio":"Must","purpose":"Capture QC results (manual or instrument-fed), evaluate rules instantly, and visualize control charts.","steps":["Entered","Evaluated","Pass / Hold","Disposition Closed"]},{"id":"P15.3","mod":"M15","title":"EQA / Proficiency Testing","fr":"FR-QCM-020","roles":"Quality Manager","prio":"Must","purpose":"Manage external scheme cycles: sample receipt, blinded distribution to benches, submission, and outcome review with CAPA on failures.","steps":["Scheduled","Received","In Testing","Submitted","Evaluated","Closed"]},{"id":"P16.1","mod":"M16","title":"Item Catalog & Suppliers","fr":"FR-INV-001","roles":"Inventory Officer, Tenant Admin","prio":"Must","purpose":"Master data for stock items (reagents, consumables, QC material), units of measure, storage conditions, suppliers, and test-consumption mapping.","steps":["Draft","Active","Discontinued"]},{"id":"P16.2","mod":"M16","title":"Stock Operations","fr":"FR-INV-010","roles":"Inventory Officer, Technologist (issue to bench)","prio":"Must","purpose":"Goods receipt, bench issue, inter-store transfer, returns, adjustments, and physical counts — all lot-tracked.","steps":["Draft","Posted","Approved (adjustments)"]},{"id":"P16.3","mod":"M16","title":"Reorder & Purchase Requests","fr":"FR-INV-020","roles":"Inventory Officer, Branch Manager (approve)","prio":"Must","purpose":"Automated reorder proposals from min/max + consumption velocity, converted to approved purchase requests.","steps":["Proposed","Reviewed","Approved","Ordered","Received"]},{"id":"P17.1","mod":"M17","title":"Billing Workbench (Invoice & Payment)","fr":"FR-BIL-001","roles":"Cashier, Receptionist (combined mode)","prio":"Must","purpose":"Invoice generation at order confirmation, payment capture across methods, and receipt issuance.","steps":["Draft","Issued","Partially Paid","Paid","Adjusted / Refunded"]},{"id":"P17.2","mod":"M17","title":"Insurance Pre-Approvals & Claims","fr":"FR-BIL-010","roles":"Insurance Coordinator","prio":"Must","purpose":"Obtain payer pre-approvals where required, assemble claims from completed orders, submit (portal/EDI/manual), and reconcile remittances.","steps":["Awaiting Approval","Approved","Claim Assembled","Submitted","Remitted","Reconciled"]},{"id":"P17.3","mod":"M17","title":"Credit Accounts & Statements","fr":"FR-BIL-020","roles":"Billing Officer, B2B Partner (portal read)","prio":"Must","purpose":"Corporate and B2B partner accounts: credit limits, per-account pricing, periodic statements, and collections tracking.","steps":["Open","Statement Issued","Payment Allocated","Settled / Overdue"]},{"id":"P17.4","mod":"M17","title":"Cashier Shift & Daily Close","fr":"FR-BIL-030","roles":"Cashier, Branch Manager","prio":"Must","purpose":"Shift-based cash accountability: opening float, takings by method, end-of-shift reconciliation, and daily branch close.","steps":["Shift Open","Counted","Reconciled","Day Closed"]},{"id":"P18.1","mod":"M18","title":"Partner Dashboard","fr":"FR-B2B-001","roles":"B2B Partner User","prio":"Must","purpose":"Partner home: today’s orders and statuses, pending pickups, recent reports, balance snapshot, and announcements.","steps":["Ordered","Picked Up","Received at Lab","In Process","Reported"]},{"id":"P18.2","mod":"M18","title":"Partner Order Placement","fr":"FR-B2B-010","roles":"B2B Partner User","prio":"Must","purpose":"Streamlined external ordering: partner registers patient minimal demographics, selects tests at contract prices, prints labels/manifest.","steps":["Draft","Ordered","Manifested","Shipped","Received"]},{"id":"P18.3","mod":"M18","title":"Partner Reports & Statements","fr":"FR-B2B-020","roles":"B2B Partner User","prio":"Must","purpose":"Retrieve finalized reports (single and bulk), amended-report alerts, and financial statements with dispute submission.","steps":["Available","Downloaded / Pulled","Acknowledged"]},{"id":"P18.4","mod":"M18","title":"Partner Account & Contract Setup","fr":"FR-B2B-030","roles":"Tenant Admin, Billing Officer","prio":"Must","purpose":"Internal setup of B2B partner accounts: organization profile, contract and price-list binding, credit terms, catalog scoping, and partner-user provisioning — the prerequisite for P18.1–P18.3.","steps":["Draft","Contract Bound","Users Provisioned","Active"]},{"id":"P19.1","mod":"M19","title":"Enrollment & Sign-In","fr":"FR-PPT-001","roles":"Patient","prio":"Must","purpose":"Secure enrollment from an invitation (SMS/email) with identity proofing, and ongoing OTP-supported sign-in.","steps":["Invited","Identity Verified","Activated"]},{"id":"P19.2","mod":"M19","title":"My Results & Reports","fr":"FR-PPT-010","roles":"Patient","prio":"Must","purpose":"View released reports and historical trends in patient-friendly presentation, with download/share controls.","steps":["Released","Notified","Viewed"]},{"id":"P19.3","mod":"M19","title":"Appointments, Home Collection & Payments","fr":"FR-PPT-020","roles":"Patient","prio":"Must","purpose":"Book branch visits or home collection, pay online, and manage upcoming orders.","steps":["Booked","Confirmed","Prepared","Completed"]},{"id":"P20.1","mod":"M20","title":"Physician Ordering","fr":"FR-PHY-001","roles":"Referring Physician","prio":"Must","purpose":"Place electronic orders for the physician’s patients with favorites, order sets, and clinical-info capture; generates barcoded requisitions.","steps":["Ordered","Patient Arrived","In Lab","Resulted","Reported"]},{"id":"P20.2","mod":"M20","title":"Results Review & Critical Acknowledgment","fr":"FR-PHY-010","roles":"Referring Physician","prio":"Must","purpose":"Review results across the physician’s patients, acknowledge critical values digitally, and add follow-up orders.","steps":["New","Reviewed","Acknowledged / Follow-Up"]},{"id":"P20.3","mod":"M20","title":"Physician Enrollment & Verification","fr":"FR-PHY-020","roles":"Tenant Admin, Referring Physician","prio":"Must","purpose":"Controlled enrollment of referring physicians into the portal: identity and license verification, specialty capture, and account activation — the prerequisite that P20.1/P20.2 validations depend on.","steps":["Invited / Requested","Verified","Active","Suspended / Expired"]},{"id":"P21.1","mod":"M21","title":"Instrument Registry & Channel Setup","fr":"FR-INS-001","roles":"Tenant Admin, Integration Engineer","prio":"Must","purpose":"Register each analyzer, bind it to a gateway channel (serial/TCP), select its driver, and map instrument test codes/units/flags to catalog tests.","steps":["Registered","Channel Configured","Mapped","Simulated OK","Live"]},{"id":"P21.2","mod":"M21","title":"Live Monitor","fr":"FR-INS-010","roles":"Technologist, Supervisor, Integration Engineer","prio":"Must","purpose":"Real-time view of instrument connectivity, message throughput, pending downloads, and per-analyzer error rates.","steps":["Online","Degraded","Offline","Recovered"]},{"id":"P21.3","mod":"M21","title":"Message Log, Exceptions & Replay","fr":"FR-INS-020","roles":"Integration Engineer, Supervisor","prio":"Must","purpose":"Searchable archive of every raw message with parse status, an exception queue for unmatched/unmapped traffic, and safe replay.","steps":["Received","Parsed / Exception","Resolved","Applied"]},{"id":"P21.4","mod":"M21","title":"Host Query & QC Feed","fr":"FR-INS-030","roles":"Integration Engineer","prio":"Must","purpose":"Configure host-query behavior (analyzer asks for orders by barcode) and route instrument QC results into M15 automatically.","steps":["Query Received","Order Served","Results Returned","Distributed"]},{"id":"P22.1","mod":"M22","title":"Interface Engine Dashboard","fr":"FR-INT-001","roles":"Integration Engineer, Tenant Admin","prio":"Must","purpose":"Manage all external interfaces (endpoints, credentials, transforms) with per-interface traffic and error monitoring.","steps":["Draft","Configured","Tested","Active","Paused"]},{"id":"P22.2","mod":"M22","title":"HL7 v2 Order & Result Flows","fr":"FR-INT-010","roles":"Integration Engineer","prio":"Must","purpose":"Inbound ORM/OML (orders), ADT (demographics), and outbound ORU (results) with acknowledgment management.","steps":["Received","Validated","Applied / ACKed","Status Events","ORU Sent"]},{"id":"P22.3","mod":"M22","title":"FHIR R4 API & Webhooks","fr":"FR-INT-020","roles":"Integration Engineer, External Developers","prio":"Must","purpose":"Standards-based read/write API (ServiceRequest, Specimen, Observation, DiagnosticReport, Patient) plus event webhooks for modern integrations.","steps":["Client Registered","Sandbox","Verified","Production"]},{"id":"P22.4","mod":"M22","title":"Mapping Studio","fr":"FR-INT-030","roles":"Integration Engineer","prio":"Must","purpose":"Visual transformation profiles: code-system mapping (local ⇄ LOINC/SNOMED), value translations, and conditional field logic reused across interfaces.","steps":["Draft","Tested","Published","In Use"]},{"id":"P23.1","mod":"M23","title":"Executive Dashboard","fr":"FR-ANA-001","roles":"Tenant Admin, Branch Manager, Lab Director","prio":"Must","purpose":"Tenant-wide KPIs at a glance: volumes, revenue, TAT compliance, rejection rate, critical-value closure, top tests, branch comparison.","steps":["Current","Drill-Down","Exported"]},{"id":"P23.2","mod":"M23","title":"TAT & Operations Analysis","fr":"FR-ANA-010","roles":"Supervisor, Branch Manager, Quality Manager","prio":"Must","purpose":"Deep TAT analytics per milestone pair (order→collect, collect→receive, receive→validate, validate→report) with breach diagnostics.","steps":["Filtered","Diagnosed","Action Linked"]},{"id":"P23.3","mod":"M23","title":"Financial & Volume Analytics","fr":"FR-ANA-020","roles":"Tenant Admin, Billing Officer, Finance","prio":"Must","purpose":"Revenue by test/branch/payer/channel, discount and write-off analysis, payer aging, B2B account profitability.","steps":["Explored","Saved View","Scheduled"]},{"id":"P23.4","mod":"M23","title":"Quality & Rejection KPIs","fr":"FR-ANA-030","roles":"Quality Manager, Lab Director","prio":"Must","purpose":"Accreditation-oriented quality indicators: rejection rates by reason/source, QC violation trends, EQA performance, amendment rate, critical-value closure time, cumulative antibiogram.","steps":["Reviewed","Investigated","CAPA Linked","Reported"]},{"id":"P24.1","mod":"M24","title":"Controlled Document Library","fr":"FR-DOC-001","roles":"Quality Manager (author), All staff (read)","prio":"Must","purpose":"Single library of controlled documents with lifecycle: draft, review, approval (e-sign), publication, periodic review, and obsolescence.","steps":["Draft","In Review","Approved","Effective","Under Periodic Review","Obsolete"]},{"id":"P24.2","mod":"M24","title":"Read & Acknowledge Campaigns","fr":"FR-DOC-010","roles":"Quality Manager, All staff","prio":"Must","purpose":"Assign documents to roles/departments and track acknowledgment (with optional quiz) for training evidence.","steps":["Assigned","In Progress","Acknowledged","Compliant"]},{"id":"P24.3","mod":"M24","title":"CAPA & Nonconformity Management","fr":"FR-DOC-020","roles":"Quality Manager, Department owners","prio":"Must","purpose":"Register nonconformities (from QC failures, rejections, complaints, audits), run root-cause analysis, track corrective/preventive actions to closure with effectiveness checks.","steps":["Raised","Triaged","RCA","Actions In Progress","Effectiveness Check","Closed"]},{"id":"P24.4","mod":"M24","title":"Audit Trail Explorer","fr":"FR-DOC-030","roles":"Quality Manager, Auditor, Tenant Admin","prio":"Must","purpose":"Search and reconstruct any record’s history across the platform: entity timeline, user-activity view, and tamper-evidence verification.","steps":["Queried","Reviewed","Evidence Exported"]},{"id":"P25.1","mod":"M25","title":"Templates & Branding","fr":"FR-NTF-001","roles":"Tenant Admin","prio":"Must","purpose":"Author localized, branded templates per event type and channel with variable placeholders and preview.","steps":["Draft","Previewed","Published"]},{"id":"P25.2","mod":"M25","title":"Channels & Providers","fr":"FR-NTF-010","roles":"Tenant Admin","prio":"Must","purpose":"Configure delivery providers (SMTP/email API, SMS gateway, WhatsApp Business) with failover and quota controls.","steps":["Configured","Verified","Active","Failover Engaged"]},{"id":"P25.3","mod":"M25","title":"Rules & Outbox","fr":"FR-NTF-020","roles":"Tenant Admin, Supervisor (read)","prio":"Must","purpose":"Bind events to audiences and channels with conditions (priority, department, payer), and monitor every delivery attempt.","steps":["Rule Draft","Simulated","Active","Delivering","Completed"]},];
+
+const GROUPS = [
+  { title:"المنصة والإدارة", color:"#0284c7", mods:[
+    {id:"M01", name:"Tenant & Subscription Administration", ar:"كونسول داخلي لـ National Technology لتوفير وإدارة العملاء (Tenants) والخطط وصحة المنصة — بدون الوصول لبيانات المرضى إلا بإذن مؤقت."},
+    {id:"M02", name:"User, Role & Access Management", ar:"إدارة المستخدمين والأدوار والصلاحيات وسياسات الأمان على مستوى العميل — تطبيق نموذج الأمان بالكامل."},
+    {id:"M03", name:"Master Data & System Setup", ar:"العمود الفقري للإعدادات: الهيكل التنظيمي، كتالوج التحاليل، الباقات، النطاقات المرجعية، أنواع العينات، قوائم الأسعار، وقوالب التقارير."},
+  ]},
+  { title:"المرضى ودورة الطلب", color:"#0284c7", mods:[
+    {id:"M04", name:"Patient Management", ar:"الفهرس الرئيسي للمرضى: التسجيل، البحث، العرض الطولي (360)، الموافقات، وضبط التكرار. كل الموديولات الإكلينيكية بترجع لهوية المريض دي."},
+    {id:"M05", name:"Order Management", ar:"إنشاء ودورة حياة الطلبات من كل القنوات (الاستقبال، بوابة الطبيب، شركاء B2B، HL7). الطلب هو المرساة التجارية والإكلينيكية للنظام."},
+    {id:"M06", name:"Phlebotomy & Collection", ar:"سحب العينات في الفرع، بالمنزل، وفي مواقع الشركاء: قوائم الانتظار، السحب الموجّه، التحقق من الملصقات، وتوثيق السحب."},
+    {id:"M07", name:"Accessioning & Sample Tracking", ar:"الاستلام الرسمي للعينات وتتبع دورة حياتها الكاملة حتى التخزين والإتلاف — نواة سلسلة العُهدة (Chain of Custody)."},
+    {id:"M08", name:"Worklists & Processing", ar:"تنظيم عمل الأقسام: إيه اللي يتشغّل، فين، وبأي ترتيب — للمناضد اليدوية والعمل المربوط بالأجهزة."},
+  ]},
+  { title:"النتائج والتقارير", color:"#0ea5a5", mods:[
+    {id:"M09", name:"Results Entry & Validation", ar:"قلب النظام الإكلينيكي: إدخال النتائج (يدوي وآلي)، المراجعة بالقواعد، الاعتماد على مرحلتين مع فصل المهام، إدارة القيم الحرجة، والتعديلات المنضبطة."},
+    {id:"M10", name:"Reporting & Delivery", ar:"إخراج وتوقيع وتسليم التقارير عبر قنوات متعددة — تقارير مبدئية ونهائية ومعدّلة وتراكمية."},
+  ]},
+  { title:"الأقسام المتخصصة", color:"#6d5ce0", mods:[
+    {id:"M11", name:"Microbiology", ar:"مسارات المزارع متعددة الأيام: التزريع، قراءات الحضانة، تحديد الميكروب، اختبارات الحساسية، والتقارير المهيكلة مع مراقبة العدوى."},
+    {id:"M12", name:"Histopathology & Cytology", ar:"الباثولوجي التشريحي: الفحص العياني، معالجة الأنسجة بتتبّع البلوكات/الشرائح، تقارير الباثولوجي، وفرز الخلايا."},
+    {id:"M13", name:"Blood Bank & Transfusion", ar:"تتبّع من المتبرّع للمريض بضوابط أمان صارمة: إدارة المتبرعين، مخزون الوحدات بملصقات ISBT 128، المطابقة، الصرف، والتتبّع الرجعي.", lic:true},
+    {id:"M14", name:"Molecular Diagnostics", ar:"مسارات PCR والتسلسل: دفعات الاستخلاص، تخطيط الأطباق، إدارة التشغيل مع الضوابط، والتفسير المهيكل مع بوابات ضد التلوث."},
+  ]},
+  { title:"الجودة والمخزون والمالية", color:"#c7841e", mods:[
+    {id:"M15", name:"Quality Control (IQC / EQA)", ar:"ضبط جودة إحصائي برسوم Levey-Jennings وقواعد Westgard، بوابة ربط الجودة بنتائج المرضى، دورات التقييم الخارجي، وربط CAPA."},
+    {id:"M16", name:"Inventory Management", ar:"الكواشف والمستهلكات عبر الفروع: الكتالوج، ضبط التشغيلات/الصلاحية، عمليات المخزون، الاستهلاك المرتبط بحجم التحاليل، وإعادة الطلب الآلية."},
+    {id:"M17", name:"Billing, Insurance & Finance", ar:"عمليات الإيرادات: التسعير، الفواتير، المدفوعات، الموافقات المسبقة والمطالبات التأمينية، الحسابات الآجلة، والمرتجعات — مدفوعة بالأحداث بالكامل."},
+  ]},
+  { title:"البوابات الخارجية", color:"#177245", mods:[
+    {id:"M18", name:"B2B Referral Portal", ar:"بوابة خدمة ذاتية لمعامل الشركاء والعيادات: تقديم الطلبات، بيانات الشحن، استرجاع النتائج، وكشوف الحساب — قناة إيرادات رئيسية."},
+    {id:"M19", name:"Patient Portal", ar:"تجربة المريض على الويب/الموبايل: الوصول للنتائج، حجز المواعيد والسحب المنزلي، المدفوعات، وإدارة الموافقات — بتحقّق هوية صارم."},
+    {id:"M20", name:"Physician Portal", ar:"تجربة الطبيب المُحيل: الطلب الإلكتروني، متابعة الحالة الحيّة، النتائج مع الاتجاهات عبر مرضاه، والإقرار بالقيم الحرجة."},
+  ]},
+  { title:"التكامل والتشغيل البيني", color:"#3f7cd6", mods:[
+    {id:"M21", name:"Instrument Integration Middleware", ar:"ربط ثنائي الاتجاه مع الأجهزة كمحرك واجهات مدمج: معالجة البروتوكولات (ASTM/HL7)، تنزيل الطلبات، رفع النتائج، وتتبّع كامل للرسائل الخام عبر الوكيل المحلي."},
+    {id:"M22", name:"Interoperability (HL7 / FHIR / API)", ar:"التكامل بين الأنظمة مع أنظمة المستشفيات HIS/EMR والمنصات الصحية: رسائل HL7 v2، واجهة FHIR R4، Webhooks، واستوديو التخطيط (Mapping)."},
+  ]},
+  { title:"التحليلات والامتثال والإشعارات", color:"#8a63d2", mods:[
+    {id:"M23", name:"Analytics & Dashboards", ar:"ذكاء القرار فوق مخزن تحليلي مبني على الأحداث: رؤى تشغيلية وإكلينيكية ومالية مع التصدير والتوزيع المجدوَل."},
+    {id:"M24", name:"Document Control & Compliance", ar:"الوثائق المُتحكَّم بها (SOPs، السياسات) بالإصدارات والاعتماد، حملات القراءة والإقرار، سجلات الكفاءة، إدارة CAPA، ومستكشف سجل التدقيق — العمود الفقري للاعتماد."},
+    {id:"M25", name:"Notification Center", ar:"الإدارة المركزية لكل رسالة يرسلها النظام: القوالب، القنوات والمزوّدون، قواعد التشغيل، وصندوق الإرسال (Outbox) — تستهلكه كل الموديولات."},
+  ]},
+];
+
+const byMod = {};
+PAGES.forEach(p => { (byMod[p.mod] ||= []).push(p); });
+
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+const content = document.getElementById('content');
+const toc = document.getElementById('toc');
+
+GROUPS.forEach((g, gi) => {
+  const pageCount = g.mods.reduce((s,m)=>s+(byMod[m.id]?.length||0),0);
+  const a = document.createElement('a');
+  a.href = '#g'+gi; a.textContent = g.title; toc.appendChild(a);
+
+  const section = document.createElement('section');
+  section.className = 'group'; section.id = 'g'+gi;
+  section.innerHTML =
+    '<div class="group-head"><span class="dot" style="background:'+g.color+'"></span>'+
+    '<h2>'+g.title+'</h2><span class="cnt">'+g.mods.length+' موديول · '+pageCount+' صفحة</span></div>';
+  const grid = document.createElement('div'); grid.className='grid';
+
+  g.mods.forEach(m => {
+    const pages = byMod[m.id] || [];
+    const card = document.createElement('div');
+    card.className='card'; card.style.borderTopColor=g.color;
+
+    const pagesHtml = pages.map(p => {
+      const steps = (p.steps||[]).map((s,i)=>
+        '<span class="step">'+(i>0?'<span class="arrow">›</span>':'')+'<span class="b">'+esc(s)+'</span></span>'
+      ).join('');
+      const pipe = steps ? '<div class="kv"><span class="k">مؤشر الحالة</span><div class="pipe">'+steps+'</div></div>' : '';
+      return (
+        '<details class="page">'+
+          '<summary><span class="caret">▸</span><span class="pid">'+esc(p.id)+'</span>'+
+            '<span class="ptitle">'+esc(p.title)+'</span></summary>'+
+          '<div class="pbody">'+
+            '<div class="kv"><span class="k">FR</span><span class="frcode">'+esc(p.fr)+'</span>'+
+              '<span class="prio" style="margin-inline-start:8px">'+esc(p.prio)+'</span></div>'+
+            '<div class="kv"><span class="k">الأدوار</span><span class="roles">'+esc(p.roles)+'</span></div>'+
+            '<div class="kv purpose"><span class="k">الهدف</span>'+esc(p.purpose)+'</div>'+
+            pipe+
+          '</div>'+
+        '</details>'
+      );
+    }).join('');
+
+    card.innerHTML =
+      '<div class="top"><div class="mid" style="background:linear-gradient(135deg,'+g.color+','+g.color+'cc)">'+m.id+'</div>'+
+      '<div><h3>'+m.name+(m.lic?'<span class="lic">مرخّص</span>':'')+'</h3></div></div>'+
+      '<div class="desc">'+m.ar+'</div>'+
+      '<div class="pcount">'+pages.length+' صفحات</div>'+
+      pagesHtml;
+
+    const hay = (m.id+' '+m.name+' '+m.ar+' '+pages.map(p=>p.id+' '+p.title+' '+p.fr+' '+p.roles+' '+p.purpose).join(' ')).toLowerCase();
+    card.dataset.search = hay;
+    grid.appendChild(card);
+  });
+  section.appendChild(grid);
+  content.appendChild(section);
+});
+
+const search = document.getElementById('search');
+search.addEventListener('input', () => {
+  const q = search.value.trim().toLowerCase();
+  document.querySelectorAll('.group').forEach(sec => {
+    let any=false;
+    sec.querySelectorAll('.card').forEach(c => {
+      const match = !q || c.dataset.search.includes(q);
+      c.classList.toggle('hide', !match); if(match) any=true;
+    });
+    sec.classList.toggle('hide', !any);
+  });
+});
+document.getElementById('openAll').addEventListener('click', ()=>document.querySelectorAll('details.page').forEach(d=>d.open=true));
+document.getElementById('closeAll').addEventListener('click', ()=>document.querySelectorAll('details.page').forEach(d=>d.open=false));
+const root=document.documentElement;
+document.getElementById('theme').addEventListener('click', ()=>{
+  const cur=root.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+  root.setAttribute('data-theme', cur==='dark'?'light':'dark');
+});
+</script>
+</body>
+</html>

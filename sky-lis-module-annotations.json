@@ -1,0 +1,78 @@
+{
+  "M01": {
+    "oos": false,
+    "note": "This will be the admin portal\n\nThe application will be both, admin & client portals.\n\nThe subscription should include the coutry and it will load and assgin the default setup of it(mobile number format,language, clor theme., currency...etc.)"
+  },
+  "M02": {
+    "note": "Inside the client portal for his own tenant only & to be monitored by the platfrom super admin (Admin portal)"
+  },
+  "M03": {
+    "note": "Medical Master data should be entered as initial and main master data for all tenants of the platform, each tenant admin can customize the data for his own tenant only ( To be discussed in detail).\nfor samples reuired dta, the main dta will be sample type--> Sample condition and another tree for the compatible sample conditions (which will be printed as one Sample ID)\n"
+  },
+  "M04": {
+    "note": "Adjust the definition of the patient registration, here the registration means a patient's new visit registration( New order), and here the key of the registration for searching for  a patient will be (mobile number, part of name, ID, patient number), the system shall preview the last visit date and patient's age and gender to make sure that he is the same patient and if the receptionist choose the record the data will be entered as same as the last visit with the same demographics, if not the receptionist will add the data and it will be automatically saved in patients data table with a unique patient number."
+  },
+  "M05": {
+    "note": "Standing orders &schedule is out of scope"
+  },
+  "M06": {
+    "oos": true
+  },
+  "M07": {
+    "note": "Only\n- the recoptionist and phelobotmist can reserve a sample waiting for the sampling condition (example: PP 2hrs glucose) during the new order registration or after.\n- Rejection cycle with reasons and user rights and screens for informing the patients\n-Send out (will be discussed in details next phase)"
+  },
+  "M08": {
+    "note": "o be merged with fewer pages (Reception, phelobotomist, Reporting)"
+  },
+  "M10": {
+    "oos": false
+  },
+  "M11": {
+    "oos": true
+  },
+  "M12": {
+    "oos": true
+  },
+  "M13": {
+    "oos": true
+  },
+  "M14": {
+    "oos": true
+  },
+  "M15": {
+    "oos": true
+  },
+  "M16": {
+    "oos": true
+  },
+  "M17": {
+    "note": "To be very simple way"
+  },
+  "M18": {
+    "oos": false,
+    "note": " (Next phase, to be planned, outsourced prices and services will be add as a master updated list by the platform\n\nAlso, a marketplace with pricing for ll kits and consumables"
+  },
+  "M19": {
+    "oos": false,
+    "note": "next phase"
+  },
+  "M20": {
+    "oos": true
+  },
+  "M21": {
+    "oos": false,
+    "note": "Far phase, after next"
+  },
+  "M22": {
+    "oos": true
+  },
+  "M23": {
+    "note": ""
+  },
+  "M24": {
+    "oos": true
+  },
+  "M25": {
+    "oos": true
+  }
+}

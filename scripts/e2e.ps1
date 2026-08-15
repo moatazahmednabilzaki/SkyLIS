@@ -349,6 +349,18 @@ Step 'reporting worklist shows the reported visits' {
     if (-not ($wl | Where-Object { $_.visitId -eq $visit2.visitId -and $_.kind -eq 'Final' })) { throw 'visit2 final missing from worklist' }
 } | Out-Null
 
+# ---------- M23: Executive dashboard ----------
+Step 'dashboard KPIs reconcile with the day''s activity (P23.1)' {
+    $d = Invoke-RestMethod -Uri "$api/analytics/dashboard" -Headers $ha
+    if ($d.visitsToday -ne 3) { throw "expected 3 visits today, got $($d.visitsToday)" }
+    if ($d.reportedToday -ne 2) { throw "expected 2 reported, got $($d.reportedToday)" }
+    if ($d.reservedSamplesPending -ne 1) { throw "expected 1 reserved sample, got $($d.reservedSamplesPending)" }
+    if ($d.openCriticalValues -ne 0) { throw "expected 0 open criticals, got $($d.openCriticalValues)" }
+    if ($d.revenueToday -ne 380) { throw "expected revenue 380, got $($d.revenueToday)" }
+    if ($null -eq $d.medianRegisterToReportMinutes) { throw 'expected a median TAT' }
+    if (($d.pipeline | Where-Object stage -eq 'Reported').count -ne 2) { throw 'pipeline Reported mismatch' }
+} | Out-Null
+
 # ---------- Tenant isolation proof ----------
 $tokenB = (Invoke-RestMethod -Method Post -Uri "$api/dev/token" -ContentType 'application/json' -Body (@{
     scope = 'tenant'; tenantId = $tenantB } | ConvertTo-Json)).token

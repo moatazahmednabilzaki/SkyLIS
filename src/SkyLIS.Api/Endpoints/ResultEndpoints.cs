@@ -14,6 +14,11 @@ public static class ResultEndpoints
     {
         var results = group.MapGroup("/results").RequireAuthorization().WithTags("Client Portal — Results (M09)");
 
+        // M23 executive dashboard (P23.1)
+        group.MapGet("/analytics/dashboard", (ISender sender, CancellationToken ct) =>
+            sender.Send(new SkyLIS.Application.Analytics.GetDashboardQuery(), ct))
+            .RequireAuthorization().WithTags("Client Portal — Analytics (M23)");
+
         // Worklists
         results.MapGet("/pending-entry", (ISender sender, CancellationToken ct) =>
             sender.Send(new GetPendingEntryQuery(), ct));

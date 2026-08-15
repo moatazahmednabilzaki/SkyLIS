@@ -70,10 +70,11 @@ jobs:
           psql -h localhost -U postgres -c "CREATE ROLE skylis LOGIN PASSWORD 'skylis_dev_only' NOSUPERUSER NOCREATEROLE NOBYPASSRLS;"
           psql -h localhost -U postgres -c "CREATE DATABASE skylis OWNER skylis;"
 
+      - name: Restore EF tool
+        run: dotnet tool restore
+
       - name: Apply migrations
-        run: |
-          dotnet tool restore
-          dotnet ef database update --project src/SkyLIS.Infrastructure --startup-project src/SkyLIS.Api
+        run: dotnet ef database update --project src/SkyLIS.Infrastructure --startup-project src/SkyLIS.Api --verbose
 
       - name: Apply Row-Level Security policies
         run: psql -h localhost -U postgres -d skylis -f src/SkyLIS.Infrastructure/Persistence/Scripts/enable-rls.sql

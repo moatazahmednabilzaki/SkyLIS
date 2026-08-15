@@ -361,6 +361,24 @@ Step 'dashboard KPIs reconcile with the day''s activity (P23.1)' {
     if (($d.pipeline | Where-Object stage -eq 'Reported').count -ne 2) { throw 'pipeline Reported mismatch' }
 } | Out-Null
 
+# ---------- Outbox dispatcher: reliable events -> metering & notifications ----------
+Step 'outbox drains (at-least-once dispatch)' {
+    $deadline = (Get-Date).AddSeconds(30)
+    do {
+        Start-Sleep -Seconds 2
+        $s = Invoke-RestMethod -Uri "$api/platform/outbox/status" -Headers $ph
+    } while ($s.pending -gt 0 -and (Get-Date) -lt $deadline)
+    if ($s.pending -ne 0) { throw "outbox not drained: $($s.pending) pending" }
+    if ($s.poisoned -ne 0) { throw "poisoned messages: $($s | ConvertTo-Json -Compress)" }
+    if ($s.processed -lt 20) { throw "expected >=20 processed, got $($s.processed)" }
+} | Out-Null
+
+Step 'metering counted 2 finalized reports for tenant A (FR-SYS-011)' {
+    $usage = Invoke-RestMethod -Uri "$api/platform/tenants/$tenantA/usage" -Headers $ph
+    $month = $usage | Select-Object -First 1
+    if ($month.finalizedReports -ne 2) { throw "expected 2 finalized reports, got $($month.finalizedReports)" }
+} | Out-Null
+
 # ---------- FR-SYS-001: Audit trail & tamper evidence ----------
 Step 'audit trail recorded the flow (who/what/when, before/after)' {
     $events = Invoke-RestMethod -Uri "$api/audit/events?take=500" -Headers $ha

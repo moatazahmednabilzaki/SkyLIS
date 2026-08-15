@@ -31,6 +31,15 @@ public static class TenantEndpoints
             return Results.Created($"/api/v1/platform/tenants/{id}", new { id });
         });
 
+        // P01.3 metering explorer: monthly finalized-report counters (FR-SYS-011)
+        tenants.MapGet("/{tenantId:guid}/usage", (ISender sender, Guid tenantId, CancellationToken ct) =>
+            sender.Send(new SkyLIS.Application.Platform.GetTenantUsageQuery(tenantId), ct));
+
+        // P01.6 platform health: outbox dispatch status
+        group.MapGet("/platform/outbox/status", (ISender sender, CancellationToken ct) =>
+            sender.Send(new SkyLIS.Application.Platform.GetOutboxStatusQuery(), ct))
+            .RequireAuthorization().WithTags("Admin Portal — Platform Health");
+
         return group;
     }
 }

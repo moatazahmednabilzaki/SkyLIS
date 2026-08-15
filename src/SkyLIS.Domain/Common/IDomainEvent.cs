@@ -9,5 +9,7 @@ public interface IDomainEvent
 /// <summary>Convenience base record for domain events.</summary>
 public abstract record DomainEvent : IDomainEvent
 {
-    public Guid EventId { get; } = Guid.NewGuid();
+    /// <summary>init (not get-only) so the id round-trips through outbox serialization —
+    /// consumers deduplicate on it (inbox pattern).</summary>
+    public Guid EventId { get; init; } = Guid.NewGuid();
 }

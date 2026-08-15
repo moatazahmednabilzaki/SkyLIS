@@ -38,7 +38,7 @@ internal sealed class AuditEventConfig : IEntityTypeConfiguration<AuditEvent>
 internal static class AuditCollector
 {
     private static readonly HashSet<Type> ExcludedTypes =
-        [typeof(AuditEvent), typeof(OutboxMessage), typeof(NumberSeries)];
+        [typeof(AuditEvent), typeof(OutboxMessage), typeof(InboxConsumption), typeof(NumberSeries)];
 
     private static readonly HashSet<string> OmittedProperties = ["ContentHtml"];
 

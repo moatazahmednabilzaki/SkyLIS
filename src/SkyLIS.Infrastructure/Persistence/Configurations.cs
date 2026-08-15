@@ -217,6 +217,16 @@ internal sealed class OutboxMessageConfig : IEntityTypeConfiguration<OutboxMessa
     }
 }
 
+internal sealed class InboxConsumptionConfig : IEntityTypeConfiguration<SkyLIS.Infrastructure.Outbox.InboxConsumption>
+{
+    public void Configure(EntityTypeBuilder<SkyLIS.Infrastructure.Outbox.InboxConsumption> b)
+    {
+        b.ToTable("inbox_consumptions", "outbox");
+        b.HasKey(c => new { c.HandlerName, c.EventId });
+        b.Property(c => c.HandlerName).HasMaxLength(300);
+    }
+}
+
 internal sealed class NumberSeriesConfig : IEntityTypeConfiguration<NumberSeries>
 {
     public void Configure(EntityTypeBuilder<NumberSeries> b)

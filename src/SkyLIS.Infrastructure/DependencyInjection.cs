@@ -60,6 +60,13 @@ public static class DependencyInjection
         services.AddSingleton<IReportRenderer, HtmlReportRenderer>();
         services.AddSingleton<INotificationSender, DevNotificationSender>();
 
+        // Outbox dispatch + integration consumers (at-least-once, inbox-deduplicated)
+        services.AddHostedService<Outbox.OutboxDispatcher>();
+        services.AddScoped<Application.Platform.IOutboxStatusQueries, Outbox.OutboxStatusQueries>();
+        services.AddScoped<IUsageMeterStore, Metering.UsageMeterStore>();
+        // The integration handlers themselves are registered by AddApplication (they are
+        // internal to the Application layer by design).
+
         return services;
     }
 }

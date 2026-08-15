@@ -30,7 +30,7 @@ public static class DevAuthEndpoints
 
     private static readonly string[] PlatformPermissions =
     [
-        "platform.tenant.provision", "platform.tenant.read",
+        "platform.tenant.provision", "platform.tenant.read", "platform.outbox.read",
     ];
 
     public static void MapDevAuthEndpoints(this RouteGroupBuilder group, IConfiguration configuration)

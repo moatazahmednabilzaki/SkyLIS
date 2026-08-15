@@ -45,6 +45,7 @@ public sealed class SkyLisDbContext : DbContext, IUnitOfWork
     public DbSet<ReportVerification> ReportVerifications => Set<ReportVerification>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    public DbSet<InboxConsumption> InboxConsumptions => Set<InboxConsumption>();
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
     public DbSet<NumberSeries> NumberSeries => Set<NumberSeries>();
 

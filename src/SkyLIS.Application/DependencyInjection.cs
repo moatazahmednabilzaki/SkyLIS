@@ -12,6 +12,13 @@ public static class DependencyInjection
         var assembly = Assembly.GetExecutingAssembly();
 
         services.AddValidatorsFromAssembly(assembly, includeInternalTypes: true);
+
+        // Integration-event consumers (dispatched by the outbox): Application owns its
+        // handler registrations — they stay internal (architecture gate).
+        services.AddScoped<Common.IIntegrationEventHandler<Domain.Reports.ReportFinalized>,
+            IntegrationHandlers.ReportFinalizedMeteringHandler>();
+        services.AddScoped<Common.IIntegrationEventHandler<Domain.Results.CriticalValueFlagged>,
+            IntegrationHandlers.CriticalValueNotificationHandler>();
         services.AddMediatR(cfg =>
         {
             cfg.RegisterServicesFromAssembly(assembly);

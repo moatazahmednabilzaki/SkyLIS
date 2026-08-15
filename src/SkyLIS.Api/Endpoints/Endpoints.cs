@@ -66,6 +66,9 @@ public static class CatalogEndpoints
 
     public sealed record ActivatePushedTestRequest(decimal Price, string Currency);
     public sealed record CreateSampleTypeRequest(string Name, string ContainerName, List<ConditionInput> Conditions);
+    public sealed record ResultSchemaRequest(
+        string Unit, decimal? RefLow, decimal? RefHigh, decimal? CriticalLow, decimal? CriticalHigh,
+        decimal? AbsurdLow, decimal? AbsurdHigh, bool AutoVerify, decimal? DeltaThresholdPercent);
 
     public static RouteGroupBuilder MapCatalogEndpoints(this RouteGroupBuilder group)
     {
@@ -89,6 +92,15 @@ public static class CatalogEndpoints
         catalog.MapPost("/{testId:guid}/approve", async (ISender sender, Guid testId, CancellationToken ct) =>
         {
             await sender.Send(new ApproveTestCommand(testId), ct);
+            return Results.NoContent();
+        });
+
+        catalog.MapPut("/{testId:guid}/result-schema", async (
+            ISender sender, Guid testId, ResultSchemaRequest request, CancellationToken ct) =>
+        {
+            await sender.Send(new SetResultSchemaCommand(
+                testId, request.Unit, request.RefLow, request.RefHigh, request.CriticalLow, request.CriticalHigh,
+                request.AbsurdLow, request.AbsurdHigh, request.AutoVerify, request.DeltaThresholdPercent), ct);
             return Results.NoContent();
         });
 

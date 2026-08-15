@@ -22,6 +22,7 @@ public static class DevAuthEndpoints
         "catalog.test.create", "catalog.test.update", "catalog.test.approve",
         "catalog.sampletype.create",
         "billing.payment.capture",
+        "results.result.enter", "results.result.validateTechnical", "results.result.validateMedical",
     ];
 
     private static readonly string[] PlatformPermissions =

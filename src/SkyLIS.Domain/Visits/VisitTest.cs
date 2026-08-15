@@ -37,4 +37,7 @@ public sealed class VisitTest : Entity, ITenantOwned
     }
 
     internal void Cancel() => Status = VisitTestStatus.Cancelled;
+
+    /// <summary>Guarded exclusively by Visit — the aggregate root owns line transitions.</summary>
+    internal void SetStatus(VisitTestStatus status) => Status = status;
 }

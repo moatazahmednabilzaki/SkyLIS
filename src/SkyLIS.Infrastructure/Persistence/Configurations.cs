@@ -69,6 +69,18 @@ internal sealed class LabTestConfig : IEntityTypeConfiguration<LabTest>
             money.Property(m => m.Amount).HasColumnName("price_amount").HasPrecision(12, 2);
             money.Property(m => m.Currency).HasColumnName("price_currency").HasMaxLength(3);
         });
+        b.OwnsOne(t => t.ResultSchema, schema =>
+        {
+            schema.Property(s => s.Unit).HasColumnName("result_unit").HasMaxLength(20);
+            schema.Property(s => s.RefLow).HasColumnName("ref_low").HasPrecision(14, 4);
+            schema.Property(s => s.RefHigh).HasColumnName("ref_high").HasPrecision(14, 4);
+            schema.Property(s => s.CriticalLow).HasColumnName("critical_low").HasPrecision(14, 4);
+            schema.Property(s => s.CriticalHigh).HasColumnName("critical_high").HasPrecision(14, 4);
+            schema.Property(s => s.AbsurdLow).HasColumnName("absurd_low").HasPrecision(14, 4);
+            schema.Property(s => s.AbsurdHigh).HasColumnName("absurd_high").HasPrecision(14, 4);
+            schema.Property(s => s.AutoVerify).HasColumnName("auto_verify");
+            schema.Property(s => s.DeltaThresholdPercent).HasColumnName("delta_threshold_percent").HasPrecision(7, 2);
+        });
         b.Property<uint>("xmin").IsRowVersion();
     }
 }

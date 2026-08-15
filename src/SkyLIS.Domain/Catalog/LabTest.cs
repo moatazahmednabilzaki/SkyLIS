@@ -29,6 +29,7 @@ public sealed class LabTest : AggregateRoot, ITenantOwned
     public Guid SampleTypeId { get; private set; }
     public Guid? RequiredConditionId { get; private set; }
     public Money? Price { get; private set; }
+    public ResultSchema? ResultSchema { get; private set; }
     public TestOrigin Origin { get; private set; }
     public TestStatus Status { get; private set; }
 
@@ -121,6 +122,9 @@ public sealed class LabTest : AggregateRoot, ITenantOwned
         Price = price;
         Status = TestStatus.Active;
     }
+
+    /// <summary>Defines/updates the numeric result schema (P03.3). Required before results can be entered.</summary>
+    public void SetResultSchema(ResultSchema schema) => ResultSchema = schema;
 
     /// <summary>Pushed tests cannot be deleted by tenants — retiring is the only removal path.</summary>
     public void Retire()

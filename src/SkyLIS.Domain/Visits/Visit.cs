@@ -126,6 +126,57 @@ public sealed class Visit : AggregateRoot, ITenantOwned
         return recollection;
     }
 
+    /// <summary>Result entered for a line (M09): requires the sample to be received in the lab.</summary>
+    public void MarkTestEntered(Guid visitTestId)
+    {
+        EnsureNotTerminal();
+        var line = FindLine(visitTestId);
+        // Sample-state check first: "sample not received" is the actionable message for
+        // any pre-entry line state (AwaitingSample included).
+        var sample = FindSample(line.SampleId);
+        if (sample.State != SampleState.Received)
+            throw new DomainException($"Sample {sample.Barcode} must be received at accessioning before results can be entered.");
+        if (line.Status is not (VisitTestStatus.Pending or VisitTestStatus.InProcess))
+            throw new InvalidStateTransitionException(nameof(VisitTest), line.Status.ToString(), VisitTestStatus.Entered.ToString());
+        line.SetStatus(VisitTestStatus.Entered);
+        if (Status is VisitStatus.Received or VisitStatus.Collected or VisitStatus.Registered)
+            Status = VisitStatus.InProcess;
+    }
+
+    public void MarkTestTechnicallyValid(Guid visitTestId)
+    {
+        EnsureNotTerminal();
+        var line = FindLine(visitTestId);
+        if (line.Status != VisitTestStatus.Entered)
+            throw new InvalidStateTransitionException(nameof(VisitTest), line.Status.ToString(), VisitTestStatus.TechValid.ToString());
+        line.SetStatus(VisitTestStatus.TechValid);
+    }
+
+    public void MarkTestMedicallyValid(Guid visitTestId)
+    {
+        EnsureNotTerminal();
+        var line = FindLine(visitTestId);
+        if (line.Status != VisitTestStatus.TechValid)
+            throw new InvalidStateTransitionException(nameof(VisitTest), line.Status.ToString(), VisitTestStatus.MedValid.ToString());
+        line.SetStatus(VisitTestStatus.MedValid);
+        if (_tests.Where(t => t.Status != VisitTestStatus.Cancelled).All(t => t.Status == VisitTestStatus.MedValid))
+            Status = VisitStatus.Validated;
+    }
+
+    /// <summary>Rerun ordered: the line returns to Pending for a fresh entry.</summary>
+    public void MarkTestRerun(Guid visitTestId)
+    {
+        EnsureNotTerminal();
+        var line = FindLine(visitTestId);
+        if (line.Status is not (VisitTestStatus.Entered or VisitTestStatus.TechValid))
+            throw new InvalidStateTransitionException(nameof(VisitTest), line.Status.ToString(), VisitTestStatus.Pending.ToString());
+        line.SetStatus(VisitTestStatus.Pending);
+    }
+
+    private VisitTest FindLine(Guid visitTestId) =>
+        _tests.FirstOrDefault(t => t.Id == visitTestId)
+        ?? throw new DomainException($"Test line {visitTestId} does not belong to visit {VisitNumber}.");
+
     public void Cancel(string reason)
     {
         if (Status >= VisitStatus.Reported)

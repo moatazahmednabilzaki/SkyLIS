@@ -1,6 +1,7 @@
 using SkyLIS.Domain.Billing;
 using SkyLIS.Domain.Catalog;
 using SkyLIS.Domain.Patients;
+using SkyLIS.Domain.Results;
 using SkyLIS.Domain.Tenants;
 using SkyLIS.Domain.Visits;
 
@@ -77,6 +78,14 @@ public interface IVisitRepository
 {
     Task<Visit?> GetAsync(Guid id, CancellationToken ct = default);
     void Add(Visit visit);
+}
+
+public interface ITestResultRepository
+{
+    Task<TestResult?> GetAsync(Guid id, CancellationToken ct = default);
+    /// <summary>The non-voided result for a visit test line, if any (reruns void results).</summary>
+    Task<TestResult?> GetActiveByLineAsync(Guid visitTestId, CancellationToken ct = default);
+    void Add(TestResult result);
 }
 
 public interface IInvoiceRepository

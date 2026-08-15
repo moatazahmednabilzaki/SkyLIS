@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SkyLIS.Application.Common;
 using SkyLIS.Application.Patients;
+using SkyLIS.Application.Results;
 using SkyLIS.Application.Tenants;
 using SkyLIS.Application.Visits;
 using SkyLIS.Infrastructure.Persistence;
@@ -37,12 +38,14 @@ public static class DependencyInjection
         services.AddScoped<ILabTestRepository, LabTestRepository>();
         services.AddScoped<ISampleTypeRepository, SampleTypeRepository>();
         services.AddScoped<IVisitRepository, VisitRepository>();
+        services.AddScoped<ITestResultRepository, TestResultRepository>();
         services.AddScoped<IInvoiceRepository, InvoiceRepository>();
 
         // Read side
         services.AddScoped<ITenantQueries, TenantQueries>();
         services.AddScoped<IPatientQueries, PatientQueries>();
         services.AddScoped<IVisitQueries, VisitQueries>();
+        services.AddScoped<IResultQueries, ResultQueries>();
 
         // Cross-cutting
         services.AddSingleton<IClock, SystemClock>();

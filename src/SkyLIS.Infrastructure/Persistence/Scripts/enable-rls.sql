@@ -12,7 +12,7 @@ BEGIN
   FOR t IN
     SELECT format('%I.%I', schemaname, tablename) AS fqtn
     FROM pg_tables
-    WHERE schemaname IN ('patients', 'catalog', 'visits', 'billing')
+    WHERE schemaname IN ('patients', 'catalog', 'visits', 'billing', 'results')
   LOOP
     EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY', t.fqtn);
     EXECUTE format('ALTER TABLE %s FORCE ROW LEVEL SECURITY', t.fqtn);

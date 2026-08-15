@@ -27,6 +27,18 @@ export const appRoutes: Routes = [
         path: 'visits/:id',
         loadComponent: () => import('./features/visits/visit-details.component').then(m => m.VisitDetailsComponent),
       },
+      {
+        path: 'results',
+        loadComponent: () => import('./features/results/results-entry.component').then(m => m.ResultsEntryComponent),
+      },
+      {
+        path: 'validation',
+        loadComponent: () => import('./features/results/validation.component').then(m => m.ValidationComponent),
+      },
+      {
+        path: 'critical',
+        loadComponent: () => import('./features/results/critical.component').then(m => m.CriticalComponent),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

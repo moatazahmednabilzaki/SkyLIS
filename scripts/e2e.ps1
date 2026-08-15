@@ -142,6 +142,121 @@ ExpectError 'paying a Paid invoice is a state conflict' 409 {
         -ContentType 'application/json' -Body '{"amount":1,"currency":"EGP","method":"cash"}'
 }
 
+# ---------- M09: Results Entry & Validation ----------
+# Configure result schemas (P03.3 result-schema tab)
+Step 'set result schema GLU-F (auto-verify on)' {
+    Invoke-RestMethod -Method Put -Uri "$api/catalog/tests/$gluF/result-schema" -Headers $ha -ContentType 'application/json' -Body (@{
+        unit = 'mg/dL'; refLow = 70; refHigh = 100; criticalLow = 40; criticalHigh = 400
+        absurdLow = 5; absurdHigh = 1500; autoVerify = $true; deltaThresholdPercent = 50 } | ConvertTo-Json)
+} | Out-Null
+Step 'set result schema HBA1C (no auto-verify)' {
+    Invoke-RestMethod -Method Put -Uri "$api/catalog/tests/$hba1c/result-schema" -Headers $ha -ContentType 'application/json' -Body (@{
+        unit = '%'; refLow = 4; refHigh = 5.6; criticalLow = $null; criticalHigh = $null
+        absurdLow = 2; absurdHigh = 25; autoVerify = $false; deltaThresholdPercent = $null } | ConvertTo-Json)
+} | Out-Null
+Step 'set result schema GLU-PP' {
+    Invoke-RestMethod -Method Put -Uri "$api/catalog/tests/$gluPp/result-schema" -Headers $ha -ContentType 'application/json' -Body (@{
+        unit = 'mg/dL'; refLow = 70; refHigh = 140; criticalLow = 40; criticalHigh = 400
+        absurdLow = 5; absurdHigh = 1500; autoVerify = $true; deltaThresholdPercent = 50 } | ConvertTo-Json)
+} | Out-Null
+
+# Receive the recollected sample so its two lines allow entry
+$detailsNow = Invoke-RestMethod -Uri "$api/visits/$($visit.visitId)" -Headers $ha
+$recollSample = ($detailsNow.samples | Where-Object { $_.id -eq $recollection.recollectionSampleId })
+Step 'collect + receive the recollection sample' {
+    Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit.visitId)/samples/$($recollSample.id)/collect" -Headers $ha | Out-Null
+    Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit.visitId)/samples/$($recollSample.id)/receive" -Headers $ha | Out-Null
+} | Out-Null
+
+$gluLine = ($detailsNow.tests | Where-Object testCode -eq 'GLU-F')
+$hbaLine = ($detailsNow.tests | Where-Object testCode -eq 'HBA1C')
+$ppLine  = ($detailsNow.tests | Where-Object testCode -eq 'GLU-PP')
+
+ExpectError 'absurd value cannot be saved' 422 {
+    Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit.visitId)/results" -Headers $ha `
+        -ContentType 'application/json' -Body (@{ visitTestId = $gluLine.id; value = 9000 } | ConvertTo-Json)
+}
+ExpectError 'entry blocked while sample not received (reserved PP)' 422 {
+    Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit.visitId)/results" -Headers $ha `
+        -ContentType 'application/json' -Body (@{ visitTestId = $ppLine.id; value = 120 } | ConvertTo-Json)
+}
+
+$gluResult = Step 'enter clean GLU-F -> auto-verified (P09.1)' {
+    $r = Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit.visitId)/results" -Headers $ha `
+        -ContentType 'application/json' -Body (@{ visitTestId = $gluLine.id; value = 92 } | ConvertTo-Json)
+    if (-not $r.autoVerified -or $r.flag -ne 'Normal') { throw "expected auto-verified Normal, got $($r.status)/$($r.flag)" }
+    $r
+}
+$hbaResult = Step 'enter high HBA1C -> technical queue' {
+    $r = Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit.visitId)/results" -Headers $ha `
+        -ContentType 'application/json' -Body (@{ visitTestId = $hbaLine.id; value = 8.4 } | ConvertTo-Json)
+    if ($r.autoVerified -or $r.flag -ne 'High') { throw "expected non-auto High, got $($r.status)/$($r.flag)" }
+    $r
+}
+ExpectError 'duplicate entry for the same line rejected' 409 {
+    Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit.visitId)/results" -Headers $ha `
+        -ContentType 'application/json' -Body (@{ visitTestId = $gluLine.id; value = 95 } | ConvertTo-Json)
+}
+
+Step 'technical queue shows HBA1C; supervisor accepts (P09.2)' {
+    $queue = Invoke-RestMethod -Uri "$api/results/technical-queue" -Headers $ha
+    if (-not ($queue | Where-Object resultId -eq $hbaResult.resultId)) { throw 'HBA1C missing from technical queue' }
+    Invoke-RestMethod -Method Post -Uri "$api/results/$($hbaResult.resultId)/accept-technical" -Headers $ha | Out-Null
+} | Out-Null
+
+ExpectError 'SoD: enterer cannot medically validate own result' 422 {
+    Invoke-RestMethod -Method Post -Uri "$api/results/$($gluResult.resultId)/validate-medical" -Headers $ha `
+        -ContentType 'application/json' -Body '{"interpretiveComment":null,"signatureIntent":"I validate"}'
+}
+
+# A different user (fresh dev token = new user id) signs out both results
+$tokenDoctor = (Invoke-RestMethod -Method Post -Uri "$api/dev/token" -ContentType 'application/json' -Body (@{
+    scope = 'tenant'; tenantId = $tenantA; userName = 'dev-lab-director' } | ConvertTo-Json)).token
+$hd = @{ Authorization = "Bearer $tokenDoctor" }
+Step 'medical sign-out by a different user (P09.3, e-signature)' {
+    Invoke-RestMethod -Method Post -Uri "$api/results/$($gluResult.resultId)/validate-medical" -Headers $hd `
+        -ContentType 'application/json' -Body '{"interpretiveComment":null,"signatureIntent":"I medically validate GLU-F = 92 mg/dL"}' | Out-Null
+    Invoke-RestMethod -Method Post -Uri "$api/results/$($hbaResult.resultId)/validate-medical" -Headers $hd `
+        -ContentType 'application/json' -Body '{"interpretiveComment":"Consistent with poor glycemic control.","signatureIntent":"I medically validate HBA1C = 8.4 %"}' | Out-Null
+} | Out-Null
+
+# Critical value on the PP sample: collect after the window would take 2h, so verify the
+# critical path on a fresh STAT visit with an immediate-collection test instead.
+$visit2 = Step 'second visit for the critical-value path' {
+    Invoke-RestMethod -Method Post -Uri "$api/visits" -Headers $ha -ContentType 'application/json' -Body (@{
+        patientId = $patient; testIds = @($gluF); isStat = $true; statReason = 'ER request' } | ConvertTo-Json)
+}
+$v2sample = $visit2.samples[0].sampleId
+Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit2.visitId)/samples/$v2sample/collect" -Headers $ha | Out-Null
+Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit2.visitId)/samples/$v2sample/receive" -Headers $ha | Out-Null
+$v2line = (Invoke-RestMethod -Uri "$api/visits/$($visit2.visitId)" -Headers $ha).tests[0].id
+
+$critical = Step 'critical low glucose flagged, never auto-verifies (P09.4)' {
+    $r = Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit2.visitId)/results" -Headers $ha `
+        -ContentType 'application/json' -Body (@{ visitTestId = $v2line; value = 32 } | ConvertTo-Json)
+    if (-not $r.criticalFlagged -or $r.autoVerified) { throw "expected critical non-auto, got $($r | ConvertTo-Json -Compress)" }
+    $r
+}
+Step 'call without read-back keeps the critical open' {
+    Invoke-RestMethod -Method Post -Uri "$api/results/$($critical.resultId)/critical/document-call" -Headers $ha `
+        -ContentType 'application/json' -Body '{"calledPerson":"Dr. Hossam Fathy","phone":"+201224567890","readBackConfirmed":false}' | Out-Null
+    $q = Invoke-RestMethod -Uri "$api/results/critical-queue" -Headers $ha
+    if (($q | Where-Object resultId -eq $critical.resultId).criticalState -ne 'ReadBackDocumented') { throw 'expected open (ReadBackDocumented)' }
+} | Out-Null
+Step 'read-back confirmed closes the critical value' {
+    Invoke-RestMethod -Method Post -Uri "$api/results/$($critical.resultId)/critical/document-call" -Headers $ha `
+        -ContentType 'application/json' -Body '{"calledPerson":"Dr. Hossam Fathy","phone":"+201224567890","readBackConfirmed":true}' | Out-Null
+    $q = Invoke-RestMethod -Uri "$api/results/critical-queue" -Headers $ha
+    if (($q | Where-Object resultId -eq $critical.resultId).criticalState -ne 'Closed') { throw 'expected Closed' }
+} | Out-Null
+
+Step 'rerun voids a result and reopens the line' {
+    Invoke-RestMethod -Method Post -Uri "$api/results/$($critical.resultId)/rerun" -Headers $ha `
+        -ContentType 'application/json' -Body '{"reason":"specimen integrity check"}' | Out-Null
+    $line = (Invoke-RestMethod -Uri "$api/visits/$($visit2.visitId)" -Headers $ha).tests[0]
+    if ($line.status -ne 'Pending') { throw "expected Pending line, got $($line.status)" }
+} | Out-Null
+
 # ---------- Tenant isolation proof ----------
 $tokenB = (Invoke-RestMethod -Method Post -Uri "$api/dev/token" -ContentType 'application/json' -Body (@{
     scope = 'tenant'; tenantId = $tenantB } | ConvertTo-Json)).token

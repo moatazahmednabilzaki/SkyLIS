@@ -196,6 +196,7 @@ table.t{width:100%;border-collapse:collapse;font-size:12px}
   <div class="sb-item" data-p="onboarding">🚀 Tenant Onboarding</div>
   <div class="sb-item" data-p="plans">💠 Plans &amp; Metering</div>
   <div class="sb-item" data-p="countrypacks">🌍 Country Packs</div>
+  <div class="sb-item" data-p="mdpacks">🗂️ Master Data Packs</div>
   <div class="sb-item" data-p="adminmonitor">👁️ Tenant Admin Monitor</div>
   <div class="sb-item" data-p="health">❤️ Platform Health <span class="n">2</span></div>
   <div class="sb-foot">console.skylis.app<br>National Technology · Platform Ops</div>
@@ -974,6 +975,73 @@ table.t{width:100%;border-collapse:collapse;font-size:12px}
     <p class="hint">A subscription cannot be created for a country without a published pack. Pack changes never mutate existing tenant settings; tenants may override individual values (audited).</p>
     <div style="margin-top:10px"><button class="btn">＋ New country pack</button></div>
   </div>
+</div>
+
+<!-- ==================== ADMIN: MASTER DATA PACKS (P01.7 / FR-MDM-070) ==================== -->
+<div class="page" id="p-mdpacks">
+  <div class="crumb">M01 · P01.7 — PLATFORM MASTER DATA PACKS (FR-MDM-070)</div>
+  <h1 class="pt">Master Data Packs</h1>
+  <p class="psub">The initial/main medical master data maintained centrally for all tenants: test catalogue base, sample types &amp; condition trees, units, baseline reference ranges. Each Tenant Admin customizes only their own tenant.</p>
+  <div class="kpis">
+    <div class="kpi"><div class="v navy">v7</div><div class="l">Current pack version</div></div>
+    <div class="kpi"><div class="v">348</div><div class="l">Tests in catalogue seed</div></div>
+    <div class="kpi"><div class="v">22</div><div class="l">Sample types · 41 conditions</div></div>
+    <div class="kpi"><div class="v green">31 / 37</div><div class="l">Tenants on latest pack</div></div>
+  </div>
+  <div class="tabs" data-tabs="mp">
+    <button class="tab on" data-t="mp1">Test Catalogue Seed</button>
+    <button class="tab" data-t="mp2">Sample Types &amp; Condition Trees</button>
+    <button class="tab" data-t="mp3">Pack Versions &amp; Adoption</button>
+  </div>
+  <div class="tabpane on" id="mp1"><div class="card">
+    <div class="f-row">
+      <div class="f" style="flex:2"><label>SEARCH CATALOGUE SEED</label><input placeholder="Test code, name, department…"></div>
+      <div class="f" style="flex:0 0 auto;align-self:flex-end"><button class="btn">＋ Add test to seed</button></div>
+    </div>
+    <table class="t">
+      <tr><th>Code</th><th>Test</th><th>Department</th><th>Specimen</th><th>Condition</th><th>Baseline range set</th><th>Status</th></tr>
+      <tr><td class="mono">GLU-F</td><td>Fasting Glucose</td><td>Chemistry</td><td>Serum (fluoride)</td><td>Fasting 8h</td><td>Age/sex · 4 bands</td><td><span class="chip c-green">Published v7</span></td></tr>
+      <tr><td class="mono">GLU-PP</td><td>Glucose PP 2h</td><td>Chemistry</td><td>Serum (fluoride)</td><td>PP +2h</td><td>Adult · 1 band</td><td><span class="chip c-green">Published v7</span></td></tr>
+      <tr><td class="mono">HBA1C</td><td>HbA1c</td><td>Chemistry</td><td>Whole blood EDTA</td><td>—</td><td>Adult · 1 band</td><td><span class="chip c-green">Published v7</span></td></tr>
+      <tr><td class="mono">CBC</td><td>Complete Blood Count</td><td>Hematology</td><td>Whole blood EDTA</td><td>—</td><td>Age/sex · 12 bands</td><td><span class="chip c-green">Published v7</span></td></tr>
+      <tr><td class="mono">TSH</td><td>TSH</td><td>Immunoassay</td><td>Serum</td><td>—</td><td>Age · 5 bands</td><td><span class="chip c-green">Published v7</span></td></tr>
+      <tr><td class="mono">D-DIM</td><td>D-Dimer</td><td>Coagulation</td><td>Citrated plasma</td><td>—</td><td>Adult · 1 band</td><td><span class="chip c-blue">Draft — v8</span></td></tr>
+    </table>
+    <p class="hint">Seed tests are delivered to every new tenant at provisioning (P01.2 step 3). Tenants clone-on-edit: their customizations never block pack updates and are never overwritten. Governance details of merge/update mechanics: OPEN — §3.3 of the SRS.</p>
+  </div></div>
+  <div class="tabpane" id="mp2"><div class="grid2">
+    <div class="card">
+      <h3>Sample types → condition trees (seed)</h3>
+      <div class="timeline">
+        <div class="tl"><b>Venous blood</b><div class="w">conditions: Random · Fasting 8h · PP +2h</div></div>
+        <div class="tl"><b>Urine</b><div class="w">conditions: Random · First morning · 24-hour timed</div></div>
+        <div class="tl"><b>Stool</b><div class="w">conditions: Random · Fresh ≤ 30 min (occult blood, parasites)</div></div>
+        <div class="tl"><b>Swab</b><div class="w">site-typed: throat · nasal · wound</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Compatibility groups → one Sample ID</h3>
+      <table class="t">
+        <tr><th>Group</th><th>Compatible conditions</th><th>Effect</th></tr>
+        <tr><td class="mono">VB-G1</td><td>Random + Fasting 8h (same draw)</td><td>Consolidate → 1 Sample ID</td></tr>
+        <tr><td class="mono">VB-G2</td><td>PP +2h</td><td>Separate · reservation flow (P07.1)</td></tr>
+        <tr><td class="mono">UR-G1</td><td>Random + First morning</td><td>Consolidate → 1 Sample ID</td></tr>
+      </table>
+      <p class="hint">Shipped as versioned seed; tenants may extend their own trees in M03 (P03.4).</p>
+    </div>
+  </div></div>
+  <div class="tabpane" id="mp3"><div class="card">
+    <table class="t">
+      <tr><th>Pack</th><th>Published</th><th>Contents</th><th>Tenants adopted</th><th>Status</th></tr>
+      <tr><td class="mono">v8 (draft)</td><td>—</td><td>+6 tests · coagulation range revision</td><td class="mono">—</td><td><span class="chip c-blue">Draft</span></td></tr>
+      <tr><td class="mono">v7</td><td>2026-07-20</td><td>348 tests · 22 sample types · 41 conditions</td><td class="mono">31 / 37</td><td><span class="chip c-green">Current</span></td></tr>
+      <tr><td class="mono">v6</td><td>2026-05-02</td><td>339 tests</td><td class="mono">6 / 37</td><td><span class="chip c-navy">Superseded</span></td></tr>
+    </table>
+    <div class="flex" style="margin-top:10px">
+      <span class="hint">New tenants always receive the latest published pack. Existing tenants are offered pack updates as an <b>opt-in merge</b>; tenant customizations are preserved.</span>
+      <span class="sp"></span><button class="btn">Publish v8</button>
+    </div>
+  </div></div>
 </div>
 
 <!-- ==================== ADMIN: TENANT ADMIN MONITOR (P01.5) ==================== -->

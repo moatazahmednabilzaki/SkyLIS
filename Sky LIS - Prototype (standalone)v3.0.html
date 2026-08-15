@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sky LIS — Prototype v3.0 (SRS Rev 2.0)</title>
+<style>
+:root{
+  --blue:#0284c7; --blue-dark:#0369a1; --navy:#101d2c; --tint:#e7f4fd;
+  --accent:#74bce2; --slate:#5a6472; --body:#26303b; --line:#dbe6f0;
+  --bg:#f4f8fc; --card:#ffffff; --green:#177245; --green-bg:#e3f5ec;
+  --red:#b91c1c; --red-bg:#fdeaea; --amber:#b26a00; --amber-bg:#fdf3e0;
+  --purple:#6d5ce0; --radius:12px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--body);font-size:13.5px}
+.mono{font-family:'Consolas','IBM Plex Mono',monospace}
+
+/* ---------- top bar ---------- */
+.topbar{position:fixed;top:0;left:0;right:0;height:56px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 18px;z-index:20;box-shadow:0 1px 8px rgba(16,29,44,.05)}
+.logo{display:flex;align-items:center;gap:9px;flex:0 0 auto}
+.logo .wm{font-size:19px;font-weight:700;letter-spacing:-.02em;color:var(--navy)}
+.logo .chip{font-size:9px;font-weight:600;letter-spacing:.18em;color:var(--blue);border:1px solid #bfe1f6;border-radius:4px;padding:1px 5px}
+.portal-switch{display:flex;background:var(--tint);border-radius:9px;padding:3px;margin-left:10px}
+.portal-switch button{border:0;background:transparent;padding:6px 16px;border-radius:7px;font-size:12px;font-weight:600;color:var(--slate);cursor:pointer}
+.portal-switch button.on{background:var(--blue);color:#fff;box-shadow:0 1px 4px rgba(2,132,199,.4)}
+.tb-ctx{font-size:11.5px;font-weight:500;color:var(--slate);background:#eef3f9;border-radius:6px;padding:5px 11px;white-space:nowrap}
+.tb-search{flex:1;max-width:430px;margin:0 auto}
+.tb-search input{width:100%;border:1px solid var(--line);border-radius:9px;padding:8px 14px;font-size:12.5px;background:var(--bg);color:var(--navy)}
+.tb-right{display:flex;align-items:center;gap:11px;margin-left:auto}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.bell{position:relative;font-size:17px;cursor:pointer}
+.bell .dot{position:absolute;top:-4px;right:-6px;background:var(--red);color:#fff;font-size:9px;border-radius:8px;padding:0 4px;font-weight:700}
+.badge-rev{font-size:10px;color:var(--slate);border:1px solid var(--line);border-radius:5px;padding:2px 7px}
+
+/* ---------- sidebar ---------- */
+.sidebar{position:fixed;top:56px;left:0;bottom:0;width:216px;background:var(--navy);overflow-y:auto;padding:14px 0 20px;z-index:10}
+.sb-group{font-size:9.5px;font-weight:700;letter-spacing:.14em;color:#5f7186;padding:14px 18px 6px}
+.sb-item{display:flex;align-items:center;gap:9px;padding:8px 18px;color:#c6d4e2;font-size:12.5px;cursor:pointer;border-left:3px solid transparent}
+.sb-item:hover{background:rgba(255,255,255,.05)}
+.sb-item.on{background:var(--blue);color:#fff;border-left-color:#7dd3fc;border-radius:0 8px 8px 0;margin-right:12px;font-weight:600}
+.sb-item .n{margin-left:auto;background:var(--red);color:#fff;font-size:9.5px;font-weight:700;border-radius:8px;padding:1px 6px}
+.sb-item .n.b{background:var(--blue)}
+.sb-foot{padding:16px 18px;font-size:10px;color:#5f7186;border-top:1px solid #1e2c44;margin-top:16px}
+.sidebar.admin{background:#0c1725}
+
+/* ---------- layout ---------- */
+.main{margin:56px 0 0 216px;padding:22px 26px 60px;min-height:calc(100vh - 56px)}
+.page{display:none}
+.page.on{display:block}
+.crumb{font-size:10.5px;font-weight:600;letter-spacing:.08em;color:var(--blue);margin-bottom:6px}
+h1.pt{font-size:22px;font-weight:700;color:var(--navy);letter-spacing:-.01em;margin-bottom:4px}
+.psub{font-size:12px;color:var(--slate);margin-bottom:16px}
+
+/* ---------- stepper ---------- */
+.stepper{display:flex;align-items:center;gap:0;background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;margin-bottom:18px;overflow-x:auto}
+.step{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--slate);white-space:nowrap}
+.step .b{width:20px;height:20px;border-radius:50%;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--slate);background:#fff}
+.step.done{color:var(--green)} .step.done .b{border-color:var(--green);background:var(--green);color:#fff}
+.step.cur{color:var(--blue);font-weight:700} .step.cur .b{border-color:var(--blue);background:var(--blue);color:#fff;box-shadow:0 0 0 4px var(--tint)}
+.step-sep{flex:0 0 26px;height:2px;background:var(--line);margin:0 8px}
+
+/* ---------- cards / grids ---------- */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:13px 15px}
+.kpi .v{font-size:24px;font-weight:700;color:var(--blue)}
+.kpi .v.red{color:var(--red)} .kpi .v.green{color:var(--green)} .kpi .v.navy{color:var(--navy)} .kpi .v.amber{color:var(--amber)}
+.kpi .l{font-size:11px;color:var(--slate);margin-top:2px}
+.kpi .d{font-size:10px;color:var(--green);margin-top:3px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;margin-bottom:16px}
+.card h3{font-size:13.5px;font-weight:700;color:var(--navy);margin-bottom:10px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media(max-width:1100px){.grid2,.grid3{grid-template-columns:1fr}}
+
+/* ---------- tables ---------- */
+table.t{width:100%;border-collapse:collapse;font-size:12px}
+.t th{background:var(--navy);color:#fff;text-align:left;padding:8px 10px;font-size:10.5px;font-weight:600;letter-spacing:.04em}
+.t th:first-child{border-radius:7px 0 0 0}.t th:last-child{border-radius:0 7px 0 0}
+.t td{padding:8px 10px;border-bottom:1px solid #edf3f9;vertical-align:middle}
+.t tr:nth-child(even) td{background:#f8fbfe}
+.t tr:hover td{background:var(--tint)}
+
+/* ---------- chips & buttons ---------- */
+.chip{display:inline-block;font-size:10px;font-weight:700;border-radius:20px;padding:2.5px 9px;letter-spacing:.02em}
+.c-blue{background:var(--tint);color:var(--blue-dark)} .c-green{background:var(--green-bg);color:var(--green)}
+.c-red{background:var(--red-bg);color:var(--red)} .c-amber{background:var(--amber-bg);color:var(--amber)}
+.c-navy{background:#e2e9f2;color:var(--navy)} .c-purple{background:#efeafd;color:var(--purple)}
+.btn{display:inline-block;border:0;background:var(--blue);color:#fff;font-size:12px;font-weight:600;border-radius:8px;padding:8px 16px;cursor:pointer}
+.btn:hover{background:var(--blue-dark)}
+.btn.ghost{background:#fff;color:var(--blue-dark);border:1px solid var(--accent)}
+.btn.danger{background:var(--red)} .btn.green{background:var(--green)}
+.btn.sm{font-size:11px;padding:5px 11px}
+.btn[disabled]{opacity:.45;cursor:default}
+
+/* ---------- tabs ---------- */
+.tabs{display:flex;gap:4px;border-bottom:2px solid var(--line);margin-bottom:14px;flex-wrap:wrap}
+.tab{border:0;background:transparent;font-size:12px;font-weight:600;color:var(--slate);padding:8px 14px;cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-2px}
+.tab.on{color:var(--blue);border-bottom-color:var(--blue)}
+.tab .n{background:#e2e9f2;color:var(--navy);border-radius:8px;font-size:10px;padding:1px 6px;margin-left:5px}
+.tabpane{display:none}.tabpane.on{display:block}
+
+/* ---------- forms ---------- */
+.f-row{display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.f{flex:1;min-width:150px}
+.f label{display:block;font-size:10.5px;font-weight:700;color:var(--slate);letter-spacing:.05em;margin-bottom:4px}
+.f input,.f select{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 11px;font-size:12.5px;color:var(--navy);background:#fff}
+.f input:focus,.f select:focus{outline:2px solid var(--accent)}
+.hint{font-size:10.5px;color:var(--slate);margin-top:4px}
+
+/* ---------- misc ---------- */
+.flex{display:flex;align-items:center;gap:10px}
+.sp{flex:1}
+.note{background:var(--tint);border:1px solid #bfe1f6;border-radius:9px;padding:10px 13px;font-size:11.5px;color:var(--blue-dark);margin-bottom:14px}
+.warn{background:var(--red-bg);border:1px solid #f3c5c5;border-radius:9px;padding:10px 13px;font-size:11.5px;color:var(--red);margin-bottom:14px}
+.tube{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.bar{height:7px;border-radius:5px;background:#e6edf5;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--blue)}
+.plan-card{border:1.5px solid var(--line);border-radius:var(--radius);padding:16px;position:relative;background:#fff}
+.plan-card.reco{border-color:var(--blue);box-shadow:0 3px 14px rgba(2,132,199,.14)}
+.plan-card .reco-tag{position:absolute;top:-9px;right:12px;background:var(--blue);color:#fff;font-size:9px;font-weight:700;padding:2px 9px;border-radius:10px;letter-spacing:.06em}
+.plan-card h4{font-size:13px;color:var(--navy);letter-spacing:.06em}
+.plan-card .pr{font-size:21px;font-weight:700;color:var(--blue);margin:7px 0 2px}
+.plan-card .pr small{font-size:10.5px;color:var(--slate);font-weight:400}
+.plan-card ul{list-style:none;margin-top:9px}
+.plan-card li{font-size:11px;color:var(--body);padding:3px 0;border-bottom:1px dashed #edf3f9}
+.timeline{border-left:2px solid var(--line);margin-left:8px;padding-left:16px}
+.tl{position:relative;padding-bottom:12px;font-size:11.5px}
+.tl:before{content:'';position:absolute;left:-21.5px;top:3px;width:9px;height:9px;border-radius:50%;background:var(--blue);border:2px solid #fff;box-shadow:0 0 0 1.5px var(--blue)}
+.tl .w{color:var(--slate);font-size:10px}
+.oos{opacity:.45;pointer-events:none}
+.tag-phase{font-size:8.5px;font-weight:700;letter-spacing:.08em;border-radius:4px;padding:1px 5px;margin-left:auto;background:#31435a;color:#9db4cc}
+</style>
+</head>
+<body>
+
+<!-- ============ TOP BAR ============ -->
+<div class="topbar">
+  <div class="logo">
+    <svg width="29" height="29" viewBox="0 0 56 56" fill="none">
+      <rect x="2" y="2" width="52" height="52" rx="14" fill="#e7f4fd"/>
+      <path d="M21 13 h9" stroke="#0284c7" stroke-width="3" stroke-linecap="round"/>
+      <path d="M22.5 13 v15 a3.5 3.5 0 0 0 7 0 V13" stroke="#0284c7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M22.5 22 v6 a3.5 3.5 0 0 0 7 0 v-6 Z" fill="#0284c7"/>
+      <circle cx="36.5" cy="17" r="4.5" fill="#0284c7"/>
+      <path d="M15 38 h26" stroke="#0284c7" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M19 45 h13" stroke="#74bce2" stroke-width="3" stroke-linecap="round"/>
+    </svg>
+    <span class="wm">Sky</span><span class="chip">LIS</span>
+  </div>
+  <div class="portal-switch">
+    <button id="pw-client" class="on" onclick="switchPortal('client')">Client Portal</button>
+    <button id="pw-admin" onclick="switchPortal('admin')">Admin Portal</button>
+  </div>
+  <span class="tb-ctx" id="tb-ctx">NileLab Diagnostics · Cairo Main ▾</span>
+  <div class="tb-search"><input placeholder="Search patients, visits, samples, invoices…   Ctrl+K"></div>
+  <div class="tb-right">
+    <span class="badge-rev">SRS Rev 2.0 · Phase 1</span>
+    <span class="bell">🔔<span class="dot">3</span></span>
+    <div class="avatar" id="tb-av">SH</div>
+  </div>
+</div>
+
+<!-- ============ CLIENT SIDEBAR ============ -->
+<div class="sidebar" id="sb-client">
+  <div class="sb-group">FRONT OFFICE</div>
+  <div class="sb-item on" data-p="dashboard">📊 Dashboard</div>
+  <div class="sb-item" data-p="visitreg">📝 Visit Registration</div>
+  <div class="sb-item" data-p="reception">🛎️ Reception Worklist <span class="n">4</span></div>
+  <div class="sb-item" data-p="patients">👤 Patients</div>
+  <div class="sb-group">LABORATORY</div>
+  <div class="sb-item" data-p="phleb">💉 Phlebotomist Worklist <span class="n b">6</span></div>
+  <div class="sb-item" data-p="accession">📥 Accessioning</div>
+  <div class="sb-item" data-p="rejection">⛔ Rejection &amp; Recollection</div>
+  <div class="sb-item" data-p="results">🧪 Results Entry</div>
+  <div class="sb-item" data-p="validation">✅ Validation &amp; Sign-Out</div>
+  <div class="sb-item" data-p="critical">🚨 Critical Values <span class="n">3</span></div>
+  <div class="sb-item" data-p="reporting">📄 Reporting Worklist</div>
+  <div class="sb-group">BUSINESS</div>
+  <div class="sb-item" data-p="billing">💳 Billing</div>
+  <div class="sb-item" data-p="analytics">📈 Analytics</div>
+  <div class="sb-group">ADMINISTRATION</div>
+  <div class="sb-item" data-p="masterdata">🗂️ Master Data</div>
+  <div class="sb-item" data-p="users">🔐 Users &amp; Roles</div>
+  <div class="sb-group">NEXT PHASES</div>
+  <div class="sb-item oos">🔗 B2B Referral <span class="tag-phase">PHASE 2</span></div>
+  <div class="sb-item oos">📱 Patient Portal <span class="tag-phase">PHASE 2</span></div>
+  <div class="sb-item oos">🔌 Instruments <span class="tag-phase">PHASE 3</span></div>
+  <div class="sb-foot">nilelab.skylis.app<br>v3.0 · SRS Rev 2.0 · me-central</div>
+</div>
+
+<!-- ============ ADMIN SIDEBAR ============ -->
+<div class="sidebar admin" id="sb-admin" style="display:none">
+  <div class="sb-group">PLATFORM CONSOLE</div>
+  <div class="sb-item on" data-p="tenants">🏢 Tenant Directory</div>
+  <div class="sb-item" data-p="onboarding">🚀 Tenant Onboarding</div>
+  <div class="sb-item" data-p="plans">💠 Plans &amp; Metering</div>
+  <div class="sb-item" data-p="countrypacks">🌍 Country Packs</div>
+  <div class="sb-item" data-p="adminmonitor">👁️ Tenant Admin Monitor</div>
+  <div class="sb-item" data-p="health">❤️ Platform Health <span class="n">2</span></div>
+  <div class="sb-foot">console.skylis.app<br>National Technology · Platform Ops</div>
+</div>
+
+<div class="main" id="main">
+<!-- ==================== CLIENT: DASHBOARD (P05.1) ==================== -->
+<div class="page on" id="p-dashboard">
+  <div class="crumb">M05 · P05.1 — ORDERS DASHBOARD</div>
+  <h1 class="pt">Good morning — Saturday, Aug 15, 2026</h1>
+  <p class="psub">Branch command view of today's visits with TAT risk highlighting. Live via SignalR (≤ 2 s).</p>
+  <div class="warn">🚨 <b>3 critical values awaiting read-back documentation</b> — oldest: K⁺ 6.9 mmol/L · Ahmed Mansour · 22 min &nbsp;<button class="btn danger sm" onclick="go('critical')">Open console →</button></div>
+  <div class="kpis">
+    <div class="kpi"><div class="v navy">412</div><div class="l">Visits today</div><div class="d">+8% vs last Sat</div></div>
+    <div class="kpi"><div class="v">168</div><div class="l">In process</div></div>
+    <div class="kpi"><div class="v amber">37</div><div class="l">Awaiting validation</div></div>
+    <div class="kpi"><div class="v red">6</div><div class="l">TAT at risk</div></div>
+    <div class="kpi"><div class="v green">208</div><div class="l">Reported</div></div>
+    <div class="kpi"><div class="v">14</div><div class="l">Reserved (condition)</div></div>
+  </div>
+  <div class="card">
+    <h3>Today's pipeline</h3>
+    <div class="stepper">
+      <div class="step done"><span class="b">✓</span>Registered <b>412</b></div><div class="step-sep"></div>
+      <div class="step done"><span class="b">✓</span>Collected <b>361</b></div><div class="step-sep"></div>
+      <div class="step done"><span class="b">✓</span>Received <b>340</b></div><div class="step-sep"></div>
+      <div class="step cur"><span class="b">4</span>In Process <b>168</b></div><div class="step-sep"></div>
+      <div class="step"><span class="b">5</span>Validated <b>245</b></div><div class="step-sep"></div>
+      <div class="step"><span class="b">6</span>Reported <b>208</b></div>
+    </div>
+    <table class="t">
+      <tr><th>Visit</th><th>Patient</th><th>Tests</th><th>Priority</th><th>Status</th><th>TAT</th><th></th></tr>
+      <tr><td class="mono">V-260815-0412</td><td>Ahmed Mansour · M 58</td><td>K⁺, Na⁺, Creatinine</td><td><span class="chip c-red">STAT</span></td><td><span class="chip c-blue">In Process</span></td><td style="color:var(--red);font-weight:700">−12 min</td><td><button class="btn sm ghost">Open</button></td></tr>
+      <tr><td class="mono">V-260815-0398</td><td>Mona El-Sayed · F 34</td><td>CBC, Ferritin</td><td><span class="chip c-navy">Routine</span></td><td><span class="chip c-amber">Awaiting Validation</span></td><td>1h 12m</td><td><button class="btn sm ghost">Open</button></td></tr>
+      <tr><td class="mono">V-260815-0395</td><td>Yousef Khalil · M 7</td><td>Glucose PP 2h</td><td><span class="chip c-navy">Routine</span></td><td><span class="chip c-purple">Reserved · ready 11:40</span></td><td>—</td><td><button class="btn sm ghost">Open</button></td></tr>
+      <tr><td class="mono">V-260815-0390</td><td>Fatma Hassan · F 61</td><td>HbA1c, Lipid Profile</td><td><span class="chip c-navy">Routine</span></td><td><span class="chip c-green">Reported</span></td><td>2h 04m ✓</td><td><button class="btn sm ghost">Open</button></td></tr>
+      <tr><td class="mono">V-260815-0387</td><td>Omar Farouk · M 45</td><td>TSH, FT4</td><td><span class="chip c-navy">Routine</span></td><td><span class="chip c-red">Sample Rejected</span></td><td>held</td><td><button class="btn sm ghost" onclick="go('rejection')">Recollect</button></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ==================== CLIENT: VISIT REGISTRATION (P05.2 / P04.1) ==================== -->
+<div class="page" id="p-visitreg">
+  <div class="crumb">M05 · P05.2 — VISIT REGISTRATION (NEW ORDER)</div>
+  <h1 class="pt">Visit Registration</h1>
+  <p class="psub">Register a visit end-to-end in under 90 seconds. Registration = the patient's new visit (SRS Rev 2.0 §M04).</p>
+  <div class="stepper" id="vr-stepper">
+    <div class="step cur" data-s="1"><span class="b">1</span>Patient</div><div class="step-sep"></div>
+    <div class="step" data-s="2"><span class="b">2</span>Tests</div><div class="step-sep"></div>
+    <div class="step" data-s="3"><span class="b">3</span>Pricing &amp; Payment</div><div class="step-sep"></div>
+    <div class="step" data-s="4"><span class="b">4</span>Confirmed</div>
+  </div>
+
+  <div class="tabpane on" id="vr-1">
+    <div class="card">
+      <h3>Find the patient — mobile number, part of name, ID, or patient number</h3>
+      <div class="f-row">
+        <div class="f" style="flex:2"><label>SEARCH</label><input value="0100 234" placeholder="Mobile · name · national ID · patient no."></div>
+        <div class="f" style="flex:0 0 auto;align-self:flex-end"><button class="btn">Search</button></div>
+      </div>
+      <table class="t">
+        <tr><th>Patient No.</th><th>Name</th><th>Mobile</th><th>Last Visit</th><th>Age</th><th>Gender</th><th></th></tr>
+        <tr><td class="mono">PN-004821</td><td><b>Mona El-Sayed</b></td><td class="mono">0100 234 5678</td><td>2026-07-02 <span class="chip c-blue">44 days ago</span></td><td>34</td><td>F</td><td><button class="btn sm" onclick="vrStep(2)">Same patient — use record</button></td></tr>
+        <tr><td class="mono">PN-011302</td><td>Mona Elsayed Ali</td><td class="mono">0100 234 9911</td><td>2025-11-19</td><td>52</td><td>F</td><td><button class="btn sm ghost" onclick="vrStep(2)">Use record</button></td></tr>
+      </table>
+      <p class="hint">Preview shows <b>last visit date, age, and gender</b> to confirm identity. Choosing a record reuses the last visit's demographics. If no match → New Patient: data is captured once and auto-saved to the patient master with a unique patient number.</p>
+      <div style="margin-top:10px"><button class="btn ghost" onclick="vrStep(2)">＋ New patient (no match)</button></div>
+    </div>
+  </div>
+
+  <div class="tabpane" id="vr-2">
+    <div class="grid2">
+      <div class="card">
+        <h3>Selected tests</h3>
+        <div class="f-row"><div class="f"><label>ADD TEST / PANEL</label><input placeholder="Search catalog… (favorites, panels)"></div></div>
+        <table class="t">
+          <tr><th>Test</th><th>Dept</th><th>Condition</th><th>Price (EGP)</th><th></th></tr>
+          <tr><td>Fasting Glucose</td><td>Chemistry</td><td><span class="chip c-amber">Fasting 8h</span></td><td class="mono">80</td><td>✕</td></tr>
+          <tr><td>Glucose PP 2h</td><td>Chemistry</td><td><span class="chip c-purple">PP +2h ⏱</span></td><td class="mono">80</td><td>✕</td></tr>
+          <tr><td>HbA1c</td><td>Chemistry</td><td>—</td><td class="mono">220</td><td>✕</td></tr>
+          <tr><td>CBC</td><td>Hematology</td><td>—</td><td class="mono">150</td><td>✕</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h3>Specimen plan — condition-compatibility engine (P03.4)</h3>
+        <div class="note">Compatible conditions consolidate onto <b>one Sample ID</b>; the 2-hour post-prandial glucose needs its own <b>reserved</b> sample.</div>
+        <table class="t">
+          <tr><th>Sample ID</th><th>Container</th><th>Tests</th><th>State</th></tr>
+          <tr><td class="mono">S-0412-1</td><td><span class="tube" style="background:#b26a00"></span>Fluoride (grey)</td><td>Fasting Glucose</td><td><span class="chip c-green">Collect now</span></td></tr>
+          <tr><td class="mono">S-0412-2</td><td><span class="tube" style="background:#6d5ce0"></span>EDTA (lavender)</td><td>HbA1c · CBC</td><td><span class="chip c-green">Collect now — consolidated</span></td></tr>
+          <tr><td class="mono">S-0412-3</td><td><span class="tube" style="background:#b26a00"></span>Fluoride (grey)</td><td>Glucose PP 2h</td><td><span class="chip c-purple">Reserve · ready 11:40</span></td></tr>
+        </table>
+        <p class="hint">Reservation per P07.1 — receptionist/phlebotomist may reserve during or after registration; the sample surfaces on the Phlebotomist worklist when its window opens.</p>
+      </div>
+    </div>
+    <div class="flex"><button class="btn ghost" onclick="vrStep(1)">← Back</button><span class="sp"></span><button class="btn" onclick="vrStep(3)">Continue to pricing →</button></div>
+  </div>
+
+  <div class="tabpane" id="vr-3">
+    <div class="grid2">
+      <div class="card">
+        <h3>Pricing — Walk-in price list v14</h3>
+        <table class="t">
+          <tr><th>Item</th><th style="text-align:right">EGP</th></tr>
+          <tr><td>Fasting Glucose</td><td class="mono" style="text-align:right">80</td></tr>
+          <tr><td>Glucose PP 2h</td><td class="mono" style="text-align:right">80</td></tr>
+          <tr><td>HbA1c</td><td class="mono" style="text-align:right">220</td></tr>
+          <tr><td>CBC</td><td class="mono" style="text-align:right">150</td></tr>
+          <tr><td><b>Total (excl. VAT 14%)</b></td><td class="mono" style="text-align:right"><b>530</b></td></tr>
+          <tr><td>Discount <span class="chip c-amber">permission-gated</span></td><td class="mono" style="text-align:right">—</td></tr>
+          <tr><td><b>Payable</b></td><td class="mono" style="text-align:right;color:var(--blue);font-size:14px"><b>604.20</b></td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h3>Payment (M17 — simplified)</h3>
+        <div class="f-row">
+          <div class="f"><label>METHOD</label><select><option>Cash</option><option>Card</option><option>Wallet / online link</option></select></div>
+          <div class="f"><label>AMOUNT (EGP)</label><input value="604.20" class="mono"></div>
+        </div>
+        <p class="hint">Invoice materializes at confirmation; receipt prints AR/EN. Partial payment allowed per tenant policy.</p>
+      </div>
+    </div>
+    <div class="flex"><button class="btn ghost" onclick="vrStep(2)">← Back</button><span class="sp"></span><button class="btn green" onclick="vrStep(4)">Confirm visit — print labels &amp; receipt</button></div>
+  </div>
+
+  <div class="tabpane" id="vr-4">
+    <div class="card" style="text-align:center;padding:34px">
+      <div style="font-size:40px">✅</div>
+      <h3 style="font-size:17px;margin:10px 0 4px">Visit V-260815-0413 registered</h3>
+      <p class="psub">3 labels + receipt sent to Print Agent · 2 samples routed to Phlebotomist worklist · 1 sample reserved (ready 11:40)</p>
+      <div class="flex" style="justify-content:center;gap:8px;margin-top:10px">
+        <button class="btn ghost sm" onclick="vrStep(1)">New visit</button>
+        <button class="btn sm" onclick="go('phleb')">Open Phlebotomist worklist →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CLIENT: RECEPTION WORKLIST (P08.1) ==================== -->
+<div class="page" id="p-reception">
+  <div class="crumb">M08 · P08.1 — RECEPTION WORKLIST (MERGED)</div>
+  <h1 class="pt">Reception Worklist</h1>
+  <p class="psub">Everything reception owns right now — merged per SRS Rev 2.0 (fewer pages: Reception, Phlebotomist, Reporting).</p>
+  <div class="tabs" data-tabs="rc">
+    <button class="tab on" data-t="rc1">Reservations Due <span class="n">2</span></button>
+    <button class="tab" data-t="rc2">Patient Information — Rejections <span class="n">1</span></button>
+    <button class="tab" data-t="rc3">Reports Ready <span class="n">5</span></button>
+    <button class="tab" data-t="rc4">Balance Due <span class="n">3</span></button>
+  </div>
+  <div class="tabpane on" id="rc1"><div class="card">
+    <table class="t">
+      <tr><th>Sample</th><th>Patient</th><th>Condition</th><th>Ready at</th><th>Status</th><th></th></tr>
+      <tr><td class="mono">S-0412-3</td><td>Mona El-Sayed</td><td>Glucose PP 2h</td><td class="mono">11:40</td><td><span class="chip c-green">Window open</span></td><td><button class="btn sm">Call patient</button></td></tr>
+      <tr><td class="mono">S-0395-2</td><td>Yousef Khalil</td><td>Glucose PP 2h</td><td class="mono">12:05</td><td><span class="chip c-amber">18 min left</span></td><td><button class="btn sm ghost" disabled>Waiting</button></td></tr>
+    </table>
+  </div></div>
+  <div class="tabpane" id="rc2"><div class="card">
+    <div class="warn">Sample S-0387-1 (Omar Farouk — TSH, FT4) was rejected: <b>Hemolyzed</b>. The patient must be informed and recollection scheduled (P07.3 — mandatory for outpatient visits).</div>
+    <div class="grid2">
+      <div>
+        <h3>Explanation script</h3>
+        <p style="font-size:12px;line-height:1.6;color:var(--body)">“The blood sample collected earlier was hemolyzed during handling, which can distort results. We sincerely apologize — a new sample is needed. The recollection is free of charge and takes two minutes.”</p>
+      </div>
+      <div>
+        <h3>Record communication</h3>
+        <div class="f-row"><div class="f"><label>INFORMED VIA</label><select><option>In person</option><option>Phone call</option><option>WhatsApp</option></select></div>
+        <div class="f"><label>RECOLLECTION SLOT</label><input value="Today 12:30"></div></div>
+        <button class="btn">Mark informed &amp; schedule recollection</button>
+      </div>
+    </div>
+  </div></div>
+  <div class="tabpane" id="rc3"><div class="card">
+    <table class="t">
+      <tr><th>Report</th><th>Patient</th><th>Channels</th><th></th></tr>
+      <tr><td class="mono">R-0390</td><td>Fatma Hassan</td><td><span class="chip c-green">WhatsApp ✓</span> <span class="chip c-blue">Print pending</span></td><td><button class="btn sm">Print &amp; hand out</button></td></tr>
+      <tr><td class="mono">R-0384</td><td>Karim Nabil</td><td><span class="chip c-red">Email failed ×2</span></td><td><button class="btn sm ghost">Retry</button></td></tr>
+    </table>
+  </div></div>
+  <div class="tabpane" id="rc4"><div class="card">
+    <table class="t">
+      <tr><th>Visit</th><th>Patient</th><th>Balance (EGP)</th><th></th></tr>
+      <tr><td class="mono">V-260815-0355</td><td>Hany Adel</td><td class="mono" style="color:var(--red)">320.00</td><td><button class="btn sm" onclick="go('billing')">Take payment</button></td></tr>
+    </table>
+  </div></div>
+</div>
+
+<!-- ==================== CLIENT: PHLEBOTOMIST WORKLIST (P08.2) ==================== -->
+<div class="page" id="p-phleb">
+  <div class="crumb">M08 · P08.2 — PHLEBOTOMIST WORKLIST (MERGED)</div>
+  <h1 class="pt">Phlebotomist Worklist</h1>
+  <p class="psub">Collection queue + reserved samples whose condition window opened + recollections — with guided collection.</p>
+  <div class="grid2">
+    <div class="card">
+      <h3>Queue <span class="chip c-blue">6 waiting</span></h3>
+      <table class="t">
+        <tr><th>Token</th><th>Patient</th><th>Tubes</th><th>Wait</th><th>Flags</th></tr>
+        <tr style="outline:2px solid var(--blue)"><td class="mono"><b>A-23</b></td><td><b>Mona El-Sayed</b></td><td>🟡 🟣</td><td>02:10</td><td><span class="chip c-blue">Called</span></td></tr>
+        <tr><td class="mono">A-24</td><td>Ahmed Mansour</td><td>🔴 🟡</td><td>04:55</td><td><span class="chip c-red">STAT</span></td></tr>
+        <tr><td class="mono">A-25</td><td>Yousef Khalil</td><td>🟡</td><td>—</td><td><span class="chip c-purple">Reserved · ready 12:05</span></td></tr>
+        <tr><td class="mono">A-26</td><td>Omar Farouk</td><td>🔴</td><td>—</td><td><span class="chip c-amber">Recollection</span></td></tr>
+      </table>
+      <div style="margin-top:10px"><button class="btn">Call next token</button></div>
+    </div>
+    <div class="card">
+      <h3>Collection session — A-23 · Mona El-Sayed</h3>
+      <div class="note">🪪 Identity verified: name + DOB spoken back ✓</div>
+      <table class="t">
+        <tr><th>Order</th><th>Label</th><th>Container</th><th>Scan-to-confirm</th></tr>
+        <tr><td>1</td><td class="mono">S-0412-1</td><td><span class="tube" style="background:#b26a00"></span>Fluoride</td><td><span class="chip c-green">Confirmed ✓</span></td></tr>
+        <tr><td>2</td><td class="mono">S-0412-2</td><td><span class="tube" style="background:#6d5ce0"></span>EDTA</td><td><span class="chip c-amber">Awaiting scan…</span></td></tr>
+      </table>
+      <p class="hint">Scanning another patient's label hard-blocks with an alarm + audit event. Session cannot complete with unconfirmed labels.</p>
+      <div class="flex" style="margin-top:8px"><button class="btn ghost sm">Deviation note</button><span class="sp"></span><button class="btn sm" disabled>Complete session</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CLIENT: ACCESSIONING (P07.2) ==================== -->
+<div class="page" id="p-accession">
+  <div class="crumb">M07 · P07.2 — ACCESSIONING STATION</div>
+  <h1 class="pt">Accessioning Station</h1>
+  <p class="psub">Scan-and-receive: verify each specimen, assess acceptability (including sampling condition), route to departments.</p>
+  <div class="stepper">
+    <div class="step done"><span class="b">✓</span>Expected</div><div class="step-sep"></div>
+    <div class="step done"><span class="b">✓</span>Scanned</div><div class="step-sep"></div>
+    <div class="step cur"><span class="b">3</span>Assessed</div><div class="step-sep"></div>
+    <div class="step"><span class="b">4</span>Received &amp; Routed</div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h3>Scan-first</h3>
+      <div class="f-row"><div class="f"><label>SCAN BARCODE</label><input class="mono" value="S-0412-2" style="font-size:16px"></div></div>
+      <table class="t">
+        <tr><td>Patient</td><td><b>Mona El-Sayed</b> · PN-004821</td></tr>
+        <tr><td>Visit</td><td class="mono">V-260815-0413</td></tr>
+        <tr><td>Expected tests</td><td>HbA1c · CBC (consolidated)</td></tr>
+        <tr><td>Container</td><td><span class="tube" style="background:#6d5ce0"></span>EDTA — correct ✓</td></tr>
+        <tr><td>Condition</td><td>— (none required) ✓</td></tr>
+        <tr><td>Elapsed since collection</td><td>18 min — within stability ✓</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Acceptability assessment</h3>
+      <div class="f-row">
+        <div class="f"><label>VOLUME</label><select><option>Adequate</option><option>Insufficient (QNS)</option></select></div>
+        <div class="f"><label>APPEARANCE</label><select><option>Clear</option><option>Hemolyzed</option><option>Lipemic</option><option>Icteric</option></select></div>
+      </div>
+      <div class="flex" style="margin-top:10px">
+        <button class="btn green">✓ Accept — receive &amp; route</button>
+        <button class="btn danger" onclick="go('rejection')">✕ Reject…</button>
+      </div>
+      <p class="hint" style="margin-top:10px">Condition-violated or stability-expired samples force reject-or-supervisor-override with reason. A sample cannot be received twice.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CLIENT: REJECTION CYCLE (P07.3) ==================== -->
+<div class="page" id="p-rejection">
+  <div class="crumb">M07 · P07.3 — REJECTION &amp; RECOLLECTION CYCLE</div>
+  <h1 class="pt">Rejection &amp; Recollection</h1>
+  <p class="psub">Controlled rejection with coded reasons, role-gated approval, automatic recollection, and patient-information screens.</p>
+  <div class="stepper">
+    <div class="step done"><span class="b">✓</span>Flagged</div><div class="step-sep"></div>
+    <div class="step done"><span class="b">✓</span>Reason Coded</div><div class="step-sep"></div>
+    <div class="step cur"><span class="b">3</span>Approved</div><div class="step-sep"></div>
+    <div class="step"><span class="b">4</span>Patient Informed</div><div class="step-sep"></div>
+    <div class="step"><span class="b">5</span>Recollection Issued</div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h3>Rejection — S-0387-1 · Omar Farouk</h3>
+      <div class="f-row">
+        <div class="f"><label>CODED REASON (P03.4 VOCABULARY)</label><select><option>Hemolyzed</option><option>Insufficient volume (QNS)</option><option>Wrong container</option><option>Clotted</option><option>Condition not met</option><option>Unlabeled / mislabeled</option></select></div>
+      </div>
+      <div class="f-row"><div class="f"><label>COMMENT</label><input value="Gross hemolysis noted at receiving bench"></div></div>
+      <div class="f-row"><div class="f"><label>PHOTO ATTACHMENT</label><input type="text" value="📷 IMG_2841.jpg attached"></div></div>
+      <div class="note">Supervisor co-sign required for high-impact rejections (STAT, irreplaceable). <b>Supervisor: Dr. Laila Kamel — approved ✓</b></div>
+      <button class="btn danger">Reject sample → issue recollection</button>
+    </div>
+    <div class="card">
+      <h3>What happens next (automatic)</h3>
+      <div class="timeline">
+        <div class="tl"><b>Tests revert</b> to Awaiting Sample<div class="w">TSH, FT4 — priority inherited</div></div>
+        <div class="tl"><b>Recollection task</b> created on Phlebotomist worklist<div class="w">reservation flow reused if a condition applies</div></div>
+        <div class="tl"><b>Reception notified</b> — patient-information screen (mandatory for outpatients)<div class="w">explanation script + slot scheduling + consented notification (SMS/WhatsApp)</div></div>
+        <div class="tl"><b>KPIs updated</b> — rejection statistics feed M23<div class="w">by reason / source / department</div></div>
+      </div>
+      <p class="hint">Rejection of an already-in-process sample is prohibited. The communication record (who informed, channel, when) is audited.</p>
+    </div>
+  </div>
+</div>
+<!-- ==================== CLIENT: RESULTS ENTRY (P09.1) ==================== -->
+<div class="page" id="p-results">
+  <div class="crumb">M09 · P09.1 — RESULT ENTRY WORKBENCH</div>
+  <h1 class="pt">Results Entry</h1>
+  <p class="psub">Manual entry with Enter-to-advance; live rule flags (range, delta, absurd). Instrument feed arrives in Phase 3 (M21).</p>
+  <div class="stepper">
+    <div class="step done"><span class="b">✓</span>Awaiting Result</div><div class="step-sep"></div>
+    <div class="step cur"><span class="b">2</span>Entered</div><div class="step-sep"></div>
+    <div class="step"><span class="b">3</span>Auto/Tech Review</div><div class="step-sep"></div>
+    <div class="step"><span class="b">4</span>Technically Valid</div>
+  </div>
+  <div class="card">
+    <h3>Sample S-0412-1 · Mona El-Sayed · Chemistry</h3>
+    <table class="t">
+      <tr><th>Analyte</th><th>Previous (2026-07-02)</th><th>New value</th><th>Unit</th><th>Range</th><th>Flag</th><th>Delta</th></tr>
+      <tr><td>Fasting Glucose</td><td class="mono">96</td><td><input class="mono" value="102" style="width:80px;border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-weight:700"></td><td>mg/dL</td><td class="mono">70–100</td><td><span class="chip c-amber">H</span></td><td><span class="chip c-blue">+6%</span></td></tr>
+      <tr><td>Potassium (K⁺)</td><td class="mono">4.1</td><td><input class="mono" value="6.9" style="width:80px;border:2px solid var(--red);border-radius:6px;padding:4px 8px;font-weight:700;color:var(--red)"></td><td>mmol/L</td><td class="mono">3.5–5.1</td><td><span class="chip c-red">HH — CRITICAL</span></td><td><span class="chip c-red">+68% Δ</span></td></tr>
+      <tr><td>Creatinine</td><td class="mono">0.9</td><td><input class="mono" value="1.0" style="width:80px;border:1px solid var(--line);border-radius:6px;padding:4px 8px"></td><td>mg/dL</td><td class="mono">0.6–1.2</td><td><span class="chip c-green">N</span></td><td>—</td></tr>
+    </table>
+    <div class="warn" style="margin-top:12px">🚨 K⁺ 6.9 is a critical value — submitting opens the Critical Values console (P09.4). Delta &gt; 50% requires action: accept / rerun / dilute.</div>
+    <div class="flex">
+      <span class="hint">Auto-verification: clean in-range results skip manual review where enabled per test.</span>
+      <span class="sp"></span>
+      <button class="btn ghost sm">Order rerun</button>
+      <button class="btn" onclick="go('critical')">Submit results</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CLIENT: VALIDATION (P09.2/P09.3) ==================== -->
+<div class="page" id="p-validation">
+  <div class="crumb">M09 · P09.2 / P09.3 — TECHNICAL &amp; MEDICAL VALIDATION</div>
+  <h1 class="pt">Validation &amp; Sign-Out</h1>
+  <p class="psub">Two-tier validation with segregation of duties: the result enterer can never medically validate the same result.</p>
+  <div class="tabs" data-tabs="vl">
+    <button class="tab on" data-t="vl1">Technical Queue <span class="n">9</span></button>
+    <button class="tab" data-t="vl2">Medical Sign-Out <span class="n">37</span></button>
+  </div>
+  <div class="tabpane on" id="vl1"><div class="card">
+    <table class="t">
+      <tr><th>Sample</th><th>Patient</th><th>Analyte</th><th>Value</th><th>Rule chips</th><th>Action</th></tr>
+      <tr><td class="mono">S-0412-1</td><td>Mona El-Sayed</td><td>Fasting Glucose</td><td class="mono">102 mg/dL</td><td><span class="chip c-amber">H</span></td><td><button class="btn sm green">Accept</button> <button class="btn sm ghost">Rerun</button></td></tr>
+      <tr><td class="mono">S-0409-1</td><td>Karim Nabil</td><td>ALT</td><td class="mono">210 U/L</td><td><span class="chip c-red">Δ +180%</span></td><td><button class="btn sm green">Accept</button> <button class="btn sm ghost">Rerun</button> <button class="btn sm ghost">Hold</button></td></tr>
+    </table>
+    <p class="hint">Bulk-accept only for identically-flagged low-risk categories. Holds require a reason code.</p>
+  </div></div>
+  <div class="tabpane" id="vl2"><div class="card">
+    <h3>Order V-260815-0398 · Mona El-Sayed <span class="chip c-blue">All technically valid</span></h3>
+    <table class="t">
+      <tr><th>Analyte</th><th>Result</th><th>Flag</th><th>Trend</th></tr>
+      <tr><td>Hemoglobin</td><td class="mono">10.2 g/dL</td><td><span class="chip c-amber">L</span></td><td>▁▂▂▃ ↓</td></tr>
+      <tr><td>Ferritin</td><td class="mono">8 ng/mL</td><td><span class="chip c-red">LL</span></td><td>▃▂▁▁ ↓</td></tr>
+    </table>
+    <div class="f-row" style="margin-top:10px"><div class="f"><label>INTERPRETIVE COMMENT (CANNED LIBRARY)</label><input value="Findings consistent with iron-deficiency anemia; suggest clinical correlation."></div></div>
+    <div class="note">✍️ e-Signature required — re-authentication per FR-SYS-002. Signer must differ from the result enterer (SoD).</div>
+    <div class="flex"><span class="sp"></span><button class="btn ghost sm">Partial sign-out</button><button class="btn green">🖊 Sign &amp; release to reporting</button></div>
+  </div></div>
+</div>
+
+<!-- ==================== CLIENT: CRITICAL VALUES (P09.4) ==================== -->
+<div class="page" id="p-critical">
+  <div class="crumb">M09 · P09.4 — CRITICAL VALUES CONSOLE</div>
+  <h1 class="pt">Critical Values</h1>
+  <p class="psub">Every critical value must reach a responsible caregiver and be documented with read-back confirmation.</p>
+  <div class="stepper">
+    <div class="step done"><span class="b">✓</span>Flagged</div><div class="step-sep"></div>
+    <div class="step cur"><span class="b">2</span>Notifying</div><div class="step-sep"></div>
+    <div class="step"><span class="b">3</span>Reached</div><div class="step-sep"></div>
+    <div class="step"><span class="b">4</span>Read-Back Documented</div><div class="step-sep"></div>
+    <div class="step"><span class="b">5</span>Closed</div>
+  </div>
+  <div class="card">
+    <table class="t">
+      <tr><th>Patient</th><th>Analyte</th><th>Value</th><th>Policy deadline</th><th>Status</th><th></th></tr>
+      <tr><td><b>Ahmed Mansour</b></td><td>Potassium (K⁺)</td><td class="mono" style="color:var(--red);font-weight:700">6.9 mmol/L</td><td style="color:var(--red);font-weight:700">⏱ 8 min left</td><td><span class="chip c-red">Notifying</span></td><td><button class="btn sm danger">Document call</button></td></tr>
+      <tr><td>Mona El-Sayed</td><td>Hemoglobin</td><td class="mono" style="color:var(--red)">5.8 g/dL</td><td>⏱ 21 min left</td><td><span class="chip c-amber">Physician reached</span></td><td><button class="btn sm">Read-back ✓</button></td></tr>
+      <tr><td>Sara Ibrahim</td><td>Glucose</td><td class="mono" style="color:var(--red)">32 mg/dL</td><td class="mono">closed 09:12</td><td><span class="chip c-green">Closed</span></td><td></td></tr>
+    </table>
+    <div class="grid2" style="margin-top:14px">
+      <div>
+        <h3>Document notification — Ahmed Mansour</h3>
+        <div class="f-row">
+          <div class="f"><label>WHO WAS CALLED</label><input value="Dr. Hossam Fathy (ordering physician)"></div>
+          <div class="f"><label>NUMBER</label><input class="mono" value="0122 456 7890"></div>
+        </div>
+        <div class="f-row"><div class="f"><label>READ-BACK CONFIRMED</label><select><option>Yes — value read back correctly</option><option>No</option></select></div></div>
+        <button class="btn green">Close with read-back evidence</button>
+      </div>
+      <div>
+        <h3>Escalation ladder</h3>
+        <div class="timeline">
+          <div class="tl"><b>0 min</b> — bench + ordering physician channels burst<div class="w">SMS + in-app sent 09:41 ✓</div></div>
+          <div class="tl"><b>15 min</b> — section supervisor<div class="w">pending</div></div>
+          <div class="tl"><b>30 min</b> — lab director + branch manager<div class="w">—</div></div>
+        </div>
+        <p class="hint">A report with an undocumented open critical value cannot reach Final status.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CLIENT: REPORTING WORKLIST (P08.3/M10) ==================== -->
+<div class="page" id="p-reporting">
+  <div class="crumb">M08 · P08.3 — REPORTING WORKLIST (MERGED) · M10</div>
+  <h1 class="pt">Reporting Worklist</h1>
+  <p class="psub">Everything between validated results and a delivered report. One finalized report per visit = the subscription metering event.</p>
+  <div class="tabs" data-tabs="rp">
+    <button class="tab on" data-t="rp1">Ready to Render <span class="n">4</span></button>
+    <button class="tab" data-t="rp2">Delivery Pending <span class="n">7</span></button>
+    <button class="tab" data-t="rp3">Failed <span class="n">2</span></button>
+    <button class="tab" data-t="rp4">Delivered <span class="n">208</span></button>
+  </div>
+  <div class="tabpane on" id="rp1"><div class="card">
+    <table class="t">
+      <tr><th>Visit</th><th>Patient</th><th>Type</th><th>Template</th><th></th></tr>
+      <tr><td class="mono">V-260815-0398</td><td>Mona El-Sayed</td><td><span class="chip c-green">Final</span></td><td>Std AR/EN v7</td><td><button class="btn sm">Render</button></td></tr>
+      <tr><td class="mono">V-260815-0402</td><td>Nour Magdy</td><td><span class="chip c-blue">Interim</span></td><td>Std AR/EN v7</td><td><button class="btn sm">Render</button></td></tr>
+    </table>
+  </div></div>
+  <div class="tabpane" id="rp2"><div class="card">
+    <table class="t">
+      <tr><th>Report</th><th>Patient</th><th>Channels</th><th></th></tr>
+      <tr><td class="mono">R-0398</td><td>Mona El-Sayed</td><td><span class="chip c-green">WhatsApp ✓</span> <span class="chip c-amber">Print queued</span></td><td><button class="btn sm ghost">Details</button></td></tr>
+      <tr><td class="mono">R-0396</td><td>Adel Samir</td><td><span class="chip c-blue">Email sending…</span></td><td><button class="btn sm ghost">Details</button></td></tr>
+    </table>
+    <p class="hint">Delivery respects patient consent flags and confidential-report routing; every attempt is logged with provider receipt.</p>
+  </div></div>
+  <div class="tabpane" id="rp3"><div class="card">
+    <table class="t">
+      <tr><th>Report</th><th>Channel</th><th>Error</th><th></th></tr>
+      <tr><td class="mono">R-0384</td><td>Email</td><td class="mono">mailbox full (×2)</td><td><button class="btn sm">Retry</button> <button class="btn sm ghost">Switch channel</button></td></tr>
+    </table>
+  </div></div>
+  <div class="tabpane" id="rp4"><div class="card">
+    <table class="t">
+      <tr><th>Report</th><th>Patient</th><th>Delivered</th><th>QR verify</th></tr>
+      <tr><td class="mono">R-0390</td><td>Fatma Hassan</td><td>10:22 · WhatsApp + print</td><td><span class="chip c-green">Hash valid ✓</span></td></tr>
+    </table>
+  </div></div>
+</div>
+
+<!-- ==================== CLIENT: PATIENTS (P04.1/P04.3) ==================== -->
+<div class="page" id="p-patients">
+  <div class="crumb">M04 · P04.1 / P04.3 — PATIENT SEARCH &amp; PATIENT 360</div>
+  <h1 class="pt">Patients</h1>
+  <p class="psub">The patient master index. Records are created automatically from visit registration with a unique patient number.</p>
+  <div class="card">
+    <div class="f-row">
+      <div class="f" style="flex:2"><label>SEARCH — MOBILE · NAME · ID · PATIENT NO.</label><input value="Mona"></div>
+      <div class="f" style="flex:0 0 auto;align-self:flex-end"><button class="btn">Search</button></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="flex" style="margin-bottom:12px">
+      <div class="avatar" style="width:44px;height:44px;font-size:15px">ME</div>
+      <div><b style="font-size:15px;color:var(--navy)">Mona El-Sayed</b> <span class="chip c-blue">PN-004821</span><br>
+      <span class="hint">F · 34 y · 0100 234 5678 · last visit 2026-08-15 · consents: testing ✓ data ✓ WhatsApp ✓</span></div>
+      <span class="sp"></span>
+      <button class="btn sm" onclick="go('visitreg')">＋ New visit</button>
+    </div>
+    <div class="tabs" data-tabs="pt">
+      <button class="tab on" data-t="pt1">Visits</button>
+      <button class="tab" data-t="pt2">Results Timeline</button>
+      <button class="tab" data-t="pt3">Billing</button>
+    </div>
+    <div class="tabpane on" id="pt1">
+      <table class="t">
+        <tr><th>Visit</th><th>Date</th><th>Tests</th><th>Status</th></tr>
+        <tr><td class="mono">V-260815-0413</td><td>2026-08-15</td><td>Glucose F/PP, HbA1c, CBC</td><td><span class="chip c-blue">In Process</span></td></tr>
+        <tr><td class="mono">V-260702-0119</td><td>2026-07-02</td><td>CBC, Ferritin</td><td><span class="chip c-green">Reported</span></td></tr>
+        <tr><td class="mono">V-260405-0071</td><td>2026-04-05</td><td>TSH</td><td><span class="chip c-green">Reported</span></td></tr>
+      </table>
+    </div>
+    <div class="tabpane" id="pt2">
+      <table class="t">
+        <tr><th>Analyte</th><th>Apr 05</th><th>Jul 02</th><th>Aug 15</th><th>Trend</th></tr>
+        <tr><td>Hemoglobin (g/dL)</td><td class="mono">11.9</td><td class="mono">10.8</td><td class="mono" style="color:var(--red)">10.2</td><td>▅▃▂ ↓</td></tr>
+        <tr><td>Ferritin (ng/mL)</td><td class="mono">21</td><td class="mono">12</td><td class="mono" style="color:var(--red)">8</td><td>▅▂▁ ↓</td></tr>
+      </table>
+      <p class="hint">Opens the cumulative report (P10.3) for export. Every Patient 360 view writes a read-audit event.</p>
+    </div>
+    <div class="tabpane" id="pt3">
+      <table class="t">
+        <tr><th>Invoice</th><th>Date</th><th>Total (EGP)</th><th>Status</th></tr>
+        <tr><td class="mono">INV-0413</td><td>2026-08-15</td><td class="mono">604.20</td><td><span class="chip c-green">Paid</span></td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CLIENT: BILLING (P17.1/P17.2) ==================== -->
+<div class="page" id="p-billing">
+  <div class="crumb">M17 · P17.1 / P17.2 — BILLING (SIMPLIFIED)</div>
+  <h1 class="pt">Billing</h1>
+  <p class="psub">Kept deliberately simple in Phase 1: invoice at visit, payments, receipts, credit notes, day close. Insurance &amp; credit accounts → Phase 2.</p>
+  <div class="tabs" data-tabs="bl">
+    <button class="tab on" data-t="bl1">Invoice &amp; Payment</button>
+    <button class="tab" data-t="bl2">Shift &amp; Daily Close</button>
+  </div>
+  <div class="tabpane on" id="bl1">
+    <div class="stepper">
+      <div class="step done"><span class="b">✓</span>Draft</div><div class="step-sep"></div>
+      <div class="step done"><span class="b">✓</span>Issued</div><div class="step-sep"></div>
+      <div class="step cur"><span class="b">3</span>Partially Paid</div><div class="step-sep"></div>
+      <div class="step"><span class="b">4</span>Paid</div><div class="step-sep"></div>
+      <div class="step"><span class="b">5</span>Adjusted / Refunded</div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h3>Invoice INV-0355 · Hany Adel</h3>
+        <table class="t">
+          <tr><th>Line</th><th style="text-align:right">EGP</th></tr>
+          <tr><td>Lipid Profile</td><td class="mono" style="text-align:right">350</td></tr>
+          <tr><td>Vitamin D</td><td class="mono" style="text-align:right">450</td></tr>
+          <tr><td>Discount 10% <span class="chip c-amber">reason: corporate promo · approved</span></td><td class="mono" style="text-align:right">−80</td></tr>
+          <tr><td><b>Total incl. VAT</b></td><td class="mono" style="text-align:right"><b>820.80</b></td></tr>
+          <tr><td>Paid (cash)</td><td class="mono" style="text-align:right">500.80</td></tr>
+          <tr><td><b>Balance</b></td><td class="mono" style="text-align:right;color:var(--red)"><b>320.00</b></td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h3>Take payment</h3>
+        <div class="f-row">
+          <div class="f"><label>METHOD</label><select><option>Cash</option><option>Card</option><option>Wallet / online link</option></select></div>
+          <div class="f"><label>AMOUNT (EGP)</label><input class="mono" value="320.00"></div>
+        </div>
+        <button class="btn green">Capture payment &amp; print receipt (AR/EN)</button>
+        <p class="hint" style="margin-top:10px">Invoices are immutable after issue — corrections only via credit/debit notes. Refunds need a request-approve pair (SoD).</p>
+      </div>
+    </div>
+  </div>
+  <div class="tabpane" id="bl2">
+    <div class="grid2">
+      <div class="card">
+        <h3>Shift — Cashier: Rania Adel <span class="chip c-blue">Open since 08:00</span></h3>
+        <table class="t">
+          <tr><th>Method</th><th style="text-align:right">Expected</th><th style="text-align:right">Counted</th><th style="text-align:right">Variance</th></tr>
+          <tr><td>Cash</td><td class="mono" style="text-align:right">14,250</td><td class="mono" style="text-align:right">14,250</td><td class="mono" style="text-align:right;color:var(--green)">0</td></tr>
+          <tr><td>Card</td><td class="mono" style="text-align:right">22,860</td><td class="mono" style="text-align:right">22,860</td><td class="mono" style="text-align:right;color:var(--green)">0</td></tr>
+          <tr><td>Wallet</td><td class="mono" style="text-align:right">3,410</td><td class="mono" style="text-align:right">3,360</td><td class="mono" style="text-align:right;color:var(--red)">−50</td></tr>
+        </table>
+        <div class="flex" style="margin-top:10px"><span class="hint">Variance requires a reason + manager approval.</span><span class="sp"></span><button class="btn">Close shift</button></div>
+      </div>
+      <div class="card">
+        <h3>Daily close (Z-report) — Cairo Main</h3>
+        <div class="kpis" style="grid-template-columns:1fr 1fr">
+          <div class="kpi"><div class="v">EGP 40,470</div><div class="l">Takings today</div></div>
+          <div class="kpi"><div class="v navy">318</div><div class="l">Invoices issued</div></div>
+        </div>
+        <button class="btn ghost">Export to accounting (CSV)</button>
+        <p class="hint" style="margin-top:10px">Transactions cannot post to a closed day; reopening is a dual-approval audited event.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CLIENT: ANALYTICS (M23) ==================== -->
+<div class="page" id="p-analytics">
+  <div class="crumb">M23 · P23.1–P23.4 — ANALYTICS &amp; DASHBOARDS</div>
+  <h1 class="pt">Analytics</h1>
+  <p class="psub">Event-sourced projections (≤ 5 min lag). Figures reconcile to the billing ledger by design; every export is watermarked.</p>
+  <div class="kpis">
+    <div class="kpi"><div class="v navy">9,412</div><div class="l">Visits this month</div><div class="d">+11% MoM</div></div>
+    <div class="kpi"><div class="v">EGP 1.86M</div><div class="l">Revenue MTD</div><div class="d">+9% MoM</div></div>
+    <div class="kpi"><div class="v green">94.2%</div><div class="l">TAT compliance</div></div>
+    <div class="kpi"><div class="v amber">1.8%</div><div class="l">Rejection rate</div></div>
+    <div class="kpi"><div class="v green">28 min</div><div class="l">Critical closure median</div></div>
+    <div class="kpi"><div class="v navy">0.4%</div><div class="l">Amendment rate</div></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h3>TAT funnel — median per milestone (P23.2)</h3>
+      <table class="t">
+        <tr><th>Segment</th><th>Median</th><th>p90</th><th>Target</th><th></th></tr>
+        <tr><td>Register → Collect</td><td class="mono">09 min</td><td class="mono">22 min</td><td class="mono">15 min</td><td><span class="chip c-green">OK</span></td></tr>
+        <tr><td>Collect → Receive</td><td class="mono">14 min</td><td class="mono">31 min</td><td class="mono">20 min</td><td><span class="chip c-green">OK</span></td></tr>
+        <tr><td>Receive → Validate</td><td class="mono">1h 42m</td><td class="mono">3h 55m</td><td class="mono">2h</td><td><span class="chip c-amber">watch</span></td></tr>
+        <tr><td>Validate → Report</td><td class="mono">06 min</td><td class="mono">18 min</td><td class="mono">15 min</td><td><span class="chip c-green">OK</span></td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Rejections by reason (P23.4)</h3>
+      <table class="t">
+        <tr><th>Reason</th><th>Count</th><th>Share</th></tr>
+        <tr><td>Hemolyzed</td><td class="mono">41</td><td><div class="bar" style="width:90%"><i style="width:48%"></i></div></td></tr>
+        <tr><td>Insufficient volume</td><td class="mono">22</td><td><div class="bar" style="width:90%"><i style="width:26%"></i></div></td></tr>
+        <tr><td>Condition not met</td><td class="mono">12</td><td><div class="bar" style="width:90%"><i style="width:14%"></i></div></td></tr>
+        <tr><td>Wrong container</td><td class="mono">10</td><td><div class="bar" style="width:90%"><i style="width:12%"></i></div></td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CLIENT: MASTER DATA (M03) ==================== -->
+<div class="page" id="p-masterdata">
+  <div class="crumb">M03 · P03.3 / P03.4 — MASTER DATA &amp; SYSTEM SETUP</div>
+  <h1 class="pt">Master Data</h1>
+  <p class="psub">Platform-seeded medical master data; the Tenant Admin customizes for this tenant only (SRS Rev 2.0 governance model).</p>
+  <div class="tabs" data-tabs="md">
+    <button class="tab on" data-t="md1">Test Catalog</button>
+    <button class="tab" data-t="md2">Sample Types &amp; Condition Trees</button>
+    <button class="tab" data-t="md3">Price Lists</button>
+  </div>
+  <div class="tabpane on" id="md1"><div class="card">
+    <table class="t">
+      <tr><th>Code</th><th>Test</th><th>Dept</th><th>Specimen</th><th>Condition</th><th>Origin</th><th>Status</th></tr>
+      <tr><td class="mono">GLU-F</td><td>Fasting Glucose</td><td>Chemistry</td><td>Serum (fluoride)</td><td>Fasting 8h</td><td><span class="chip c-blue">Platform seed</span></td><td><span class="chip c-green">Active</span></td></tr>
+      <tr><td class="mono">GLU-PP</td><td>Glucose PP 2h</td><td>Chemistry</td><td>Serum (fluoride)</td><td>PP +2h</td><td><span class="chip c-blue">Platform seed</span></td><td><span class="chip c-green">Active</span></td></tr>
+      <tr><td class="mono">HBA1C</td><td>HbA1c</td><td>Chemistry</td><td>Whole blood EDTA</td><td>—</td><td><span class="chip c-navy">Customized</span></td><td><span class="chip c-green">Active</span></td></tr>
+      <tr><td class="mono">VITD-T</td><td>Vitamin D Total</td><td>Immunoassay</td><td>Serum</td><td>—</td><td><span class="chip c-purple">Tenant-defined</span></td><td><span class="chip c-amber">In Review</span></td></tr>
+    </table>
+    <p class="hint">Platform-seeded tests are cloned-on-edit; the seed original stays referenceable. Activation requires: department, specimen (+condition), result schema, range set, TAT targets, resolvable price.</p>
+  </div></div>
+  <div class="tabpane" id="md2"><div class="grid2">
+    <div class="card">
+      <h3>Condition tree — Venous blood</h3>
+      <div class="timeline">
+        <div class="tl"><b>Sample type: Venous blood</b></div>
+        <div class="tl" style="margin-left:14px">Condition: <b>Random</b> — no preparation</div>
+        <div class="tl" style="margin-left:14px">Condition: <b>Fasting 8h</b> — no caloric intake 8h</div>
+        <div class="tl" style="margin-left:14px">Condition: <b>Post-prandial +2h</b> — timed from meal ⏱</div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Compatibility tree → one Sample ID</h3>
+      <table class="t">
+        <tr><th>Group</th><th>Compatible conditions</th><th>Effect</th></tr>
+        <tr><td class="mono">G1</td><td>Random + Fasting 8h (same draw)</td><td>Consolidate → 1 Sample ID</td></tr>
+        <tr><td class="mono">G2</td><td>PP +2h</td><td>Separate sample · reservation flow</td></tr>
+      </table>
+      <p class="hint">The ordering engine uses this tree to compute the minimal container set (P05.2). Groupings are versioned; changes affect only new orders.</p>
+    </div>
+  </div></div>
+  <div class="tabpane" id="md3"><div class="card">
+    <table class="t">
+      <tr><th>Price list</th><th>Version</th><th>Effective</th><th>Tests priced</th><th>Status</th></tr>
+      <tr><td>Walk-in</td><td class="mono">v14</td><td>2026-08-01</td><td class="mono">348 / 348</td><td><span class="chip c-green">Effective</span></td></tr>
+      <tr><td>Corporate — Delta Textiles</td><td class="mono">v3</td><td>2026-07-01</td><td class="mono">212 / 348</td><td><span class="chip c-green">Effective</span></td></tr>
+      <tr><td>Walk-in</td><td class="mono">v15</td><td>2026-09-01</td><td class="mono">348 / 348</td><td><span class="chip c-blue">Approved · scheduled</span></td></tr>
+    </table>
+    <p class="hint">Historical invoices always reference the price-list version in force at order time.</p>
+  </div></div>
+</div>
+
+<!-- ==================== CLIENT: USERS & ROLES (M02) ==================== -->
+<div class="page" id="p-users">
+  <div class="crumb">M02 · P02.1 / P02.2 — USER, ROLE &amp; ACCESS MANAGEMENT</div>
+  <h1 class="pt">Users &amp; Roles</h1>
+  <p class="psub">Tenant's own users only — monitored read-only by the Platform Super Admin from the Admin Portal (P01.5).</p>
+  <div class="note">Plan seats: <b>11 of 15 full users</b> used · <b>6 view-only</b> (EGP 79/mo each) — PROFESSIONAL plan <div class="bar" style="max-width:280px"><i style="width:73%"></i></div></div>
+  <div class="card">
+    <table class="t">
+      <tr><th>User</th><th>Roles</th><th>Seat class</th><th>Branches</th><th>MFA</th><th>Status</th></tr>
+      <tr><td>Dr. Sara Hassan</td><td>Lab Director</td><td><span class="chip c-blue">Full</span></td><td>All</td><td><span class="chip c-green">TOTP ✓</span></td><td><span class="chip c-green">Active</span></td></tr>
+      <tr><td>Dr. Laila Kamel</td><td>Section Supervisor — Chemistry</td><td><span class="chip c-blue">Full</span></td><td>Cairo Main</td><td><span class="chip c-green">TOTP ✓</span></td><td><span class="chip c-green">Active</span></td></tr>
+      <tr><td>Rania Adel</td><td>Receptionist + Cashier</td><td><span class="chip c-navy">View-only</span></td><td>Cairo Main</td><td><span class="chip c-green">OTP ✓</span></td><td><span class="chip c-green">Active</span></td></tr>
+      <tr><td>Mostafa Kamal</td><td>Phlebotomist</td><td><span class="chip c-navy">View-only</span></td><td>Cairo Main</td><td><span class="chip c-amber">Pending</span></td><td><span class="chip c-blue">Invited</span></td></tr>
+    </table>
+    <div class="flex" style="margin-top:10px">
+      <span class="hint">SoD engine live-checks conflicting permission pairs (e.g., result.enter + result.validateMedical). MFA cannot be disabled for signing roles.</span>
+      <span class="sp"></span><button class="btn">＋ Invite user</button>
+    </div>
+  </div>
+</div>
+<!-- ==================== ADMIN: TENANT DIRECTORY (P01.1) ==================== -->
+<div class="page" id="p-tenants">
+  <div class="crumb">M01 · P01.1 — TENANT DIRECTORY</div>
+  <h1 class="pt">Tenant Directory</h1>
+  <p class="psub">Registry of all tenants with plan, country, usage, health, and lifecycle. No tenant PHI without a support-access grant.</p>
+  <div class="kpis">
+    <div class="kpi"><div class="v navy">37</div><div class="l">Active tenants</div></div>
+    <div class="kpi"><div class="v">EGP 412K</div><div class="l">MRR</div><div class="d">+6% MoM</div></div>
+    <div class="kpi"><div class="v amber">3</div><div class="l">Past due</div></div>
+    <div class="kpi"><div class="v green">4</div><div class="l">Trials</div></div>
+  </div>
+  <div class="card">
+    <table class="t">
+      <tr><th>Tenant</th><th>Country</th><th>Plan</th><th>Branches</th><th>Reports MTD</th><th>Status</th><th></th></tr>
+      <tr><td><b>NileLab Diagnostics</b></td><td>🇪🇬 Egypt</td><td><span class="chip c-blue">PROFESSIONAL</span></td><td class="mono">3 + 2 draw</td><td class="mono">9,412 / 45,000</td><td><span class="chip c-green">Active</span></td><td><button class="btn sm ghost">Open</button></td></tr>
+      <tr><td>Alexandria Path Lab</td><td>🇪🇬 Egypt</td><td><span class="chip c-navy">STARTER</span></td><td class="mono">1</td><td class="mono">2,180 / 3,000</td><td><span class="chip c-green">Active</span></td><td><button class="btn sm ghost">Open</button></td></tr>
+      <tr><td>Delta Medical Labs</td><td>🇪🇬 Egypt</td><td><span class="chip c-blue">PROFESSIONAL</span></td><td class="mono">6</td><td class="mono">31,207 / 90,000</td><td><span class="chip c-amber">Past Due · dunning D2</span></td><td><button class="btn sm ghost">Open</button></td></tr>
+      <tr><td>Horizon Lab (trial)</td><td>🇪🇬 Egypt</td><td><span class="chip c-navy">LITE</span></td><td class="mono">1</td><td class="mono">214 / 1,500</td><td><span class="chip c-blue">Trial · 9 days left</span></td><td><button class="btn sm ghost">Open</button></td></tr>
+      <tr><td>Gulf Reference Lab</td><td>🇸🇦 KSA</td><td><span class="chip c-purple">ENTERPRISE</span></td><td class="mono">14</td><td class="mono">88,410 / custom</td><td><span class="chip c-green">Active</span></td><td><button class="btn sm ghost">Open</button></td></tr>
+    </table>
+    <p class="hint">Lifecycle: Trial → Active → Past Due → Suspended → Offboarded. Suspension blocks logins/API but preserves data 30 days; offboarding needs a data-export package + dual admin approval.</p>
+  </div>
+</div>
+
+<!-- ==================== ADMIN: ONBOARDING (P01.2) ==================== -->
+<div class="page" id="p-onboarding">
+  <div class="crumb">M01 · P01.2 — TENANT ONBOARDING WIZARD</div>
+  <h1 class="pt">Tenant Onboarding</h1>
+  <p class="psub">Provision a new tenant: identity, country, plan, seed data, initial admin. Idempotent &amp; resumable.</p>
+  <div class="stepper">
+    <div class="step done"><span class="b">✓</span>Organization</div><div class="step-sep"></div>
+    <div class="step cur"><span class="b">2</span>Plan &amp; Modules</div><div class="step-sep"></div>
+    <div class="step"><span class="b">3</span>Seed Data</div><div class="step-sep"></div>
+    <div class="step"><span class="b">4</span>Admin Account</div><div class="step-sep"></div>
+    <div class="step"><span class="b">5</span>Provisioned</div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h3>Organization</h3>
+      <div class="f-row">
+        <div class="f"><label>LEGAL NAME</label><input value="Cairo Care Laboratories S.A.E."></div>
+        <div class="f"><label>SUBDOMAIN</label><input class="mono" value="cairocare .skylis.app"></div>
+      </div>
+      <div class="f-row">
+        <div class="f"><label>COUNTRY (LOADS DEFAULT PACK — FR-TEN-040)</label><select><option>🇪🇬 Egypt — pack v4</option><option>🇸🇦 Saudi Arabia — pack v2</option><option>🇦🇪 UAE — pack v3</option></select></div>
+        <div class="f"><label>ISOLATION TIER</label><select><option>Shared (RLS)</option><option>Dedicated schema</option><option>Dedicated database</option></select></div>
+      </div>
+      <div class="note"><b>Egypt pack v4 preview:</b> mobile format +20 1XX XXX XXXX · languages AR/EN (RTL) · currency EGP · VAT 14% · date DD/MM/YYYY · TZ Africa/Cairo · theme Sky default</div>
+    </div>
+    <div class="card">
+      <h3>Plan &amp; modules</h3>
+      <div class="f-row"><div class="f"><label>PLAN</label><select><option>PROFESSIONAL — EGP 6,499 / branch / mo</option><option>STARTER — EGP 2,999 / mo</option><option>LITE — EGP 1,499 / mo</option><option>ENTERPRISE — custom</option></select></div></div>
+      <table class="t">
+        <tr><th>Add-on</th><th>Scope</th><th>EGP/mo</th><th>On</th></tr>
+        <tr><td>Analytics / BI</td><td>Org-wide</td><td class="mono">1,299</td><td>☑</td></tr>
+        <tr><td>WhatsApp &amp; SMS delivery</td><td>Org-wide</td><td class="mono">499 + msg</td><td>☑</td></tr>
+        <tr><td>ETA e-invoice</td><td>Org-wide</td><td class="mono">free on Pro</td><td>☑</td></tr>
+        <tr><td style="color:var(--slate)">Patient Portal (Phase 2)</td><td>Org-wide</td><td class="mono">999</td><td>—</td></tr>
+      </table>
+      <div class="flex" style="margin-top:10px"><span class="sp"></span><button class="btn">Continue → Seed data</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== ADMIN: PLANS & METERING (P01.3) ==================== -->
+<div class="page" id="p-plans">
+  <div class="crumb">M01 · P01.3 — PLANS, SUBSCRIPTION &amp; METERING</div>
+  <h1 class="pt">Plans &amp; Metering</h1>
+  <p class="psub">Egypt price book · Aug 2026 · EGP excl. 14% VAT. Plans are immutable once assigned — changes create a new version.</p>
+  <div class="grid3" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
+    <div class="plan-card"><h4>LITE</h4><div class="pr">EGP 1,499 <small>/branch/mo</small></div>
+      <ul><li>Very small labs (single shift)</li><li>2 users · view-only EGP 99</li><li>1,500 reports · +EGP 0.75</li><li>Ticket support</li></ul></div>
+    <div class="plan-card"><h4>STARTER</h4><div class="pr">EGP 2,999 <small>/branch/mo</small></div>
+      <ul><li>Single-site labs</li><li>5 users · +EGP 349 full</li><li>3,000 reports · +EGP 0.50</li><li>Business-hours support</li></ul></div>
+    <div class="plan-card reco"><span class="reco-tag">RECOMMENDED</span><h4>PROFESSIONAL</h4><div class="pr">EGP 6,499 <small>/branch/mo</small></div>
+      <ul><li>Chains of 2–10 branches</li><li>15 users/branch · +EGP 249</li><li>15,000 reports/branch · +0.35</li><li>Extra branch −25% · draw station 499</li><li>Priority support</li></ul></div>
+    <div class="plan-card"><h4>ENTERPRISE</h4><div class="pr">Custom <small>annual contract</small></div>
+      <ul><li>Networks &amp; reference labs</li><li>Unlimited users</li><li>Custom quotas &amp; isolation tier</li><li>24/7 · SLA · named CSM</li></ul></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h3>Metering — NileLab Diagnostics · August</h3>
+      <table class="t">
+        <tr><th>Meter</th><th>Included</th><th>Used</th><th>Overage</th></tr>
+        <tr><td>Finalized reports (3 branches)</td><td class="mono">45,000</td><td class="mono">9,412</td><td class="mono">—</td></tr>
+        <tr><td>Full users</td><td class="mono">45</td><td class="mono">11</td><td class="mono">—</td></tr>
+        <tr><td>View-only users</td><td class="mono">pay-per-seat</td><td class="mono">6</td><td class="mono">EGP 474</td></tr>
+        <tr><td>Draw stations</td><td class="mono">—</td><td class="mono">2</td><td class="mono">EGP 998</td></tr>
+      </table>
+      <p class="hint">One finalized patient report per visit = one metering unit (FR-REP-001). Unused allowance does not roll over.</p>
+    </div>
+    <div class="card">
+      <h3>Next invoice preview — Sep 2026</h3>
+      <table class="t">
+        <tr><td>Base fee — Cairo Main</td><td class="mono" style="text-align:right">6,499</td></tr>
+        <tr><td>Branch 2 · Giza (−25%)</td><td class="mono" style="text-align:right">4,874</td></tr>
+        <tr><td>Branch 3 · Nasr City (−25%)</td><td class="mono" style="text-align:right">4,874</td></tr>
+        <tr><td>2 draw stations</td><td class="mono" style="text-align:right">998</td></tr>
+        <tr><td>6 view-only seats</td><td class="mono" style="text-align:right">474</td></tr>
+        <tr><td>Add-ons (BI + WhatsApp)</td><td class="mono" style="text-align:right">1,798</td></tr>
+        <tr><td><b>Subtotal (excl. VAT)</b></td><td class="mono" style="text-align:right"><b>19,517</b></td></tr>
+      </table>
+      <div class="flex" style="margin-top:8px"><span class="hint">Dunning: D0 email → D3 banner → D7 suspend (per plan policy)</span><span class="sp"></span><button class="btn sm ghost">Configure dunning</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== ADMIN: COUNTRY PACKS (P01.4) ==================== -->
+<div class="page" id="p-countrypacks">
+  <div class="crumb">M01 · P01.4 — COUNTRY &amp; REGIONAL DEFAULT PACKS</div>
+  <h1 class="pt">Country Packs</h1>
+  <p class="psub">Per-country defaults applied at provisioning: phone format, languages, currency, VAT, formats, timezone, theme (FR-TEN-040).</p>
+  <div class="card">
+    <table class="t">
+      <tr><th>Country</th><th>Version</th><th>Mobile format</th><th>Languages</th><th>Currency</th><th>VAT</th><th>Timezone</th><th>Status</th></tr>
+      <tr><td>🇪🇬 Egypt</td><td class="mono">v4</td><td class="mono">+20 1XX XXX XXXX</td><td>AR / EN (RTL)</td><td>EGP</td><td class="mono">14%</td><td class="mono">Africa/Cairo</td><td><span class="chip c-green">In Use · 34 tenants</span></td></tr>
+      <tr><td>🇸🇦 Saudi Arabia</td><td class="mono">v2</td><td class="mono">+966 5X XXX XXXX</td><td>AR / EN (RTL)</td><td>SAR</td><td class="mono">15%</td><td class="mono">Asia/Riyadh</td><td><span class="chip c-green">In Use · 2 tenants</span></td></tr>
+      <tr><td>🇦🇪 UAE</td><td class="mono">v3</td><td class="mono">+971 5X XXX XXXX</td><td>AR / EN (RTL)</td><td>AED</td><td class="mono">5%</td><td class="mono">Asia/Dubai</td><td><span class="chip c-green">In Use · 1 tenant</span></td></tr>
+      <tr><td>🇯🇴 Jordan</td><td class="mono">v1</td><td class="mono">+962 7X XXX XXXX</td><td>AR / EN (RTL)</td><td>JOD</td><td class="mono">16%</td><td class="mono">Asia/Amman</td><td><span class="chip c-blue">Draft</span></td></tr>
+    </table>
+    <p class="hint">A subscription cannot be created for a country without a published pack. Pack changes never mutate existing tenant settings; tenants may override individual values (audited).</p>
+    <div style="margin-top:10px"><button class="btn">＋ New country pack</button></div>
+  </div>
+</div>
+
+<!-- ==================== ADMIN: TENANT ADMIN MONITOR (P01.5) ==================== -->
+<div class="page" id="p-adminmonitor">
+  <div class="crumb">M01 · P01.5 — TENANT ADMINISTRATION MONITOR</div>
+  <h1 class="pt">Tenant Admin Monitor</h1>
+  <p class="psub">Read-only, audited oversight of tenant user &amp; role administration (per M02 review decision). No write access — ever.</p>
+  <div class="note">👁 Strictly read-only. Every view here is itself audited and visible to the tenant.</div>
+  <div class="card">
+    <h3>Admin-activity feed — all tenants</h3>
+    <table class="t">
+      <tr><th>Time</th><th>Tenant</th><th>Action</th><th>Actor</th><th>Flag</th></tr>
+      <tr><td class="mono">10:44</td><td>NileLab</td><td>Invited user “Mostafa Kamal” — Phlebotomist, Cairo Main</td><td>Dr. Sara Hassan</td><td>—</td></tr>
+      <tr><td class="mono">10:12</td><td>Delta Medical</td><td>Cloned role “Supervisor+” and granted 41 permissions</td><td>admin@delta</td><td><span class="chip c-amber">Mass grant</span></td></tr>
+      <tr><td class="mono">09:58</td><td>Delta Medical</td><td>Published role with SoD conflict (result.enter + validateMedical) — QM co-approved</td><td>admin@delta</td><td><span class="chip c-red">SoD override</span></td></tr>
+      <tr><td class="mono">09:31</td><td>Alexandria Path</td><td>Password policy relaxed 14 → 12 chars</td><td>owner@alexpath</td><td>—</td></tr>
+    </table>
+    <div class="flex" style="margin-top:10px"><span class="hint">Anomalies can open a support conversation with the Tenant Admin.</span><span class="sp"></span><button class="btn sm ghost">Raise with tenant</button></div>
+  </div>
+</div>
+
+<!-- ==================== ADMIN: PLATFORM HEALTH (P01.6) ==================== -->
+<div class="page" id="p-health">
+  <div class="crumb">M01 · P01.6 — PLATFORM HEALTH &amp; SUPPORT ACCESS</div>
+  <h1 class="pt">Platform Health</h1>
+  <p class="psub">Operational overview and the controlled, tenant-approved support-access mechanism.</p>
+  <div class="kpis">
+    <div class="kpi"><div class="v green">182 ms</div><div class="l">API p95</div></div>
+    <div class="kpi"><div class="v navy">14</div><div class="l">Queue depth</div></div>
+    <div class="kpi"><div class="v red">2</div><div class="l">Failed jobs</div></div>
+    <div class="kpi"><div class="v amber">1</div><div class="l">Print agents offline</div></div>
+    <div class="kpi"><div class="v green">99.96%</div><div class="l">Uptime MTD</div></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h3>Support access requests</h3>
+      <div class="stepper" style="margin-bottom:12px">
+        <div class="step done"><span class="b">✓</span>Requested</div><div class="step-sep"></div>
+        <div class="step cur"><span class="b">2</span>Tenant Approved</div><div class="step-sep"></div>
+        <div class="step"><span class="b">3</span>Active (audited)</div><div class="step-sep"></div>
+        <div class="step"><span class="b">4</span>Expired</div>
+      </div>
+      <table class="t">
+        <tr><th>Engineer</th><th>Tenant</th><th>Reason</th><th>Duration</th><th>Status</th></tr>
+        <tr><td>M. Tarek</td><td>Delta Medical</td><td>Investigate rendering-queue failures</td><td class="mono">4 h</td><td><span class="chip c-green">Tenant approved</span></td></tr>
+        <tr><td>A. Youssef</td><td>NileLab</td><td>Label template support</td><td class="mono">2 h</td><td><span class="chip c-amber">Awaiting tenant</span></td></tr>
+      </table>
+      <p class="hint">No PHI without an approved grant (≤ 8 h). Every screen viewed is logged and visible to the tenant; a summary of actions is mailed on expiry.</p>
+    </div>
+    <div class="card">
+      <h3>Incidents</h3>
+      <table class="t">
+        <tr><th>Time</th><th>Item</th><th>Status</th></tr>
+        <tr><td class="mono">10:38</td><td>Report-render retry spike — Delta Medical</td><td><span class="chip c-amber">Investigating</span></td></tr>
+        <tr><td class="mono">09:02</td><td>Print Agent offline — Horizon Lab</td><td><span class="chip c-red">Open · tenant notified</span></td></tr>
+        <tr><td class="mono">Yesterday</td><td>WhatsApp provider latency</td><td><span class="chip c-green">Resolved</span></td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script>
+/* ---------- navigation ---------- */
+const CLIENT_HOME='dashboard', ADMIN_HOME='tenants';
+let portal='client';
+
+function go(p){
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('on'));
+  const pg=document.getElementById('p-'+p); if(pg) pg.classList.add('on');
+  const sb=document.getElementById(portal==='client'?'sb-client':'sb-admin');
+  sb.querySelectorAll('.sb-item').forEach(el=>el.classList.toggle('on',el.dataset.p===p));
+  window.scrollTo(0,0);
+}
+document.querySelectorAll('.sb-item[data-p]').forEach(el=>{
+  el.addEventListener('click',()=>go(el.dataset.p));
+});
+
+function switchPortal(p){
+  portal=p;
+  document.getElementById('pw-client').classList.toggle('on',p==='client');
+  document.getElementById('pw-admin').classList.toggle('on',p==='admin');
+  document.getElementById('sb-client').style.display=p==='client'?'block':'none';
+  document.getElementById('sb-admin').style.display=p==='admin'?'block':'none';
+  document.getElementById('tb-ctx').textContent=p==='client'?'NileLab Diagnostics · Cairo Main ▾':'National Technology · Platform Console';
+  document.getElementById('tb-av').textContent=p==='client'?'SH':'NT';
+  go(p==='client'?CLIENT_HOME:ADMIN_HOME);
+}
+
+/* ---------- tabs ---------- */
+document.querySelectorAll('.tabs').forEach(group=>{
+  group.querySelectorAll('.tab').forEach(tab=>{
+    tab.addEventListener('click',()=>{
+      group.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+      tab.classList.add('on');
+      let pane=group.nextElementSibling, panes=[];
+      while(pane && pane.classList.contains('tabpane')){panes.push(pane);pane=pane.nextElementSibling;}
+      panes.forEach(pn=>pn.classList.toggle('on',pn.id===tab.dataset.t));
+    });
+  });
+});
+
+/* ---------- visit registration wizard ---------- */
+function vrStep(n){
+  for(let i=1;i<=4;i++){
+    const pane=document.getElementById('vr-'+i);
+    if(pane) pane.classList.toggle('on',i===n);
+  }
+  document.querySelectorAll('#vr-stepper .step').forEach(st=>{
+    const s=+st.dataset.s;
+    st.classList.toggle('done',s<n);
+    st.classList.toggle('cur',s===n);
+    st.querySelector('.b').textContent=s<n?'✓':s;
+  });
+}
+</script>
+</body>
+</html>

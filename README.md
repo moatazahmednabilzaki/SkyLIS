@@ -25,9 +25,13 @@
 | File | Description |
 |---|---|
 | `SLIS-SRS-001 - Sky LIS Software Requirements Specification.docx` | Software Requirements Specification, Rev 1.0 |
-| `SLIS-SRS-001 - Sky LIS Software Requirements Specification (Rev 1.1).docx` | Software Requirements Specification, Rev 1.1 (current) |
+| `SLIS-SRS-001 - Sky LIS Software Requirements Specification (Rev 1.1).docx` | Software Requirements Specification, Rev 1.1 |
+| `SLIS-SRS-001 - Sky LIS Software Requirements Specification (Rev 2.0).docx` | Software Requirements Specification, Rev 2.0 (current) — phased MVP, two portals |
 | `Sky LIS - Prototype (standalone).html` | Standalone UI prototype, v1 |
-| `Sky LIS - Prototype (standalone)v2.0.html` | Standalone UI prototype, v2.0 (current) |
+| `Sky LIS - Prototype (standalone)v2.0.html` | Standalone UI prototype, v2.0 |
+| `Sky LIS - Prototype (standalone)v3.0.html` | Standalone UI prototype, v3.0 (current) — implements SRS Rev 2.0: Admin + Client portals, Phase 1 scope |
+| `Enterprise Application Architect.docx` | Binding architecture standard (Clean Architecture, DDD, CQRS) |
+| `LIS_Subscription_Plans_Egypt.docx` | Subscription plans & price list (Egypt) |
 | `sky-lis-logo.png` | Sky LIS brand logo |
 
 The prototypes are self-contained HTML files — open them directly in a browser, no build or server required.

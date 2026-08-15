@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend — build, unit & architecture tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Restore & build (warnings are errors)
+        run: dotnet build SkyLIS.sln --configuration Release
+      - name: Tests (domain, application, architecture gate)
+        run: dotnet test SkyLIS.sln --configuration Release --no-build --logger "console;verbosity=normal"
+
+  frontend:
+    name: Portals — production builds
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Build client portal
+        run: npx ng build client-portal --configuration production
+      - name: Build admin portal
+        run: npx ng build admin-portal --configuration production
+
+  e2e:
+    name: End-to-end — full clinical flow against PostgreSQL
+    runs-on: ubuntu-latest
+    needs: backend
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres_dev_only
+          POSTGRES_DB: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      ConnectionStrings__Postgres: Host=localhost;Port=5432;Database=skylis;Username=skylis;Password=skylis_dev_only
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://localhost:5178
+      PGPASSWORD: postgres_dev_only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Create app role & database
+        run: |
+          psql -h localhost -U postgres -c "CREATE ROLE skylis LOGIN PASSWORD 'skylis_dev_only' NOSUPERUSER NOCREATEROLE NOBYPASSRLS;"
+          psql -h localhost -U postgres -c "CREATE DATABASE skylis OWNER skylis;"
+
+      - name: Apply migrations
+        run: |
+          dotnet tool restore
+          dotnet ef database update --project src/SkyLIS.Infrastructure --startup-project src/SkyLIS.Api
+
+      - name: Apply Row-Level Security policies
+        run: psql -h localhost -U postgres -d skylis -f src/SkyLIS.Infrastructure/Persistence/Scripts/enable-rls.sql
+
+      - name: Start API
+        run: |
+          dotnet run --project src/SkyLIS.Api --configuration Release &
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:5178/health && break || sleep 2
+          done
+
+      - name: Run the E2E suite (71 checks)
+        shell: pwsh
+        env:
+          SKYLIS_PSQL: psql
+          SKYLIS_PGPORT: '5432'
+          SKYLIS_PGPASSWORD: postgres_dev_only
+        run: |
+          $output = & ./scripts/e2e.ps1 *>&1
+          $output | Write-Host
+          $failures = $output | Where-Object { $_ -match '^FAIL' }
+          if ($failures) { exit 1 }
+          if (-not ($output | Where-Object { $_ -match 'E2E COMPLETE' })) { exit 1 }

@@ -1,6 +1,11 @@
 # Sky LIS end-to-end flow against the live API + PostgreSQL
+# Cross-platform: override the psql binary/port/password via SKYLIS_* env vars (CI uses
+# the postgres service container on 5432; local dev uses the D: cluster on 5433).
 $ErrorActionPreference = 'Stop'
-$api = 'http://localhost:5178/api/v1'
+$api = if ($env:SKYLIS_API) { $env:SKYLIS_API } else { 'http://localhost:5178/api/v1' }
+$psql = if ($env:SKYLIS_PSQL) { $env:SKYLIS_PSQL } else { 'C:\Program Files\PostgreSQL\17\bin\psql.exe' }
+$pgPort = if ($env:SKYLIS_PGPORT) { $env:SKYLIS_PGPORT } else { '5433' }
+$env:PGPASSWORD = if ($env:SKYLIS_PGPASSWORD) { $env:SKYLIS_PGPASSWORD } else { 'postgres_dev_only' }
 $suffix = -join ((Get-Random -Count 6 -InputObject ([char[]]'abcdefghijklmnopqrstuvwxyz0123456789')))
 
 function Step($name, $block) {
@@ -471,8 +476,7 @@ Step 'audit chain verifies intact' {
 } | Out-Null
 
 Step 'TAMPER TEST: superuser edits history -> chain detects it' {
-    $env:PGPASSWORD = 'postgres_dev_only'
-    & 'C:\Program Files\PostgreSQL\17\bin\psql.exe' -U postgres -h localhost -p 5433 -d skylis -q -c `
+    & $psql -U postgres -h localhost -p $pgPort -d skylis -q -c `
         "UPDATE audit.audit_events SET new_values = replace(new_values, 'Mona', 'Someone Else') WHERE tenant_id = '$tenantA' AND entity_type = 'Patient' AND action = 'Created';" | Out-Null
     $v = Invoke-RestMethod -Uri "$api/audit/verify-chain" -Headers $ha
     if ($v.valid) { throw 'TAMPER NOT DETECTED — hash chain failed' }

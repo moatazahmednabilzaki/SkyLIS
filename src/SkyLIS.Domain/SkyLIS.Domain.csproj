@@ -1,0 +1,3 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Domain layer is framework-pure: no package references by design (EAA rule). -->
+</Project>

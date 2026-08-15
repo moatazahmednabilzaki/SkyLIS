@@ -1,0 +1,218 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using SkyLIS.Domain.Billing;
+using SkyLIS.Domain.Catalog;
+using SkyLIS.Domain.Common;
+using SkyLIS.Domain.Patients;
+using SkyLIS.Domain.Tenants;
+using SkyLIS.Domain.Visits;
+using SkyLIS.Infrastructure.Outbox;
+
+namespace SkyLIS.Infrastructure.Persistence;
+
+// Schema per module (SRS Rev 2.0 §10). Status enums stored as strings for auditability.
+// Optimistic concurrency via PostgreSQL xmin on every aggregate root.
+
+internal sealed class TenantConfig : IEntityTypeConfiguration<Tenant>
+{
+    public void Configure(EntityTypeBuilder<Tenant> b)
+    {
+        b.ToTable("tenants", "platform");
+        b.HasKey(t => t.Id);
+        b.Property(t => t.LegalName).HasMaxLength(200).IsRequired();
+        b.Property(t => t.Subdomain).HasMaxLength(40).IsRequired();
+        b.HasIndex(t => t.Subdomain).IsUnique();
+        b.Property(t => t.CountryCode).HasMaxLength(2).IsRequired();
+        b.Property(t => t.PlanCode).HasMaxLength(40).IsRequired();
+        b.Property(t => t.Status).HasConversion<string>().HasMaxLength(20);
+        b.Property(t => t.IsolationTier).HasConversion<string>().HasMaxLength(30);
+        b.Property(t => t.SuspensionReason).HasMaxLength(500);
+        b.Property<uint>("xmin").IsRowVersion();
+    }
+}
+
+internal sealed class PatientConfig : IEntityTypeConfiguration<Patient>
+{
+    public void Configure(EntityTypeBuilder<Patient> b)
+    {
+        b.ToTable("patients", "patients");
+        b.HasKey(p => p.Id);
+        b.Property(p => p.TenantId).IsRequired();
+        b.Property(p => p.PatientNumber).HasMaxLength(30).IsRequired();
+        b.HasIndex(p => new { p.TenantId, p.PatientNumber }).IsUnique();
+        b.Property(p => p.FullName).HasMaxLength(200).IsRequired();
+        b.HasIndex(p => new { p.TenantId, p.FullName });
+        b.Property(p => p.Sex).HasConversion<string>().HasMaxLength(10);
+        b.Property(p => p.Mobile).HasConversion(v => v.Value, v => PhoneNumber.Of(v)).HasMaxLength(20);
+        b.HasIndex(p => new { p.TenantId, p.Mobile });
+        b.Property(p => p.NationalId).HasMaxLength(30);
+        b.HasIndex(p => new { p.TenantId, p.NationalId }).IsUnique().HasFilter("national_id IS NOT NULL");
+        b.Property<uint>("xmin").IsRowVersion();
+    }
+}
+
+internal sealed class LabTestConfig : IEntityTypeConfiguration<LabTest>
+{
+    public void Configure(EntityTypeBuilder<LabTest> b)
+    {
+        b.ToTable("lab_tests", "catalog");
+        b.HasKey(t => t.Id);
+        b.Property(t => t.TenantId).IsRequired();
+        b.Property(t => t.Code).HasMaxLength(20).IsRequired();
+        b.HasIndex(t => new { t.TenantId, t.Code }).IsUnique();
+        b.Property(t => t.Name).HasMaxLength(200).IsRequired();
+        b.Property(t => t.Department).HasMaxLength(80).IsRequired();
+        b.Property(t => t.Origin).HasConversion<string>().HasMaxLength(20);
+        b.Property(t => t.Status).HasConversion<string>().HasMaxLength(20);
+        b.OwnsOne(t => t.Price, money =>
+        {
+            money.Property(m => m.Amount).HasColumnName("price_amount").HasPrecision(12, 2);
+            money.Property(m => m.Currency).HasColumnName("price_currency").HasMaxLength(3);
+        });
+        b.Property<uint>("xmin").IsRowVersion();
+    }
+}
+
+internal sealed class SampleTypeConfig : IEntityTypeConfiguration<SampleType>
+{
+    public void Configure(EntityTypeBuilder<SampleType> b)
+    {
+        b.ToTable("sample_types", "catalog");
+        b.HasKey(s => s.Id);
+        b.Property(s => s.TenantId).IsRequired();
+        b.Property(s => s.Name).HasMaxLength(80).IsRequired();
+        b.HasIndex(s => new { s.TenantId, s.Name }).IsUnique();
+        b.Property(s => s.ContainerName).HasMaxLength(80).IsRequired();
+        b.HasMany(s => s.Conditions).WithOne().HasForeignKey(c => c.SampleTypeId).OnDelete(DeleteBehavior.Restrict);
+        b.Navigation(s => s.Conditions).UsePropertyAccessMode(PropertyAccessMode.Field);
+        b.Property<uint>("xmin").IsRowVersion();
+    }
+}
+
+internal sealed class SampleConditionConfig : IEntityTypeConfiguration<SampleCondition>
+{
+    public void Configure(EntityTypeBuilder<SampleCondition> b)
+    {
+        b.ToTable("sample_conditions", "catalog");
+        b.HasKey(c => c.Id);
+        b.Property(c => c.TenantId).IsRequired();
+        b.Property(c => c.Name).HasMaxLength(80).IsRequired();
+        b.Property(c => c.CompatibilityGroup).HasMaxLength(40).IsRequired();
+    }
+}
+
+internal sealed class VisitConfig : IEntityTypeConfiguration<Visit>
+{
+    public void Configure(EntityTypeBuilder<Visit> b)
+    {
+        b.ToTable("visits", "visits");
+        b.HasKey(v => v.Id);
+        b.Property(v => v.TenantId).IsRequired();
+        b.Property(v => v.VisitNumber).HasMaxLength(30).IsRequired();
+        b.HasIndex(v => new { v.TenantId, v.VisitNumber }).IsUnique();
+        b.Property(v => v.Status).HasConversion<string>().HasMaxLength(20);
+        b.HasIndex(v => new { v.TenantId, v.Status });
+        b.Property(v => v.StatReason).HasMaxLength(300);
+        b.HasMany(v => v.Tests).WithOne().HasForeignKey("visit_id").OnDelete(DeleteBehavior.Cascade);
+        b.HasMany(v => v.Samples).WithOne().HasForeignKey(s => s.VisitId).OnDelete(DeleteBehavior.Cascade);
+        b.Navigation(v => v.Tests).UsePropertyAccessMode(PropertyAccessMode.Field);
+        b.Navigation(v => v.Samples).UsePropertyAccessMode(PropertyAccessMode.Field);
+        b.Property<uint>("xmin").IsRowVersion();
+    }
+}
+
+internal sealed class VisitTestConfig : IEntityTypeConfiguration<VisitTest>
+{
+    public void Configure(EntityTypeBuilder<VisitTest> b)
+    {
+        b.ToTable("visit_tests", "visits");
+        b.HasKey(t => t.Id);
+        b.Property(t => t.TenantId).IsRequired();
+        b.Property(t => t.TestCode).HasMaxLength(20).IsRequired();
+        b.Property(t => t.Status).HasConversion<string>().HasMaxLength(20);
+        b.OwnsOne(t => t.Price, money =>
+        {
+            money.Property(m => m.Amount).HasColumnName("price_amount").HasPrecision(12, 2);
+            money.Property(m => m.Currency).HasColumnName("price_currency").HasMaxLength(3);
+        });
+    }
+}
+
+internal sealed class SampleConfig : IEntityTypeConfiguration<Sample>
+{
+    public void Configure(EntityTypeBuilder<Sample> b)
+    {
+        b.ToTable("samples", "visits");
+        b.HasKey(s => s.Id);
+        b.Property(s => s.TenantId).IsRequired();
+        b.Property(s => s.Barcode).HasMaxLength(40).IsRequired();
+        b.HasIndex(s => new { s.TenantId, s.Barcode }).IsUnique();
+        b.Property(s => s.State).HasConversion<string>().HasMaxLength(20);
+        b.HasIndex(s => new { s.TenantId, s.State });
+        b.Property(s => s.ConditionName).HasMaxLength(80);
+        b.Property(s => s.RejectionReasonCode).HasMaxLength(60);
+    }
+}
+
+internal sealed class InvoiceConfig : IEntityTypeConfiguration<Invoice>
+{
+    public void Configure(EntityTypeBuilder<Invoice> b)
+    {
+        b.ToTable("invoices", "billing");
+        b.HasKey(i => i.Id);
+        b.Property(i => i.TenantId).IsRequired();
+        b.Property(i => i.InvoiceNumber).HasMaxLength(30).IsRequired();
+        b.HasIndex(i => new { i.TenantId, i.InvoiceNumber }).IsUnique();
+        b.HasIndex(i => new { i.TenantId, i.VisitId });
+        b.Property(i => i.Status).HasConversion<string>().HasMaxLength(20);
+        b.OwnsOne(i => i.Total, money =>
+        {
+            money.Property(m => m.Amount).HasColumnName("total_amount").HasPrecision(12, 2);
+            money.Property(m => m.Currency).HasColumnName("total_currency").HasMaxLength(3);
+        });
+        b.HasMany(i => i.Payments).WithOne().HasForeignKey("invoice_id").OnDelete(DeleteBehavior.Cascade);
+        b.Navigation(i => i.Payments).UsePropertyAccessMode(PropertyAccessMode.Field);
+        b.Property<uint>("xmin").IsRowVersion();
+    }
+}
+
+internal sealed class PaymentConfig : IEntityTypeConfiguration<Payment>
+{
+    public void Configure(EntityTypeBuilder<Payment> b)
+    {
+        b.ToTable("payments", "billing");
+        b.HasKey(p => p.Id);
+        b.Property(p => p.TenantId).IsRequired();
+        b.Property(p => p.Method).HasMaxLength(20).IsRequired();
+        b.OwnsOne(p => p.Amount, money =>
+        {
+            money.Property(m => m.Amount).HasColumnName("amount").HasPrecision(12, 2);
+            money.Property(m => m.Currency).HasColumnName("currency").HasMaxLength(3);
+        });
+    }
+}
+
+internal sealed class OutboxMessageConfig : IEntityTypeConfiguration<OutboxMessage>
+{
+    public void Configure(EntityTypeBuilder<OutboxMessage> b)
+    {
+        b.ToTable("outbox_messages", "outbox");
+        b.HasKey(m => m.Id);
+        b.Property(m => m.EventType).HasMaxLength(300).IsRequired();
+        b.Property(m => m.Payload).IsRequired();
+        b.Property(m => m.LastError).HasMaxLength(2000);
+        b.HasIndex(m => m.ProcessedAtUtc).HasFilter("processed_at_utc IS NULL");
+    }
+}
+
+internal sealed class NumberSeriesConfig : IEntityTypeConfiguration<NumberSeries>
+{
+    public void Configure(EntityTypeBuilder<NumberSeries> b)
+    {
+        b.ToTable("number_series", "platform");
+        b.HasKey(n => n.Id);
+        b.Property(n => n.Kind).HasMaxLength(30).IsRequired();
+        b.HasIndex(n => new { n.TenantId, n.Kind }).IsUnique();
+        b.Property<uint>("xmin").IsRowVersion();
+    }
+}

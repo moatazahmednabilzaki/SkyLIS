@@ -47,6 +47,10 @@ export const appRoutes: Routes = [
         path: 'audit',
         loadComponent: () => import('./features/audit/audit.component').then(m => m.AuditComponent),
       },
+      {
+        path: 'users',
+        loadComponent: () => import('./features/users/users.component').then(m => m.UsersComponent),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

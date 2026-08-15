@@ -75,7 +75,7 @@ npx ng serve client-portal --port 4300   # sign in with the tenant id
 
 Note: port 4200 is intentionally not used (reserved by another application on the dev machine).
 
-Development authentication uses the API's Development-only `/api/v1/dev/token` endpoint (never mapped outside Development); OIDC (OpenIddict, MFA) replaces it in later phases.
+Authentication (M02): real per-tenant users with PBKDF2-hashed passwords and system-role permission bundles sign in at `/api/v1/auth/login`; provisioning a tenant creates its initial Tenant Admin automatically (via the outbox). The Development-only `/api/v1/dev/token` endpoint remains for test tooling; OIDC (OpenIddict, MFA, SSO) replaces the token issuance in later phases.
 
 ## Functional modules
 

@@ -34,7 +34,9 @@ public sealed class Tenant : AggregateRoot
 
     public static Tenant Provision(
         Guid id, string legalName, string subdomain, string countryCode,
-        string planCode, IsolationTier isolationTier, DateTimeOffset nowUtc)
+        string planCode, IsolationTier isolationTier,
+        string adminUserName, string adminFullName, string adminPasswordHash,
+        DateTimeOffset nowUtc)
     {
         if (string.IsNullOrWhiteSpace(legalName)) throw new DomainException("Tenant legal name is required.");
         if (string.IsNullOrWhiteSpace(subdomain) || subdomain.Length < 3 || !subdomain.All(c => char.IsLetterOrDigit(c) || c == '-'))
@@ -42,6 +44,8 @@ public sealed class Tenant : AggregateRoot
         if (string.IsNullOrWhiteSpace(countryCode) || countryCode.Length != 2)
             throw new DomainException("Country code must be an ISO 3166-1 alpha-2 code.");
         if (string.IsNullOrWhiteSpace(planCode)) throw new DomainException("Plan code is required.");
+        if (string.IsNullOrWhiteSpace(adminUserName) || string.IsNullOrWhiteSpace(adminPasswordHash))
+            throw new DomainException("The initial Tenant Admin account (P01.2 step 4) is required.");
 
         var tenant = new Tenant
         {
@@ -54,7 +58,9 @@ public sealed class Tenant : AggregateRoot
             Status = TenantStatus.Trial,
             CreatedAtUtc = nowUtc,
         };
-        tenant.Raise(new TenantProvisioned(id, tenant.Subdomain, tenant.CountryCode, planCode));
+        tenant.Raise(new TenantProvisioned(
+            id, tenant.Subdomain, tenant.CountryCode, planCode,
+            adminUserName.Trim().ToLowerInvariant(), adminFullName.Trim(), adminPasswordHash));
         return tenant;
     }
 

@@ -21,7 +21,7 @@ import { AuthService } from './core/auth.service';
           </svg>
           <span class="wm">Sky</span><span class="lis">LIS</span>
         </div>
-        <span class="ctx mono">tenant: {{ auth.tenantId() }}</span>
+        <span class="ctx">{{ auth.user()?.fullName ?? 'signed in' }} · {{ auth.user()?.roles?.join(', ') }}</span>
         <span class="spacer"></span>
         <button class="btn ghost sm" (click)="logout()">Sign out</button>
       </div>
@@ -37,7 +37,9 @@ import { AuthService } from './core/auth.service';
         <a routerLink="/reports" routerLinkActive="on">📄 Reporting</a>
         <div class="group">QUALITY</div>
         <a routerLink="/audit" routerLinkActive="on">🔗 Audit Trail</a>
-        <div class="foot">Client Portal · v0.5 · SRS Rev 2.0</div>
+        <div class="group">ADMINISTRATION</div>
+        <a routerLink="/users" routerLinkActive="on">🔐 Users &amp; Roles</a>
+        <div class="foot">Client Portal · v0.7 · SRS Rev 2.0</div>
       </nav>
       <main class="main"><router-outlet /></main>
     } @else {

@@ -1,10 +1,40 @@
 using Microsoft.Extensions.Logging;
 using SkyLIS.Application.Common;
 using SkyLIS.Application.Reports;
+using SkyLIS.Application.Users;
 using SkyLIS.Domain.Reports;
 using SkyLIS.Domain.Results;
+using SkyLIS.Domain.Tenants;
+using SkyLIS.Domain.Users;
 
 namespace SkyLIS.Application.IntegrationHandlers;
+
+/// <summary>
+/// P01.2 step 4: the outbox consumer creating the initial Tenant Admin. Runs under the
+/// new tenant's context (the dispatcher restores it from the event), so RLS admits the
+/// insert. Idempotent via the inbox and the username uniqueness check.
+/// </summary>
+internal sealed class CreateInitialAdminHandler : IIntegrationEventHandler<TenantProvisioned>
+{
+    private readonly IUserRepository _users;
+    private readonly IClock _clock;
+
+    public CreateInitialAdminHandler(IUserRepository users, IClock clock)
+    {
+        _users = users;
+        _clock = clock;
+    }
+
+    public async Task HandleAsync(TenantProvisioned domainEvent, CancellationToken ct = default)
+    {
+        if (await _users.UserNameExistsAsync(domainEvent.AdminUserName, ct))
+            return; // already created (redelivery safety on top of the inbox)
+        _users.Add(User.Create(
+            Guid.CreateVersion7(), domainEvent.TenantId, domainEvent.AdminUserName,
+            domainEvent.AdminFullName, domainEvent.AdminPasswordHash,
+            [RoleCatalog.TenantAdmin], _clock.UtcNow));
+    }
+}
 
 /// <summary>
 /// FR-SYS-011: every finalized report increments the tenant's monthly meter —

@@ -15,9 +15,14 @@ public sealed class TenantResolutionMiddleware
 
     public async Task InvokeAsync(HttpContext context, TenantContext tenantContext)
     {
-        var claim = context.User.FindFirst("tenant_id")?.Value;
-        if (claim is not null && Guid.TryParse(claim, out var tenantId))
-            tenantContext.Set(tenantId);
+        // Login ignores any presented token: it establishes its own realm from the
+        // credentials (a stale bearer from a previous session must not pin the tenant).
+        if (!context.Request.Path.StartsWithSegments("/api/v1/auth"))
+        {
+            var claim = context.User.FindFirst("tenant_id")?.Value;
+            if (claim is not null && Guid.TryParse(claim, out var tenantId))
+                tenantContext.Set(tenantId);
+        }
 
         await _next(context);
     }

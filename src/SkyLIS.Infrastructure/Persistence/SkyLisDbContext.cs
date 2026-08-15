@@ -7,6 +7,7 @@ using SkyLIS.Domain.Patients;
 using SkyLIS.Domain.Reports;
 using SkyLIS.Domain.Results;
 using SkyLIS.Domain.Tenants;
+using SkyLIS.Domain.Users;
 using SkyLIS.Domain.Visits;
 using SkyLIS.Infrastructure.Audit;
 using SkyLIS.Infrastructure.Outbox;
@@ -36,6 +37,7 @@ public sealed class SkyLisDbContext : DbContext, IUnitOfWork
     }
 
     public DbSet<Tenant> Tenants => Set<Tenant>();
+    public DbSet<User> Users => Set<User>();
     public DbSet<Patient> Patients => Set<Patient>();
     public DbSet<LabTest> LabTests => Set<LabTest>();
     public DbSet<SampleType> SampleTypes => Set<SampleType>();
@@ -65,6 +67,7 @@ public sealed class SkyLisDbContext : DbContext, IUnitOfWork
         }
 
         // Defense-in-depth tenant filter on every tenant-owned aggregate root.
+        modelBuilder.Entity<User>().HasQueryFilter(u => u.TenantId == _tenantContext.TenantId);
         modelBuilder.Entity<Patient>().HasQueryFilter(p => p.TenantId == _tenantContext.TenantId);
         modelBuilder.Entity<LabTest>().HasQueryFilter(t => t.TenantId == _tenantContext.TenantId);
         modelBuilder.Entity<SampleType>().HasQueryFilter(s => s.TenantId == _tenantContext.TenantId);
@@ -141,7 +144,13 @@ public sealed class SkyLisDbContext : DbContext, IUnitOfWork
         foreach (var aggregate in aggregates)
         {
             foreach (var domainEvent in aggregate.DomainEvents)
-                OutboxMessages.Add(OutboxMessage.From(domainEvent, _tenantContext.HasTenant ? _tenantContext.TenantId : null));
+            {
+                // Tenant events carry their own tenant (authoritative even when raised
+                // under platform scope, e.g. TenantProvisioned creating the first admin).
+                var eventTenant = (domainEvent as ITenantEvent)?.TenantId
+                    ?? (_tenantContext.HasTenant ? _tenantContext.TenantId : (Guid?)null);
+                OutboxMessages.Add(OutboxMessage.From(domainEvent, eventTenant));
+            }
             aggregate.ClearDomainEvents();
         }
     }

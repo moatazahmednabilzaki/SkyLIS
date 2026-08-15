@@ -64,6 +64,11 @@ public static class DependencyInjection
         services.AddHostedService<Outbox.OutboxDispatcher>();
         services.AddScoped<Application.Platform.IOutboxStatusQueries, Outbox.OutboxStatusQueries>();
         services.AddScoped<IUsageMeterStore, Metering.UsageMeterStore>();
+
+        // Users & auth (M02)
+        services.AddSingleton<Application.Users.IPasswordHasher, Users.Pbkdf2PasswordHasher>();
+        services.AddScoped<Application.Users.IUserRepository, Users.UserRepository>();
+        services.AddScoped<Application.Users.IUserQueries, Users.UserQueries>();
         // The integration handlers themselves are registered by AddApplication (they are
         // internal to the Application layer by design).
 

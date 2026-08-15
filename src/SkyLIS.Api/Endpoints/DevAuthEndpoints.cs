@@ -16,6 +16,7 @@ public static class DevAuthEndpoints
 
     private static readonly string[] TenantPermissions =
     [
+        "users.user.create", "users.user.read",
         "patients.patient.create", "patients.patient.read",
         "orders.visit.create", "orders.visit.read",
         "samples.sample.collect", "samples.sample.receive", "samples.sample.reject",

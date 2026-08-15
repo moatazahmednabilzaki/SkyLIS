@@ -14,7 +14,8 @@ namespace SkyLIS.Api.Endpoints;
 public static class TenantEndpoints
 {
     public sealed record ProvisionTenantRequest(
-        string LegalName, string Subdomain, string CountryCode, string PlanCode, IsolationTier IsolationTier);
+        string LegalName, string Subdomain, string CountryCode, string PlanCode, IsolationTier IsolationTier,
+        string AdminUserName, string AdminFullName, string AdminPassword);
 
     public static RouteGroupBuilder MapTenantEndpoints(this RouteGroupBuilder group)
     {
@@ -27,7 +28,8 @@ public static class TenantEndpoints
         {
             var id = await sender.Send(new ProvisionTenantCommand(
                 request.LegalName, request.Subdomain, request.CountryCode,
-                request.PlanCode, request.IsolationTier), ct);
+                request.PlanCode, request.IsolationTier,
+                request.AdminUserName, request.AdminFullName, request.AdminPassword), ct);
             return Results.Created($"/api/v1/platform/tenants/{id}", new { id });
         });
 
@@ -62,6 +64,32 @@ public static class PatientEndpoints
                 request.FullName, request.Sex, request.DateOfBirth, request.Mobile, request.NationalId), ct);
             return Results.Created($"/api/v1/patients/{id}", new { id });
         });
+
+        return group;
+    }
+}
+
+public static class UserEndpoints
+{
+    public sealed record CreateUserRequest(string UserName, string FullName, string Password, List<string> Roles);
+
+    public static RouteGroupBuilder MapUserEndpoints(this RouteGroupBuilder group)
+    {
+        var users = group.MapGroup("/users").RequireAuthorization().WithTags("Client Portal — Users & Roles (M02)");
+
+        users.MapGet("/", (ISender sender, CancellationToken ct) =>
+            sender.Send(new SkyLIS.Application.Users.ListUsersQuery(), ct));
+
+        users.MapPost("/", async (ISender sender, CreateUserRequest request, CancellationToken ct) =>
+        {
+            var id = await sender.Send(new SkyLIS.Application.Users.CreateUserCommand(
+                request.UserName, request.FullName, request.Password, request.Roles), ct);
+            return Results.Created($"/api/v1/users/{id}", new { id });
+        });
+
+        users.MapGet("/roles", () => Results.Ok(
+            SkyLIS.Domain.Users.RoleCatalog.AllRoles
+                .Select(r => new { role = r, permissions = SkyLIS.Domain.Users.RoleCatalog.PermissionsOf(r) })));
 
         return group;
     }

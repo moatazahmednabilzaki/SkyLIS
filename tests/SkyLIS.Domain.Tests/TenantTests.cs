@@ -11,7 +11,7 @@ public class TenantTests
 
     private static Tenant NewTenant() =>
         Tenant.Provision(Guid.NewGuid(), "Cairo Care Laboratories", "cairocare", "EG", "PROFESSIONAL",
-            IsolationTier.SharedRls, Now);
+            IsolationTier.SharedRls, "admin", "Cairo Admin", "HASHED-PW", Now);
 
     [Fact]
     public void Provision_starts_in_trial_and_raises_event()
@@ -30,7 +30,7 @@ public class TenantTests
     public void Provision_rejects_invalid_subdomains(string subdomain)
     {
         var act = () => Tenant.Provision(Guid.NewGuid(), "X Lab", subdomain, "EG", "LITE",
-            IsolationTier.SharedRls, Now);
+            IsolationTier.SharedRls, "admin", "Admin", "HASH", Now);
         act.Should().Throw<DomainException>();
     }
 

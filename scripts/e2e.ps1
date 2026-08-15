@@ -26,12 +26,14 @@ $ph = @{ Authorization = "Bearer $platformToken" }
 $tenantA = (Step 'provision tenant A (NileLab)' {
     Invoke-RestMethod -Method Post -Uri "$api/platform/tenants" -Headers $ph -ContentType 'application/json' -Body (@{
         legalName = 'NileLab Diagnostics'; subdomain = "nilelab-$suffix"; countryCode = 'EG'
-        planCode = 'PROFESSIONAL'; isolationTier = 'SharedRls' } | ConvertTo-Json)
+        planCode = 'PROFESSIONAL'; isolationTier = 'SharedRls'
+        adminUserName = 'sara.hassan'; adminFullName = 'Dr. Sara Hassan'; adminPassword = 'NileLab#Dev2026!' } | ConvertTo-Json)
 }).id
 $tenantB = (Step 'provision tenant B (Delta)' {
     Invoke-RestMethod -Method Post -Uri "$api/platform/tenants" -Headers $ph -ContentType 'application/json' -Body (@{
         legalName = 'Delta Medical Labs'; subdomain = "delta-$suffix"; countryCode = 'EG'
-        planCode = 'STARTER'; isolationTier = 'SharedRls' } | ConvertTo-Json)
+        planCode = 'STARTER'; isolationTier = 'SharedRls'
+        adminUserName = 'delta.admin'; adminFullName = 'Delta Admin'; adminPassword = 'DeltaLab#Dev2026!' } | ConvertTo-Json)
 }).id
 
 $directory = Step 'tenant directory lists both' {
@@ -42,7 +44,8 @@ $directory = Step 'tenant directory lists both' {
 ExpectError 'duplicate subdomain rejected' 409 {
     Invoke-RestMethod -Method Post -Uri "$api/platform/tenants" -Headers $ph -ContentType 'application/json' -Body (@{
         legalName = 'Copycat'; subdomain = "nilelab-$suffix"; countryCode = 'EG'
-        planCode = 'LITE'; isolationTier = 'SharedRls' } | ConvertTo-Json)
+        planCode = 'LITE'; isolationTier = 'SharedRls'
+        adminUserName = 'copy.admin'; adminFullName = 'Copy Admin'; adminPassword = 'CopycatLab#2026!' } | ConvertTo-Json)
 }
 
 # ---------- Client Portal flow (tenant A) ----------
@@ -378,6 +381,54 @@ Step 'metering counted 2 finalized reports for tenant A (FR-SYS-011)' {
     $month = $usage | Select-Object -First 1
     if ($month.finalizedReports -ne 2) { throw "expected 2 finalized reports, got $($month.finalizedReports)" }
 } | Out-Null
+
+# ---------- M02: Real users, login & role-based permissions ----------
+Step 'initial Tenant Admin created via outbox; real login works' {
+    $deadline = (Get-Date).AddSeconds(20)
+    do {
+        Start-Sleep -Seconds 2
+        try {
+            $script:adminAuth = Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
+                tenantId = $tenantA; userName = 'sara.hassan'; password = 'NileLab#Dev2026!' } | ConvertTo-Json)
+        } catch { $script:adminAuth = $null }
+    } while (-not $script:adminAuth -and (Get-Date) -lt $deadline)
+    if (-not $adminAuth) { throw 'admin login failed (outbox consumer did not create the user?)' }
+    if ($adminAuth.roles -notcontains 'TenantAdmin') { throw 'expected TenantAdmin role' }
+} | Out-Null
+$hAdmin = @{ Authorization = "Bearer $($adminAuth.token)" }
+
+ExpectError 'wrong password rejected (indistinguishable failure)' 403 {
+    Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
+        tenantId = $tenantA; userName = 'sara.hassan'; password = 'wrong-password-123' } | ConvertTo-Json)
+}
+
+Step 'admin creates a Technologist user (P02.1)' {
+    Invoke-RestMethod -Method Post -Uri "$api/users" -Headers $hAdmin -ContentType 'application/json' -Body (@{
+        userName = 'mostafa.kamal'; fullName = 'Mostafa Kamal'; password = 'Technolog#2026!x'
+        roles = @('Technologist') } | ConvertTo-Json)
+    $list = Invoke-RestMethod -Uri "$api/users" -Headers $hAdmin
+    if ($list.Count -lt 2) { throw "expected >=2 users, got $($list.Count)" }
+} | Out-Null
+
+$techAuth = Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
+    tenantId = $tenantA; userName = 'mostafa.kamal'; password = 'Technolog#2026!x' } | ConvertTo-Json)
+$hTech = @{ Authorization = "Bearer $($techAuth.token)" }
+
+Step 'technologist can read visits with a real token' {
+    Invoke-RestMethod -Uri "$api/visits/$($visit.visitId)" -Headers $hTech | Out-Null
+} | Out-Null
+ExpectError 'technologist cannot create users (role gate)' 403 {
+    Invoke-RestMethod -Method Post -Uri "$api/users" -Headers $hTech -ContentType 'application/json' -Body (@{
+        userName = 'rogue'; fullName = 'Rogue'; password = 'Whatever#2026!x'; roles = @('TenantAdmin') } | ConvertTo-Json)
+}
+ExpectError 'technologist cannot medically validate (role gate)' 403 {
+    Invoke-RestMethod -Method Post -Uri "$api/results/$($gluResult.resultId)/validate-medical" -Headers $hTech `
+        -ContentType 'application/json' -Body '{"interpretiveComment":null,"signatureIntent":"try"}'
+}
+ExpectError "tenant B admin cannot log into tenant A" 403 {
+    Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
+        tenantId = $tenantA; userName = 'delta.admin'; password = 'DeltaLab#Dev2026!' } | ConvertTo-Json)
+}
 
 # ---------- FR-SYS-001: Audit trail & tamper evidence ----------
 Step 'audit trail recorded the flow (who/what/when, before/after)' {

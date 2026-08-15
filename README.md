@@ -57,6 +57,24 @@ dotnet test                   # 45 tests
 
 After migrations, apply `src/SkyLIS.Infrastructure/Persistence/Scripts/enable-rls.sql` for Row-Level Security.
 
+## Portals (frontend)
+
+Angular 19 workspace at `frontend/` with two standalone applications (Signals, typed reactive forms, lazy feature routes, facades):
+
+| App | URL (dev) | Contents |
+|---|---|---|
+| `admin-portal` | http://localhost:4201 | Platform console (dark theme): tenant directory, tenant provisioning with country/plan/isolation tier |
+| `client-portal` | http://localhost:4200 | Tenant app: dev sign-in, dashboard, patient search/registration, visit-registration wizard, visit details with sample collect/receive/reject and payment capture |
+
+```bash
+cd frontend
+npm install
+npx ng serve admin-portal --port 4201    # sign in as platform operator, provision a tenant
+npx ng serve client-portal --port 4200   # sign in with the tenant id
+```
+
+Development authentication uses the API's Development-only `/api/v1/dev/token` endpoint (never mapped outside Development); OIDC (OpenIddict, MFA) replaces it in later phases.
+
 ## Functional modules
 
 The SRS specifies 25 functional modules:

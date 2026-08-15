@@ -1,0 +1,81 @@
+/* Sky LIS Admin Portal — platform console (dark) theme */
+:root {
+  --blue: #0284c7;
+  --blue-dark: #0369a1;
+  --navy: #101d2c;
+  --deep: #0c1725;
+  --tint: #e7f4fd;
+  --accent: #74bce2;
+  --slate: #9db4cc;
+  --body: #d5e2ee;
+  --line: #24374d;
+  --card: #14263a;
+  --green: #4ade80;
+  --red: #f87171;
+  --amber: #fbbf24;
+  --radius: 12px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--deep);
+  color: var(--body);
+  font-size: 13.5px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+.card h3 { font-size: 13.5px; font-weight: 700; color: #fff; margin-bottom: 10px; }
+
+.btn {
+  display: inline-block; border: 0; background: var(--blue); color: #fff;
+  font-size: 12px; font-weight: 600; border-radius: 8px; padding: 8px 16px; cursor: pointer;
+}
+.btn:hover { background: var(--blue-dark); }
+.btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+.btn.sm { font-size: 11px; padding: 5px 11px; }
+.btn:disabled { opacity: .45; cursor: default; }
+
+.chip { display: inline-block; font-size: 10px; font-weight: 700; border-radius: 20px; padding: 2.5px 9px; }
+.c-blue { background: rgba(2, 132, 199, .25); color: #7dd3fc; }
+.c-green { background: rgba(74, 222, 128, .15); color: var(--green); }
+.c-red { background: rgba(248, 113, 113, .15); color: var(--red); }
+.c-amber { background: rgba(251, 191, 36, .15); color: var(--amber); }
+
+table.t { width: 100%; border-collapse: collapse; font-size: 12px; }
+.t th {
+  background: #0a1420; color: var(--slate); text-align: left; padding: 8px 10px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: .06em;
+}
+.t td { padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.t tr:hover td { background: rgba(2, 132, 199, .08); }
+
+.f-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.f { flex: 1; min-width: 150px; }
+.f label {
+  display: block; font-size: 10.5px; font-weight: 700; color: var(--slate);
+  letter-spacing: .05em; margin-bottom: 4px;
+}
+.f input, .f select {
+  width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px 11px;
+  font-size: 12.5px; color: #fff; background: #0e1c2e;
+}
+.f input:focus, .f select:focus { outline: 2px solid var(--blue); }
+
+.err {
+  background: rgba(248, 113, 113, .12); border: 1px solid rgba(248, 113, 113, .4);
+  border-radius: 9px; padding: 10px 13px; font-size: 11.5px; color: var(--red); margin-bottom: 14px;
+}
+.note {
+  background: rgba(2, 132, 199, .12); border: 1px solid rgba(2, 132, 199, .4);
+  border-radius: 9px; padding: 10px 13px; font-size: 11.5px; color: #7dd3fc; margin-bottom: 14px;
+}
+.hint { font-size: 10.5px; color: var(--slate); margin-top: 4px; }
+.mono { font-family: Consolas, 'IBM Plex Mono', monospace; }

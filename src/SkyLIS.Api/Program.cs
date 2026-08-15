@@ -15,10 +15,18 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApiServices(builder.Configuration);
 
+// Portal dev servers (Development only; production portals are same-origin behind the gateway).
+builder.Services.AddCors(options => options.AddPolicy("portals", policy => policy
+    .WithOrigins("http://localhost:4200", "http://localhost:4201")
+    .AllowAnyHeader()
+    .AllowAnyMethod()));
+
 var app = builder.Build();
 
 app.UseSerilogRequestLogging();
 app.UseExceptionHandler();
+if (app.Environment.IsDevelopment())
+    app.UseCors("portals");
 app.UseAuthentication();
 app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthorization();
@@ -31,5 +39,7 @@ api.MapPatientEndpoints();
 api.MapCatalogEndpoints();
 api.MapVisitEndpoints();
 api.MapBillingEndpoints();
+if (app.Environment.IsDevelopment())
+    api.MapDevAuthEndpoints(app.Configuration);
 
 app.Run();

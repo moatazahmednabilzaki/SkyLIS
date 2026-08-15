@@ -1,0 +1,90 @@
+/* Sky LIS brand design system (SRS Rev 2.0 §2.6) */
+:root {
+  --blue: #0284c7;
+  --blue-dark: #0369a1;
+  --navy: #101d2c;
+  --tint: #e7f4fd;
+  --accent: #74bce2;
+  --slate: #5a6472;
+  --body: #26303b;
+  --line: #dbe6f0;
+  --bg: #f4f8fc;
+  --green: #177245;
+  --green-bg: #e3f5ec;
+  --red: #b91c1c;
+  --red-bg: #fdeaea;
+  --amber: #b26a00;
+  --amber-bg: #fdf3e0;
+  --radius: 12px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--body);
+  font-size: 13.5px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+.card h3 { font-size: 13.5px; font-weight: 700; color: var(--navy); margin-bottom: 10px; }
+
+.btn {
+  display: inline-block; border: 0; background: var(--blue); color: #fff;
+  font-size: 12px; font-weight: 600; border-radius: 8px; padding: 8px 16px; cursor: pointer;
+}
+.btn:hover { background: var(--blue-dark); }
+.btn.ghost { background: #fff; color: var(--blue-dark); border: 1px solid var(--accent); }
+.btn.danger { background: var(--red); }
+.btn.green { background: var(--green); }
+.btn.sm { font-size: 11px; padding: 5px 11px; }
+.btn:disabled { opacity: .45; cursor: default; }
+
+.chip {
+  display: inline-block; font-size: 10px; font-weight: 700;
+  border-radius: 20px; padding: 2.5px 9px;
+}
+.c-blue { background: var(--tint); color: var(--blue-dark); }
+.c-green { background: var(--green-bg); color: var(--green); }
+.c-red { background: var(--red-bg); color: var(--red); }
+.c-amber { background: var(--amber-bg); color: var(--amber); }
+.c-navy { background: #e2e9f2; color: var(--navy); }
+
+table.t { width: 100%; border-collapse: collapse; font-size: 12px; }
+.t th {
+  background: var(--navy); color: #fff; text-align: left; padding: 8px 10px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: .04em;
+}
+.t td { padding: 8px 10px; border-bottom: 1px solid #edf3f9; vertical-align: middle; }
+.t tr:hover td { background: var(--tint); }
+
+.f-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.f { flex: 1; min-width: 150px; }
+.f label {
+  display: block; font-size: 10.5px; font-weight: 700; color: var(--slate);
+  letter-spacing: .05em; margin-bottom: 4px;
+}
+.f input, .f select {
+  width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px 11px;
+  font-size: 12.5px; color: var(--navy); background: #fff;
+}
+.f input:focus, .f select:focus { outline: 2px solid var(--accent); }
+.f input.ng-invalid.ng-touched { border-color: var(--red); }
+
+.err {
+  background: var(--red-bg); border: 1px solid #f3c5c5; border-radius: 9px;
+  padding: 10px 13px; font-size: 11.5px; color: var(--red); margin-bottom: 14px;
+}
+.note {
+  background: var(--tint); border: 1px solid #bfe1f6; border-radius: 9px;
+  padding: 10px 13px; font-size: 11.5px; color: var(--blue-dark); margin-bottom: 14px;
+}
+.hint { font-size: 10.5px; color: var(--slate); margin-top: 4px; }
+.mono { font-family: Consolas, 'IBM Plex Mono', monospace; }

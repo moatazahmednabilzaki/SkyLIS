@@ -6,6 +6,18 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8734", "--directory", "D:/SAAS/SkyLIS"],
       "port": 8734
+    },
+    {
+      "name": "client-portal",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "cd /d D:\\SAAS\\SkyLIS\\frontend && npx ng serve client-portal --port 4200"],
+      "port": 4200
+    },
+    {
+      "name": "admin-portal",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "cd /d D:\\SAAS\\SkyLIS\\frontend && npx ng serve admin-portal --port 4201"],
+      "port": 4201
     }
   ]
 }

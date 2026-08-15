@@ -32,6 +32,12 @@ public interface IClock
     DateTimeOffset UtcNow { get; }
 }
 
+/// <summary>Transport-level caller context for the audit trail (where): client IP/device.</summary>
+public interface IClientContext
+{
+    string? IpAddress { get; }
+}
+
 /// <summary>Commit point for the aggregate transaction; called once per command by UnitOfWorkBehavior.</summary>
 public interface IUnitOfWork
 {

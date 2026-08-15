@@ -8,6 +8,7 @@ using SkyLIS.Domain.Reports;
 using SkyLIS.Domain.Results;
 using SkyLIS.Domain.Tenants;
 using SkyLIS.Domain.Visits;
+using SkyLIS.Infrastructure.Audit;
 using SkyLIS.Infrastructure.Outbox;
 using SkyLIS.Infrastructure.Tenancy;
 
@@ -21,9 +22,18 @@ namespace SkyLIS.Infrastructure.Persistence;
 public sealed class SkyLisDbContext : DbContext, IUnitOfWork
 {
     private readonly TenantContext _tenantContext;
+    private readonly ICurrentUser? _currentUser;
+    private readonly IClientContext? _clientContext;
 
-    public SkyLisDbContext(DbContextOptions<SkyLisDbContext> options, TenantContext tenantContext)
-        : base(options) => _tenantContext = tenantContext;
+    public SkyLisDbContext(
+        DbContextOptions<SkyLisDbContext> options, TenantContext tenantContext,
+        ICurrentUser? currentUser = null, IClientContext? clientContext = null)
+        : base(options)
+    {
+        _tenantContext = tenantContext;
+        _currentUser = currentUser;
+        _clientContext = clientContext;
+    }
 
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<Patient> Patients => Set<Patient>();
@@ -35,6 +45,7 @@ public sealed class SkyLisDbContext : DbContext, IUnitOfWork
     public DbSet<ReportVerification> ReportVerifications => Set<ReportVerification>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
     public DbSet<NumberSeries> NumberSeries => Set<NumberSeries>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -68,7 +79,51 @@ public sealed class SkyLisDbContext : DbContext, IUnitOfWork
     public override async Task<int> SaveChangesAsync(CancellationToken ct = default)
     {
         CollectDomainEventsIntoOutbox();
-        return await base.SaveChangesAsync(ct);
+
+        // FR-SYS-001 / NFR-007: audit events are computed from the change tracker and
+        // written IN the same transaction as the business change.
+        var tenantId = _tenantContext.HasTenant ? _tenantContext.TenantId : (Guid?)null;
+        var auditEvents = AuditCollector.Collect(
+            ChangeTracker, tenantId, _currentUser?.UserId, _clientContext?.IpAddress, DateTimeOffset.UtcNow);
+        if (auditEvents.Count == 0)
+            return await base.SaveChangesAsync(ct);
+
+        // Hash chain per tenant: serialize appends with a per-tenant advisory lock so the
+        // previous-hash read cannot fork under concurrency; the lock releases on commit.
+        await using var transaction = Database.CurrentTransaction is null
+            ? await Database.BeginTransactionAsync(ct)
+            : null;
+
+        foreach (var group in auditEvents.GroupBy(e => e.TenantId))
+        {
+            var chainKey = ChainLockKey(group.Key);
+            await Database.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock({chainKey})", ct);
+            var previousHash = await Database
+                .SqlQuery<string>($@"
+                    SELECT hash AS ""Value"" FROM audit.audit_events
+                    WHERE tenant_id IS NOT DISTINCT FROM {group.Key}
+                    ORDER BY occurred_at_utc DESC, id DESC LIMIT 1")
+                .FirstOrDefaultAsync(ct) ?? AuditEvent.GenesisHash;
+
+            foreach (var auditEvent in group.OrderBy(e => e.Id))
+            {
+                auditEvent.PreviousHash = previousHash;
+                auditEvent.Hash = auditEvent.ComputeHash(previousHash);
+                previousHash = auditEvent.Hash;
+            }
+        }
+        AuditEvents.AddRange(auditEvents);
+
+        var result = await base.SaveChangesAsync(ct);
+        if (transaction is not null)
+            await transaction.CommitAsync(ct);
+        return result;
+    }
+
+    private static long ChainLockKey(Guid? tenantId)
+    {
+        var bytes = (tenantId ?? Guid.Empty).ToByteArray();
+        return BitConverter.ToInt64(bytes, 0) ^ BitConverter.ToInt64(bytes, 8);
     }
 
     /// <summary>

@@ -52,6 +52,7 @@ public static class DependencyInjection
         services.AddScoped<IReportQueries, Reports.ReportQueries>();
         services.AddScoped<IReportVerificationQueries, ReportVerificationQueries>();
         services.AddScoped<Application.Analytics.IAnalyticsQueries, AnalyticsQueries>();
+        services.AddScoped<Application.Audit.IAuditQueries, Audit.AuditQueries>();
 
         // Cross-cutting
         services.AddSingleton<IClock, SystemClock>();

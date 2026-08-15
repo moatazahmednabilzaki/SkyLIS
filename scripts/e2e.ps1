@@ -361,6 +361,30 @@ Step 'dashboard KPIs reconcile with the day''s activity (P23.1)' {
     if (($d.pipeline | Where-Object stage -eq 'Reported').count -ne 2) { throw 'pipeline Reported mismatch' }
 } | Out-Null
 
+# ---------- FR-SYS-001: Audit trail & tamper evidence ----------
+Step 'audit trail recorded the flow (who/what/when, before/after)' {
+    $events = Invoke-RestMethod -Uri "$api/audit/events?take=500" -Headers $ha
+    foreach ($required in @('Patient', 'Visit', 'TestResult', 'LabReport', 'Invoice')) {
+        if (-not ($events | Where-Object { $_.entityType -eq $required })) { throw "no audit events for $required" }
+    }
+    $modified = $events | Where-Object { $_.action -eq 'Modified' -and $_.oldValues -and $_.newValues } | Select-Object -First 1
+    if (-not $modified) { throw 'expected Modified events with before/after values' }
+} | Out-Null
+
+Step 'audit chain verifies intact' {
+    $v = Invoke-RestMethod -Uri "$api/audit/verify-chain" -Headers $ha
+    if (-not $v.valid -or $v.eventCount -lt 20) { throw "chain invalid or too few events: $($v | ConvertTo-Json -Compress)" }
+} | Out-Null
+
+Step 'TAMPER TEST: superuser edits history -> chain detects it' {
+    $env:PGPASSWORD = 'postgres_dev_only'
+    & 'C:\Program Files\PostgreSQL\17\bin\psql.exe' -U postgres -h localhost -p 5433 -d skylis -q -c `
+        "UPDATE audit.audit_events SET new_values = replace(new_values, 'Mona', 'Someone Else') WHERE tenant_id = '$tenantA' AND entity_type = 'Patient' AND action = 'Created';" | Out-Null
+    $v = Invoke-RestMethod -Uri "$api/audit/verify-chain" -Headers $ha
+    if ($v.valid) { throw 'TAMPER NOT DETECTED — hash chain failed' }
+    if (-not $v.firstBrokenEventId) { throw 'expected the broken event to be identified' }
+} | Out-Null
+
 # ---------- Tenant isolation proof ----------
 $tokenB = (Invoke-RestMethod -Method Post -Uri "$api/dev/token" -ContentType 'application/json' -Body (@{
     scope = 'tenant'; tenantId = $tenantB } | ConvertTo-Json)).token

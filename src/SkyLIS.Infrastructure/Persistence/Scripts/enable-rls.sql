@@ -25,6 +25,22 @@ BEGIN
   END LOOP;
 END $$;
 
+-- Audit trail (FR-SYS-001): append is always allowed (platform events carry NULL
+-- tenant_id); reads are tenant-scoped. In production the application role is NOT the
+-- table owner and additionally gets: REVOKE UPDATE, DELETE ON audit.audit_events —
+-- making the table insert-only at the grant level on top of the hash chain.
+ALTER TABLE audit.audit_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit.audit_events FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS audit_append ON audit.audit_events;
+CREATE POLICY audit_append ON audit.audit_events FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS audit_read ON audit.audit_events;
+CREATE POLICY audit_read ON audit.audit_events FOR SELECT
+  USING (
+    tenant_id = current_setting('app.tenant_id')::uuid
+    OR (tenant_id IS NULL
+        AND current_setting('app.tenant_id')::uuid = '00000000-0000-0000-0000-000000000000')
+  );
+
 -- The platform schema (tenants registry, number series) is platform-operated:
 -- number_series is tenant-owned and gets the same policy; tenants registry does not.
 ALTER TABLE platform.number_series ENABLE ROW LEVEL SECURITY;

@@ -12,6 +12,7 @@ public static class ApiServices
     {
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, CurrentUser>();
+        services.AddScoped<IClientContext, ClientContext>();
         // Enums cross the wire as strings (portals send/receive "SharedRls", "Female", …).
         services.ConfigureHttpJsonOptions(options =>
             options.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
@@ -40,6 +41,14 @@ public static class ApiServices
 
         return services;
     }
+}
+
+/// <summary>Client IP for the audit trail's "where" dimension (FR-SYS-001).</summary>
+internal sealed class ClientContext : IClientContext
+{
+    private readonly IHttpContextAccessor _accessor;
+    public ClientContext(IHttpContextAccessor accessor) => _accessor = accessor;
+    public string? IpAddress => _accessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
 }
 
 /// <summary>Caller identity materialized from JWT claims.</summary>

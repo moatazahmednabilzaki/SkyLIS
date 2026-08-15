@@ -25,6 +25,7 @@ public static class DevAuthEndpoints
         "results.result.enter", "results.result.validateTechnical", "results.result.validateMedical",
         "reports.report.render", "reports.report.deliver", "reports.report.read",
         "analytics.dashboard.read",
+        "audit.trail.read",
     ];
 
     private static readonly string[] PlatformPermissions =

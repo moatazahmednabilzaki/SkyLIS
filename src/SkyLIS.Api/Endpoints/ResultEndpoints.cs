@@ -19,6 +19,13 @@ public static class ResultEndpoints
             sender.Send(new SkyLIS.Application.Analytics.GetDashboardQuery(), ct))
             .RequireAuthorization().WithTags("Client Portal — Analytics (M23)");
 
+        // FR-SYS-001 audit trail explorer + tamper-evidence verification
+        var audit = group.MapGroup("/audit").RequireAuthorization().WithTags("Client Portal — Audit Trail");
+        audit.MapGet("/events", (ISender sender, string? entityType, string? entityId, int? take, CancellationToken ct) =>
+            sender.Send(new SkyLIS.Application.Audit.SearchAuditQuery(entityType, entityId, take ?? 50), ct));
+        audit.MapGet("/verify-chain", (ISender sender, CancellationToken ct) =>
+            sender.Send(new SkyLIS.Application.Audit.VerifyAuditChainQuery(), ct));
+
         // Worklists
         results.MapGet("/pending-entry", (ISender sender, CancellationToken ct) =>
             sender.Send(new GetPendingEntryQuery(), ct));

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SkyLIS.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using SkyLIS.Infrastructure.Persistence;
 namespace SkyLIS.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(SkyLisDbContext))]
-    partial class SkyLisDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260815174358_AuditTrail")]
+    partial class AuditTrail
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -941,7 +944,7 @@ namespace SkyLIS.Infrastructure.Persistence.Migrations
                         .HasColumnName("ip_address");
 
                     b.Property<string>("NewValues")
-                        .HasColumnType("text")
+                        .HasColumnType("jsonb")
                         .HasColumnName("new_values");
 
                     b.Property<DateTimeOffset>("OccurredAtUtc")
@@ -949,7 +952,7 @@ namespace SkyLIS.Infrastructure.Persistence.Migrations
                         .HasColumnName("occurred_at_utc");
 
                     b.Property<string>("OldValues")
-                        .HasColumnType("text")
+                        .HasColumnType("jsonb")
                         .HasColumnName("old_values");
 
                     b.Property<string>("PreviousHash")

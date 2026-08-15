@@ -70,18 +70,20 @@ jobs:
           psql -h localhost -U postgres -c "CREATE ROLE skylis LOGIN PASSWORD 'skylis_dev_only' NOSUPERUSER NOCREATEROLE NOBYPASSRLS;"
           psql -h localhost -U postgres -c "CREATE DATABASE skylis OWNER skylis;"
 
-      - name: Restore EF tool
-        run: dotnet tool restore
+      - name: Restore & build
+        run: |
+          dotnet tool restore
+          dotnet build SkyLIS.sln --configuration Release
 
       - name: Apply migrations
-        run: dotnet ef database update --project src/SkyLIS.Infrastructure --startup-project src/SkyLIS.Api --verbose
+        run: dotnet ef database update --project src/SkyLIS.Infrastructure --startup-project src/SkyLIS.Api --configuration Release --no-build
 
       - name: Apply Row-Level Security policies
         run: psql -h localhost -U postgres -d skylis -f src/SkyLIS.Infrastructure/Persistence/Scripts/enable-rls.sql
 
       - name: Start API
         run: |
-          dotnet run --project src/SkyLIS.Api --configuration Release &
+          dotnet run --project src/SkyLIS.Api --configuration Release --no-build &
           for i in $(seq 1 30); do
             curl -fsS http://localhost:5178/health && break || sleep 2
           done

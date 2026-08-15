@@ -36,6 +36,27 @@
 
 The prototypes are self-contained HTML files — open them directly in a browser, no build or server required.
 
+## Solution (backend)
+
+Clean Architecture per the Enterprise Application Architect standard — dependency direction `Api → Application → Domain`, with `Infrastructure → Application/Domain`, enforced by architecture tests in CI.
+
+| Project | Contents |
+|---|---|
+| `src/SkyLIS.Domain` | Framework-pure aggregates (Tenant, Patient, LabTest, Visit/Sample, Invoice), value objects, domain events, SpecimenPlanner |
+| `src/SkyLIS.Application` | CQRS (MediatR + FluentValidation), pipeline behaviors (logging, permissions, validation, unit-of-work), repository & query ports |
+| `src/SkyLIS.Infrastructure` | EF Core + PostgreSQL (schema-per-module, xmin concurrency, RLS script, outbox, number series) |
+| `src/SkyLIS.Api` | Minimal API endpoints (`/api/v1`), JWT auth with permission claims, tenant resolution from token claims, Problem Details |
+| `tests/*` | Domain state-machine tests, application handler/authorization tests, NetArchTest architecture gate |
+
+```bash
+docker compose up -d          # PostgreSQL 17
+dotnet ef database update --project src/SkyLIS.Infrastructure --startup-project src/SkyLIS.Api
+dotnet run --project src/SkyLIS.Api
+dotnet test                   # 45 tests
+```
+
+After migrations, apply `src/SkyLIS.Infrastructure/Persistence/Scripts/enable-rls.sql` for Row-Level Security.
+
 ## Functional modules
 
 The SRS specifies 25 functional modules:

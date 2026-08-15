@@ -47,7 +47,7 @@ interface ProblemDetails {
         <div class="note">No tenants yet — provision the first one below.</div>
       } @else {
         <table class="t">
-          <tr><th>Tenant</th><th>Subdomain</th><th>Country</th><th>Plan</th><th>Status</th><th>Created</th><th>Id</th></tr>
+          <tr><th>Tenant</th><th>Subdomain</th><th>Country</th><th>Plan</th><th>Status</th><th>Created</th><th>Id</th><th></th></tr>
           @for (t of tenants(); track t.id) {
             <tr>
               <td><b style="color:#fff">{{ t.legalName }}</b></td>
@@ -61,7 +61,20 @@ interface ProblemDetails {
                     [class.c-red]="t.status === 'Suspended' || t.status === 'Offboarded'">{{ t.status }}</span></td>
               <td>{{ t.createdAtUtc | date: 'yyyy-MM-dd' }}</td>
               <td class="mono" style="font-size:10px">{{ t.id }}</td>
+              <td><button class="btn ghost sm" (click)="toggleUsage(t.id)">
+                {{ usageFor() === t.id ? 'Hide usage' : 'Usage' }}</button></td>
             </tr>
+            @if (usageFor() === t.id) {
+              <tr><td colspan="8" style="background:#0e1c2e">
+                <b style="color:#fff">Metering (P01.3 · FR-SYS-011)</b> — finalized reports per month; the billing unit.
+                @if (usage().length === 0) { <span class="hint"> No finalized reports yet.</span> }
+                @else {
+                  @for (m of usage(); track (m.year + '-' + m.month)) {
+                    <span class="chip c-blue" style="margin-left:8px">{{ m.year }}-{{ m.month }}: {{ m.finalizedReports }} reports</span>
+                  }
+                }
+              </td></tr>
+            }
           }
         </table>
         <p class="hint">Use a tenant id to sign in to the Client Portal (http://localhost:4300).</p>
@@ -111,9 +124,25 @@ interface ProblemDetails {
             </select>
           </div>
         </div>
+        <div class="f-row">
+          <div class="f">
+            <label for="adminUser">INITIAL TENANT ADMIN — USERNAME (P01.2 step 4)</label>
+            <input id="adminUser" class="mono" formControlName="adminUserName">
+          </div>
+          <div class="f">
+            <label for="adminName">ADMIN FULL NAME</label>
+            <input id="adminName" formControlName="adminFullName">
+          </div>
+          <div class="f">
+            <label for="adminPw">ADMIN PASSWORD (≥ 12 chars)</label>
+            <input id="adminPw" type="password" formControlName="adminPassword">
+          </div>
+        </div>
         <button class="btn" type="submit" [disabled]="form.invalid || busy()">
           {{ busy() ? 'Provisioning…' : 'Provision tenant' }}
         </button>
+        <p class="hint" style="margin-top:8px">The admin account is created by the platform's
+          event pipeline within seconds; sign in at the Client Portal (http://localhost:4300).</p>
       </form>
     </div>
   `,
@@ -131,6 +160,8 @@ export class TenantsComponent implements OnInit {
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
   readonly provisioned = signal<string | null>(null);
+  readonly usageFor = signal<string | null>(null);
+  readonly usage = signal<{ year: number; month: number; finalizedReports: number }[]>([]);
 
   readonly search = this.fb.nonNullable.control('');
   readonly form = this.fb.nonNullable.group({
@@ -139,6 +170,9 @@ export class TenantsComponent implements OnInit {
     countryCode: ['EG', Validators.required],
     planCode: ['PROFESSIONAL', Validators.required],
     isolationTier: ['SharedRls', Validators.required],
+    adminUserName: ['', [Validators.required, Validators.minLength(3)]],
+    adminFullName: ['', Validators.required],
+    adminPassword: ['', [Validators.required, Validators.minLength(12)]],
   });
 
   ngOnInit(): void {
@@ -159,6 +193,20 @@ export class TenantsComponent implements OnInit {
     }
   }
 
+  async toggleUsage(tenantId: string): Promise<void> {
+    if (this.usageFor() === tenantId) {
+      this.usageFor.set(null);
+      return;
+    }
+    try {
+      this.usage.set(await firstValueFrom(this.http.get<{ year: number; month: number; finalizedReports: number }[]>(
+        `${API_BASE_URL}/platform/tenants/${tenantId}/usage`)));
+      this.usageFor.set(tenantId);
+    } catch (e) {
+      this.error.set(this.message(e));
+    }
+  }
+
   async provision(): Promise<void> {
     if (this.form.invalid) return;
     this.busy.set(true);
@@ -170,6 +218,7 @@ export class TenantsComponent implements OnInit {
       this.provisioned.set(id);
       this.form.reset({ countryCode: 'EG', planCode: 'PROFESSIONAL', isolationTier: 'SharedRls' });
       await this.load();
+      this.usageFor.set(null);
     } catch (e) {
       this.error.set(this.message(e));
     } finally {

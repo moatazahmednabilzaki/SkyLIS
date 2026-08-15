@@ -22,6 +22,10 @@ export const appRoutes: Routes = [
         path: 'tenants',
         loadComponent: () => import('./features/tenants/tenants.component').then(m => m.TenantsComponent),
       },
+      {
+        path: 'health',
+        loadComponent: () => import('./features/health/health.component').then(m => m.HealthComponent),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

@@ -1,4 +1,4 @@
-using SkyLIS.Domain.Common;
+﻿using SkyLIS.Domain.Common;
 
 namespace SkyLIS.Domain.Results;
 
@@ -22,7 +22,7 @@ public enum ResultFlag
 /// <summary>
 /// Tenant-owned aggregate: one entered result for one visit test line (M09).
 /// Own consistency boundary so validation scales across many concurrent users.
-/// State machine: Entered → TechnicallyValid → MedicallyValid (RerunOrdered voids).
+/// State machine: Entered â†’ TechnicallyValid â†’ MedicallyValid (RerunOrdered voids).
 /// SoD invariant: the enterer can never medically validate their own result.
 /// </summary>
 public sealed class TestResult : AggregateRoot, ITenantOwned
@@ -194,9 +194,9 @@ public sealed class CriticalNotification : Entity, ITenantOwned
     }
 }
 
-public sealed record ResultEntered(Guid ResultId, Guid TenantId, Guid VisitId, Guid VisitTestId, string TestCode) : DomainEvent;
-public sealed record ResultTechnicallyValid(Guid ResultId, Guid TenantId, Guid VisitId, Guid VisitTestId, bool AutoVerified) : DomainEvent;
-public sealed record ResultMedicallyValid(Guid ResultId, Guid TenantId, Guid VisitId, Guid VisitTestId) : DomainEvent;
-public sealed record ResultRerunOrdered(Guid ResultId, Guid TenantId, Guid VisitId, Guid VisitTestId, string Reason) : DomainEvent;
-public sealed record CriticalValueFlagged(Guid ResultId, Guid TenantId, Guid VisitId, string TestCode, decimal Value, string Unit) : DomainEvent;
-public sealed record CriticalValueClosed(Guid ResultId, Guid TenantId, Guid VisitId, string TestCode) : DomainEvent;
+public sealed record ResultEntered(Guid ResultId, Guid TenantId, Guid VisitId, Guid VisitTestId, string TestCode) : DomainEvent, ITenantEvent;
+public sealed record ResultTechnicallyValid(Guid ResultId, Guid TenantId, Guid VisitId, Guid VisitTestId, bool AutoVerified) : DomainEvent, ITenantEvent;
+public sealed record ResultMedicallyValid(Guid ResultId, Guid TenantId, Guid VisitId, Guid VisitTestId) : DomainEvent, ITenantEvent;
+public sealed record ResultRerunOrdered(Guid ResultId, Guid TenantId, Guid VisitId, Guid VisitTestId, string Reason) : DomainEvent, ITenantEvent;
+public sealed record CriticalValueFlagged(Guid ResultId, Guid TenantId, Guid VisitId, string TestCode, decimal Value, string Unit) : DomainEvent, ITenantEvent;
+public sealed record CriticalValueClosed(Guid ResultId, Guid TenantId, Guid VisitId, string TestCode) : DomainEvent, ITenantEvent;

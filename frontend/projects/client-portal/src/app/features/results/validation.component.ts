@@ -1,4 +1,6 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { DestroyRef, Component, OnInit, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { RealtimeService } from '../../core/realtime.service';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { ResultQueueItem, ResultsApi } from './results.api';
@@ -86,6 +88,8 @@ import { problemMessage } from '../../core/api.types';
   `,
 })
 export class ValidationComponent implements OnInit {
+  private readonly realtime = inject(RealtimeService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly api = inject(ResultsApi);
 
   readonly tab = signal<'tech' | 'med'>('tech');
@@ -99,6 +103,9 @@ export class ValidationComponent implements OnInit {
 
   ngOnInit(): void {
     void this.load();
+    this.realtime.onArea('validation')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => void this.load());
   }
 
   async load(): Promise<void> {

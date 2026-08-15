@@ -1,4 +1,4 @@
-using SkyLIS.Domain.Common;
+﻿using SkyLIS.Domain.Common;
 
 namespace SkyLIS.Domain.Reports;
 
@@ -151,6 +151,6 @@ public sealed class ReportVerification : Entity
     }
 }
 
-public sealed record ReportRendered(Guid ReportId, Guid TenantId, Guid VisitId, string ReportNumber, int Version, string Kind) : DomainEvent;
-public sealed record ReportFinalized(Guid ReportId, Guid TenantId, Guid VisitId) : DomainEvent;
-public sealed record ReportDelivered(Guid ReportId, Guid TenantId, Guid VisitId, string Channel) : DomainEvent;
+public sealed record ReportRendered(Guid ReportId, Guid TenantId, Guid VisitId, string ReportNumber, int Version, string Kind) : DomainEvent, ITenantEvent;
+public sealed record ReportFinalized(Guid ReportId, Guid TenantId, Guid VisitId) : DomainEvent, ITenantEvent;
+public sealed record ReportDelivered(Guid ReportId, Guid TenantId, Guid VisitId, string Channel) : DomainEvent, ITenantEvent;

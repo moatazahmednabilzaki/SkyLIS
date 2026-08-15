@@ -1,6 +1,8 @@
 import { DecimalPipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { DestroyRef, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { RealtimeService } from '../../core/realtime.service';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../../core/config';
@@ -92,6 +94,8 @@ interface Dashboard {
   `,
 })
 export class DashboardComponent implements OnInit {
+  private readonly realtime = inject(RealtimeService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly http = inject(HttpClient);
 
   readonly data = signal<Dashboard | null>(null);
@@ -101,6 +105,9 @@ export class DashboardComponent implements OnInit {
 
   ngOnInit(): void {
     void this.load();
+    this.realtime.onArea('dashboard')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => void this.load());
   }
 
   barHeight(count: number): number {

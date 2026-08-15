@@ -36,8 +36,26 @@ public static class ApiServices
                     ValidateLifetime = true,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
                 };
+                // SignalR WebSocket connections carry the JWT as access_token in the query
+                // string (browsers cannot set headers on WebSocket upgrade).
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+                        if (!string.IsNullOrEmpty(accessToken)
+                            && context.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                        {
+                            context.Token = accessToken;
+                        }
+                        return Task.CompletedTask;
+                    },
+                };
             });
         services.AddAuthorization();
+
+        services.AddSignalR();
+        services.AddScoped<IRealtimeNotifier, SignalRRealtimeNotifier>();
 
         return services;
     }

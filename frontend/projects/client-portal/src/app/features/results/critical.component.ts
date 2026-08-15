@@ -1,5 +1,7 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { DestroyRef, Component, OnInit, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { RealtimeService } from '../../core/realtime.service';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { CriticalQueueItem, ResultsApi } from './results.api';
@@ -64,6 +66,8 @@ import { problemMessage } from '../../core/api.types';
   `,
 })
 export class CriticalComponent implements OnInit {
+  private readonly realtime = inject(RealtimeService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly api = inject(ResultsApi);
 
   readonly rows = signal<CriticalQueueItem[]>([]);
@@ -77,6 +81,9 @@ export class CriticalComponent implements OnInit {
 
   ngOnInit(): void {
     void this.load();
+    this.realtime.onArea('critical')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => void this.load());
   }
 
   async load(): Promise<void> {

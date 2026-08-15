@@ -64,7 +64,7 @@ Angular 19 workspace at `frontend/` with two standalone applications (Signals, t
 | App | URL (dev) | Contents |
 |---|---|---|
 | `admin-portal` | http://localhost:4201 | Platform console (dark theme): tenant directory, tenant provisioning with country/plan/isolation tier |
-| `client-portal` | http://localhost:4300 | Tenant app: dev sign-in, dashboard, patient search/registration, visit-registration wizard, visit details with sample collect/receive/reject, payment capture, M09 — results entry workbench, technical/medical validation with e-signature, critical-values console; M10 — reporting worklist with interim/final rendering, delivery, and public hash verification; M23 — live executive dashboard; and the FR-SYS-001 audit-trail explorer with hash-chain integrity verification |
+| `client-portal` | http://localhost:4300 | Tenant app: dev sign-in, dashboard, patient search/registration, visit-registration wizard, visit details with sample collect/receive/reject, payment capture, M09 — results entry workbench, technical/medical validation with e-signature, critical-values console; M10 — reporting worklist with interim/final rendering, delivery, and public hash verification; M23 — live executive dashboard; the FR-SYS-001 audit-trail explorer with hash-chain integrity verification; all live pages refresh in real time over SignalR (FR-SYS-010) |
 
 ```bash
 cd frontend

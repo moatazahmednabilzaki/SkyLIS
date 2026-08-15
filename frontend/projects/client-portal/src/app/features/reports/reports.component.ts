@@ -1,6 +1,8 @@
 import { DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { DestroyRef, Component, OnInit, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { RealtimeService } from '../../core/realtime.service';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../../core/config';
@@ -95,6 +97,8 @@ interface RenderedReport {
   `,
 })
 export class ReportsComponent implements OnInit {
+  private readonly realtime = inject(RealtimeService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
 
@@ -106,6 +110,9 @@ export class ReportsComponent implements OnInit {
 
   ngOnInit(): void {
     void this.load();
+    this.realtime.onArea('reports')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => void this.load());
   }
 
   async load(): Promise<void> {

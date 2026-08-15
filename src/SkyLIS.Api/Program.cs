@@ -19,7 +19,8 @@ builder.Services.AddApiServices(builder.Configuration);
 builder.Services.AddCors(options => options.AddPolicy("portals", policy => policy
     .WithOrigins("http://localhost:4300", "http://localhost:4201")
     .AllowAnyHeader()
-    .AllowAnyMethod()));
+    .AllowAnyMethod()
+    .AllowCredentials())); // SignalR negotiation
 
 var app = builder.Build();
 
@@ -32,6 +33,7 @@ app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthorization();
 
 app.MapHealthChecks("/health");
+app.MapHub<SkyLIS.Api.Infrastructure.WorklistHub>("/hubs/worklists");
 
 var api = app.MapGroup("/api/v1");
 api.MapTenantEndpoints();

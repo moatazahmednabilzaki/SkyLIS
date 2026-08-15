@@ -19,6 +19,20 @@ public static class DependencyInjection
             IntegrationHandlers.ReportFinalizedMeteringHandler>();
         services.AddScoped<Common.IIntegrationEventHandler<Domain.Results.CriticalValueFlagged>,
             IntegrationHandlers.CriticalValueNotificationHandler>();
+
+        // Real-time worklist hints (FR-SYS-010): tenant events fan out to portal areas.
+        AddRealtimeForwarder<Domain.Visits.VisitRegistered>(services, "dashboard", "results");
+        AddRealtimeForwarder<Domain.Visits.SampleCollected>(services, "dashboard", "results");
+        AddRealtimeForwarder<Domain.Visits.SampleReceived>(services, "dashboard", "results");
+        AddRealtimeForwarder<Domain.Visits.SampleRejected>(services, "dashboard", "results");
+        AddRealtimeForwarder<Domain.Results.ResultEntered>(services, "dashboard", "validation");
+        AddRealtimeForwarder<Domain.Results.ResultTechnicallyValid>(services, "dashboard", "validation");
+        AddRealtimeForwarder<Domain.Results.ResultMedicallyValid>(services, "dashboard", "validation", "reports");
+        AddRealtimeForwarder<Domain.Results.ResultRerunOrdered>(services, "dashboard", "results", "validation");
+        AddRealtimeForwarder<Domain.Results.CriticalValueFlagged>(services, "dashboard", "critical");
+        AddRealtimeForwarder<Domain.Results.CriticalValueClosed>(services, "dashboard", "critical");
+        AddRealtimeForwarder<Domain.Reports.ReportRendered>(services, "dashboard", "reports");
+        AddRealtimeForwarder<Domain.Reports.ReportDelivered>(services, "reports");
         services.AddMediatR(cfg =>
         {
             cfg.RegisterServicesFromAssembly(assembly);
@@ -32,4 +46,10 @@ public static class DependencyInjection
 
         return services;
     }
+
+    private static void AddRealtimeForwarder<TEvent>(IServiceCollection services, params string[] areas)
+        where TEvent : Domain.Common.ITenantEvent =>
+        services.AddScoped<Common.IIntegrationEventHandler<TEvent>>(sp =>
+            new Common.RealtimeForwarder<TEvent>(
+                sp.GetRequiredService<Common.IRealtimeNotifier>(), areas));
 }

@@ -24,6 +24,7 @@ public static class RoleCatalog
             "patients.patient.create", "patients.patient.read",
             "orders.visit.create", "orders.visit.read",
             "samples.sample.collect", "samples.sample.receive", "samples.sample.reject",
+            "samples.sample.informPatient",
             "results.result.enter", "results.result.validateTechnical", "results.result.validateMedical",
             "reports.report.render", "reports.report.deliver", "reports.report.read",
             "billing.payment.capture",
@@ -54,7 +55,7 @@ public static class RoleCatalog
         [
             "patients.patient.create", "patients.patient.read",
             "orders.visit.create", "orders.visit.read",
-            "samples.sample.collect",
+            "samples.sample.collect", "samples.sample.informPatient",
             "billing.payment.capture",
             "reports.report.read", "reports.report.deliver",
         ],

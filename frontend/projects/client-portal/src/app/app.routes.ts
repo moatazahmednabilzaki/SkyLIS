@@ -28,6 +28,14 @@ export const appRoutes: Routes = [
         loadComponent: () => import('./features/visits/visit-details.component').then(m => m.VisitDetailsComponent),
       },
       {
+        path: 'reception',
+        loadComponent: () => import('./features/worklists/reception.component').then(m => m.ReceptionComponent),
+      },
+      {
+        path: 'phlebotomist',
+        loadComponent: () => import('./features/worklists/phlebotomist.component').then(m => m.PhlebotomistComponent),
+      },
+      {
         path: 'results',
         loadComponent: () => import('./features/results/results-entry.component').then(m => m.ResultsEntryComponent),
       },

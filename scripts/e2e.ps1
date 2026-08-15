@@ -126,6 +126,31 @@ $details = Step 'visit details: tests rebound to recollection (P05.3)' {
     $d
 }
 
+# ---------- M08: merged role worklists ----------
+Step 'reception worklist: rejection needs patient information (P08.1)' {
+    $wl = Invoke-RestMethod -Uri "$api/worklists/reception" -Headers $ha
+    $item = $wl.patientInformation | Where-Object sampleId -eq $readySample
+    if (-not $item) { throw 'rejected sample missing from patient-information queue' }
+    if ($item.reasonCode -ne 'HEMOLYZED') { throw "wrong reason: $($item.reasonCode)" }
+    if (-not ($wl.reservationsDue | Where-Object sampleId -eq $reservedSample)) { throw 'PP reservation missing' }
+} | Out-Null
+
+Step 'phlebotomist worklist: recollection queued, reservation upcoming (P08.2)' {
+    $wl = Invoke-RestMethod -Uri "$api/worklists/phlebotomist" -Headers $ha
+    $reco = $wl.toCollect | Where-Object sampleId -eq $recollection.recollectionSampleId
+    if (-not $reco -or -not $reco.isRecollection) { throw 'recollection not in the queue' }
+    if (-not ($wl.upcomingReservations | Where-Object sampleId -eq $reservedSample)) { throw 'PP reservation not upcoming' }
+} | Out-Null
+
+Step 'mark patient informed (P07.3 mandatory step) clears the queue' {
+    Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit.visitId)/samples/$readySample/mark-informed" -Headers $ha | Out-Null
+    $wl = Invoke-RestMethod -Uri "$api/worklists/reception" -Headers $ha
+    if ($wl.patientInformation | Where-Object sampleId -eq $readySample) { throw 'still in queue after informing' }
+} | Out-Null
+ExpectError 'informing twice is rejected' 422 {
+    Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit.visitId)/samples/$readySample/mark-informed" -Headers $ha
+}
+
 Step 'partial payment (P17.1)' {
     $p = Invoke-RestMethod -Method Post -Uri "$api/billing/invoices/$($visit.invoiceId)/payments" -Headers $ha `
         -ContentType 'application/json' -Body '{"amount":100,"currency":"EGP","method":"cash"}'

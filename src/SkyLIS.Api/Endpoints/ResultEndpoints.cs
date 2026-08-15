@@ -26,6 +26,19 @@ public static class ResultEndpoints
         audit.MapGet("/verify-chain", (ISender sender, CancellationToken ct) =>
             sender.Send(new SkyLIS.Application.Audit.VerifyAuditChainQuery(), ct));
 
+        // M08 merged role worklists (P08.1 / P08.2)
+        var worklists = group.MapGroup("/worklists").RequireAuthorization().WithTags("Client Portal — Worklists (M08)");
+        worklists.MapGet("/reception", (ISender sender, CancellationToken ct) =>
+            sender.Send(new SkyLIS.Application.Worklists.GetReceptionWorklistQuery(), ct));
+        worklists.MapGet("/phlebotomist", (ISender sender, CancellationToken ct) =>
+            sender.Send(new SkyLIS.Application.Worklists.GetPhlebotomistWorklistQuery(), ct));
+        group.MapPost("/visits/{visitId:guid}/samples/{sampleId:guid}/mark-informed", async (
+            ISender sender, Guid visitId, Guid sampleId, CancellationToken ct) =>
+        {
+            await sender.Send(new SkyLIS.Application.Worklists.MarkPatientInformedCommand(visitId, sampleId), ct);
+            return Results.NoContent();
+        }).RequireAuthorization().WithTags("Client Portal — Worklists (M08)");
+
         // Worklists
         results.MapGet("/pending-entry", (ISender sender, CancellationToken ct) =>
             sender.Send(new GetPendingEntryQuery(), ct));

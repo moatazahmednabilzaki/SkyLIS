@@ -20,6 +20,8 @@ public sealed class Sample : Entity, ITenantOwned
     public DateTimeOffset? CollectedAtUtc { get; private set; }
     public DateTimeOffset? ReceivedAtUtc { get; private set; }
     public string? RejectionReasonCode { get; private set; }
+    /// <summary>P07.3: the mandatory patient-information step after rejection (audited).</summary>
+    public DateTimeOffset? PatientInformedAtUtc { get; private set; }
 
     private Sample() { } // EF
 
@@ -76,6 +78,15 @@ public sealed class Sample : Entity, ITenantOwned
             throw new InvalidStateTransitionException(nameof(Sample), State.ToString(), SampleState.Received.ToString());
         State = SampleState.Received;
         ReceivedAtUtc = nowUtc;
+    }
+
+    internal void MarkPatientInformed(DateTimeOffset nowUtc)
+    {
+        if (State != SampleState.Rejected)
+            throw new DomainException($"Sample {Barcode} is not rejected; there is nothing to inform the patient about.");
+        if (PatientInformedAtUtc is not null)
+            throw new DomainException($"The patient was already informed about sample {Barcode}.");
+        PatientInformedAtUtc = nowUtc;
     }
 
     internal void Reject(string reasonCode)

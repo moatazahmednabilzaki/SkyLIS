@@ -24,9 +24,11 @@ public static class DependencyInjection
 
         // Real-time worklist hints (FR-SYS-010): tenant events fan out to portal areas.
         AddRealtimeForwarder<Domain.Visits.VisitRegistered>(services, "dashboard", "results");
-        AddRealtimeForwarder<Domain.Visits.SampleCollected>(services, "dashboard", "results");
+        AddRealtimeForwarder<Domain.Visits.SampleCollected>(services, "dashboard", "results", "phleb", "reception");
         AddRealtimeForwarder<Domain.Visits.SampleReceived>(services, "dashboard", "results");
-        AddRealtimeForwarder<Domain.Visits.SampleRejected>(services, "dashboard", "results");
+        AddRealtimeForwarder<Domain.Visits.SampleRejected>(services, "dashboard", "results", "reception", "phleb");
+        AddRealtimeForwarder<Domain.Visits.SampleReserved>(services, "reception", "phleb");
+        AddRealtimeForwarder<Domain.Visits.PatientInformedOfRejection>(services, "reception");
         AddRealtimeForwarder<Domain.Results.ResultEntered>(services, "dashboard", "validation");
         AddRealtimeForwarder<Domain.Results.ResultTechnicallyValid>(services, "dashboard", "validation");
         AddRealtimeForwarder<Domain.Results.ResultMedicallyValid>(services, "dashboard", "validation", "reports");

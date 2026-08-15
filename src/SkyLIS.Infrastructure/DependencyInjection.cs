@@ -49,6 +49,7 @@ public static class DependencyInjection
         services.AddScoped<IPatientQueries, PatientQueries>();
         services.AddScoped<IVisitQueries, VisitQueries>();
         services.AddScoped<IResultQueries, ResultQueries>();
+        services.AddScoped<Application.Worklists.IWorklistQueries, WorklistQueries>();
         services.AddScoped<IReportQueries, Reports.ReportQueries>();
         services.AddScoped<IReportVerificationQueries, ReportVerificationQueries>();
         services.AddScoped<Application.Analytics.IAnalyticsQueries, AnalyticsQueries>();

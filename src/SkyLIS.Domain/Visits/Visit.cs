@@ -187,6 +187,15 @@ public sealed class Visit : AggregateRoot, ITenantOwned
         _tests.FirstOrDefault(t => t.Id == visitTestId)
         ?? throw new DomainException($"Test line {visitTestId} does not belong to visit {VisitNumber}.");
 
+    /// <summary>P07.3: reception documents that the patient was informed of the rejection.</summary>
+    public void MarkPatientInformed(Guid sampleId, DateTimeOffset nowUtc)
+    {
+        EnsureNotTerminal();
+        var sample = FindSample(sampleId);
+        sample.MarkPatientInformed(nowUtc);
+        Raise(new PatientInformedOfRejection(Id, sampleId, TenantId));
+    }
+
     public void Cancel(string reason)
     {
         if (Status >= VisitStatus.Reported)

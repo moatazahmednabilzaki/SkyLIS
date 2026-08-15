@@ -29,8 +29,10 @@ import { AuthService } from './core/auth.service';
         <div class="group">FRONT OFFICE</div>
         <a routerLink="/dashboard" routerLinkActive="on">📊 Dashboard</a>
         <a routerLink="/visits/new" routerLinkActive="on">📝 Visit Registration</a>
+        <a routerLink="/reception" routerLinkActive="on">🛎️ Reception Worklist</a>
         <a routerLink="/patients" routerLinkActive="on">👤 Patients</a>
         <div class="group">LABORATORY</div>
+        <a routerLink="/phlebotomist" routerLinkActive="on">💉 Phlebotomist Worklist</a>
         <a routerLink="/results" routerLinkActive="on">🧪 Results Entry</a>
         <a routerLink="/validation" routerLinkActive="on">✅ Validation &amp; Sign-Out</a>
         <a routerLink="/critical" routerLinkActive="on">🚨 Critical Values</a>
@@ -39,7 +41,7 @@ import { AuthService } from './core/auth.service';
         <a routerLink="/audit" routerLinkActive="on">🔗 Audit Trail</a>
         <div class="group">ADMINISTRATION</div>
         <a routerLink="/users" routerLinkActive="on">🔐 Users &amp; Roles</a>
-        <div class="foot">Client Portal · v0.7 · SRS Rev 2.0</div>
+        <div class="foot">Client Portal · v0.8 · SRS Rev 2.0</div>
       </nav>
       <main class="main"><router-outlet /></main>
     } @else {

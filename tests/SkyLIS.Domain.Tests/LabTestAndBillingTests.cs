@@ -56,7 +56,7 @@ public class InvoiceTests
     private static readonly DateTimeOffset Now = new(2026, 8, 15, 9, 0, 0, TimeSpan.Zero);
 
     private static Invoice NewInvoice(decimal total = 604.20m) =>
-        Invoice.IssueForVisit(Guid.NewGuid(), TenantId, "INV-260815-0001", Guid.NewGuid(),
+        Invoice.IssueForVisit(Guid.NewGuid(), TenantId, Guid.NewGuid(), "INV-MAIN-260815-0001", Guid.NewGuid(),
             Money.Of(total, "EGP"), Now);
 
     [Fact]

@@ -2,6 +2,8 @@ using Microsoft.Extensions.Logging;
 using SkyLIS.Application.Common;
 using SkyLIS.Application.Reports;
 using SkyLIS.Application.Users;
+using SkyLIS.Domain.Catalog;
+using SkyLIS.Domain.Org;
 using SkyLIS.Domain.Reports;
 using SkyLIS.Domain.Results;
 using SkyLIS.Domain.Tenants;
@@ -33,6 +35,67 @@ internal sealed class CreateInitialAdminHandler : IIntegrationEventHandler<Tenan
             Guid.CreateVersion7(), domainEvent.TenantId, domainEvent.AdminUserName,
             domainEvent.AdminFullName, domainEvent.AdminPasswordHash,
             [RoleCatalog.TenantAdmin], _clock.UtcNow));
+    }
+}
+
+/// <summary>
+/// P03.2: every tenant starts with its MAIN branch (visits and invoices are branch-bound).
+/// Runs under the new tenant's restored context, like the initial-admin consumer.
+/// </summary>
+internal sealed class CreateMainBranchHandler : IIntegrationEventHandler<TenantProvisioned>
+{
+    private readonly IBranchRepository _branches;
+    private readonly IClock _clock;
+
+    public CreateMainBranchHandler(IBranchRepository branches, IClock clock)
+    {
+        _branches = branches;
+        _clock = clock;
+    }
+
+    public async Task HandleAsync(TenantProvisioned domainEvent, CancellationToken ct = default)
+    {
+        if (await _branches.CodeExistsAsync("MAIN", ct))
+            return; // redelivery safety on top of the inbox
+        _branches.Add(Branch.Create(
+            Guid.CreateVersion7(), domainEvent.TenantId, "MAIN", "Main Branch",
+            null, null, isMain: true, _clock.UtcNow));
+    }
+}
+
+/// <summary>
+/// FR-TEN-040 (P01.4): seed the new tenant's sample taxonomy from its country pack so the
+/// lab starts configured with local defaults instead of a blank catalog. Tenants without a
+/// matching pack simply start blank — provisioning never fails on a missing pack.
+/// </summary>
+internal sealed class SeedCountryDefaultsHandler : IIntegrationEventHandler<TenantProvisioned>
+{
+    private readonly ICountryPackRepository _packs;
+    private readonly ISampleTypeRepository _sampleTypes;
+
+    public SeedCountryDefaultsHandler(ICountryPackRepository packs, ISampleTypeRepository sampleTypes)
+    {
+        _packs = packs;
+        _sampleTypes = sampleTypes;
+    }
+
+    public async Task HandleAsync(TenantProvisioned domainEvent, CancellationToken ct = default)
+    {
+        var pack = await _packs.GetByCountryAsync(domainEvent.CountryCode, ct);
+        if (pack is null)
+            return;
+
+        foreach (var packType in pack.SampleTypes)
+        {
+            if (await _sampleTypes.NameExistsAsync(packType.Name, ct))
+                continue; // redelivery safety on top of the inbox
+            var sampleType = SampleType.Create(
+                Guid.CreateVersion7(), domainEvent.TenantId, packType.Name, packType.ContainerName);
+            foreach (var condition in packType.Conditions)
+                sampleType.AddCondition(
+                    Guid.CreateVersion7(), condition.Name, condition.DelayMinutes, condition.CompatibilityGroup);
+            _sampleTypes.Add(sampleType);
+        }
     }
 }
 

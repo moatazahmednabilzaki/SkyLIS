@@ -21,6 +21,10 @@ public static class DependencyInjection
             IntegrationHandlers.CriticalValueNotificationHandler>();
         services.AddScoped<Common.IIntegrationEventHandler<Domain.Tenants.TenantProvisioned>,
             IntegrationHandlers.CreateInitialAdminHandler>();
+        services.AddScoped<Common.IIntegrationEventHandler<Domain.Tenants.TenantProvisioned>,
+            IntegrationHandlers.CreateMainBranchHandler>();
+        services.AddScoped<Common.IIntegrationEventHandler<Domain.Tenants.TenantProvisioned>,
+            IntegrationHandlers.SeedCountryDefaultsHandler>();
 
         // Real-time worklist hints (FR-SYS-010): tenant events fan out to portal areas.
         AddRealtimeForwarder<Domain.Visits.VisitRegistered>(services, "dashboard", "results");

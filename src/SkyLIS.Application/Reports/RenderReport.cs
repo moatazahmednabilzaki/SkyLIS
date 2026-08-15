@@ -102,7 +102,7 @@ internal sealed class RenderReportHandler : IRequestHandler<RenderReportCommand,
         // The report number is per visit: the first render allocates it from the series,
         // every later version reuses it (versions share one report identity).
         var reportNumber = await _queries.ExistingReportNumberAsync(visit.Id, ct)
-            ?? await _numbers.NextAsync("report", ct);
+            ?? await _numbers.NextAsync("report", ct: ct);
         var now = _clock.UtcNow;
 
         var html = _renderer.RenderHtml(content, request.Kind, reportNumber, version, now);

@@ -1,6 +1,8 @@
 using SkyLIS.Domain.Billing;
 using SkyLIS.Domain.Catalog;
+using SkyLIS.Domain.Org;
 using SkyLIS.Domain.Patients;
+using SkyLIS.Domain.Platform;
 using SkyLIS.Domain.Reports;
 using SkyLIS.Domain.Results;
 using SkyLIS.Domain.Tenants;
@@ -44,10 +46,13 @@ public interface IUnitOfWork
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }
 
-/// <summary>Tenant-scoped, gap-tolerant human-facing number series (visit, patient, invoice numbers).</summary>
+/// <summary>
+/// Tenant-scoped, gap-tolerant human-facing number series (visit, patient, invoice numbers).
+/// Pass a branch code as <paramref name="scope"/> to run the series per branch (P03.2).
+/// </summary>
 public interface INumberSeriesService
 {
-    Task<string> NextAsync(string seriesKind, CancellationToken ct = default);
+    Task<string> NextAsync(string seriesKind, string? scope = null, CancellationToken ct = default);
 }
 
 // ---- Per-aggregate repositories (write side). No generic repository by design (EAA rule). ----
@@ -78,7 +83,22 @@ public interface ISampleTypeRepository
 {
     Task<SampleType?> GetAsync(Guid id, CancellationToken ct = default);
     Task<IReadOnlyList<SampleCondition>> GetConditionsAsync(IReadOnlyCollection<Guid> conditionIds, CancellationToken ct = default);
+    Task<bool> NameExistsAsync(string name, CancellationToken ct = default);
     void Add(SampleType sampleType);
+}
+
+public interface IBranchRepository
+{
+    Task<Branch?> GetAsync(Guid id, CancellationToken ct = default);
+    Task<bool> CodeExistsAsync(string code, CancellationToken ct = default);
+    void Add(Branch branch);
+}
+
+/// <summary>Country packs are platform-scoped (no tenant filter): read during tenant seeding.</summary>
+public interface ICountryPackRepository
+{
+    Task<CountryPack?> GetByCountryAsync(string countryCode, CancellationToken ct = default);
+    void Add(CountryPack pack);
 }
 
 public interface IVisitRepository

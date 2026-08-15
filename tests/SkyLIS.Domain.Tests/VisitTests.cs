@@ -8,6 +8,7 @@ namespace SkyLIS.Domain.Tests;
 public class VisitTests
 {
     private static readonly Guid TenantId = Guid.NewGuid();
+    private static readonly Guid BranchId = Guid.NewGuid();
     private static readonly DateTimeOffset Now = new(2026, 8, 15, 9, 0, 0, TimeSpan.Zero);
 
     private static (Visit Visit, Guid ReadySampleId, Guid ReservedSampleId) RegisterVisitWithReservation()
@@ -24,7 +25,7 @@ public class VisitTests
             new(Guid.NewGuid(), Guid.NewGuid(), "GLU-F", readySample, Money.Of(80, "EGP")),
             new(Guid.NewGuid(), Guid.NewGuid(), "GLU-PP", reservedSample, Money.Of(80, "EGP")),
         };
-        var visit = Visit.Register(Guid.NewGuid(), TenantId, "V-260815-0001", Guid.NewGuid(),
+        var visit = Visit.Register(Guid.NewGuid(), TenantId, BranchId, "V-MAIN-260815-0001", Guid.NewGuid(),
             tests, samples, isStat: false, statReason: null, Now);
         return (visit, readySample, reservedSample);
     }
@@ -45,7 +46,7 @@ public class VisitTests
     [Fact]
     public void Register_rejects_zero_tests()
     {
-        var act = () => Visit.Register(Guid.NewGuid(), TenantId, "V-1", Guid.NewGuid(),
+        var act = () => Visit.Register(Guid.NewGuid(), TenantId, BranchId, "V-1", Guid.NewGuid(),
             [], [new PlannedSample(Guid.NewGuid(), "B", Guid.NewGuid(), null, null)], false, null, Now);
         act.Should().Throw<DomainException>().WithMessage("*zero tests*");
     }
@@ -54,7 +55,7 @@ public class VisitTests
     public void Register_rejects_unresolved_price()
     {
         var sampleId = Guid.NewGuid();
-        var act = () => Visit.Register(Guid.NewGuid(), TenantId, "V-1", Guid.NewGuid(),
+        var act = () => Visit.Register(Guid.NewGuid(), TenantId, BranchId, "V-1", Guid.NewGuid(),
             [new PlannedTest(Guid.NewGuid(), Guid.NewGuid(), "X", sampleId, null)],
             [new PlannedSample(sampleId, "B", Guid.NewGuid(), null, null)], false, null, Now);
         act.Should().Throw<DomainException>().WithMessage("*unresolved price*");
@@ -64,7 +65,7 @@ public class VisitTests
     public void Stat_requires_reason()
     {
         var sampleId = Guid.NewGuid();
-        var act = () => Visit.Register(Guid.NewGuid(), TenantId, "V-1", Guid.NewGuid(),
+        var act = () => Visit.Register(Guid.NewGuid(), TenantId, BranchId, "V-1", Guid.NewGuid(),
             [new PlannedTest(Guid.NewGuid(), Guid.NewGuid(), "X", sampleId, Money.Of(10, "EGP"))],
             [new PlannedSample(sampleId, "B", Guid.NewGuid(), null, null)], isStat: true, statReason: " ", Now);
         act.Should().Throw<DomainException>().WithMessage("*STAT*");

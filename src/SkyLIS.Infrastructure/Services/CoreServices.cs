@@ -28,7 +28,7 @@ internal sealed class NumberSeriesService : INumberSeriesService
         _clock = clock;
     }
 
-    public async Task<string> NextAsync(string seriesKind, CancellationToken ct = default)
+    public async Task<string> NextAsync(string seriesKind, string? scope = null, CancellationToken ct = default)
     {
         var prefix = seriesKind switch
         {
@@ -38,18 +38,20 @@ internal sealed class NumberSeriesService : INumberSeriesService
             "report" => "R",
             _ => throw new ArgumentException($"Unknown number series '{seriesKind}'.", nameof(seriesKind)),
         };
+        // Scoped series (per branch, P03.2) run their own counter and embed the scope code.
+        var kind = scope is null ? seriesKind : $"{seriesKind}:{scope}";
 
         for (var attempt = 0; ; attempt++)
         {
             var series = await _db.NumberSeries
-                .FirstOrDefaultAsync(n => n.Kind == seriesKind, ct);
+                .FirstOrDefaultAsync(n => n.Kind == kind, ct);
             if (series is null)
             {
                 series = new NumberSeries
                 {
                     Id = Guid.CreateVersion7(),
                     TenantId = _tenant.TenantId,
-                    Kind = seriesKind,
+                    Kind = kind,
                     LastValue = 0,
                 };
                 _db.NumberSeries.Add(series);
@@ -62,7 +64,9 @@ internal sealed class NumberSeriesService : INumberSeriesService
                 // to avoid long lock windows; a gap on rollback is acceptable by design.
                 await _db.SaveChangesAsync(ct);
                 var stamp = _clock.UtcNow.ToString("yyMMdd");
-                return $"{prefix}-{stamp}-{series.LastValue:D4}";
+                return scope is null
+                    ? $"{prefix}-{stamp}-{series.LastValue:D4}"
+                    : $"{prefix}-{scope}-{stamp}-{series.LastValue:D4}";
             }
             catch (DbUpdateConcurrencyException) when (attempt < MaxRetries)
             {

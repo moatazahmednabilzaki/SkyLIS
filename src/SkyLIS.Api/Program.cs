@@ -38,6 +38,7 @@ app.MapHub<SkyLIS.Api.Infrastructure.WorklistHub>("/hubs/worklists");
 var api = app.MapGroup("/api/v1");
 api.MapAuthEndpoints(app.Configuration);
 api.MapTenantEndpoints();
+api.MapOrgEndpoints();
 api.MapUserEndpoints();
 api.MapPatientEndpoints();
 api.MapCatalogEndpoints();

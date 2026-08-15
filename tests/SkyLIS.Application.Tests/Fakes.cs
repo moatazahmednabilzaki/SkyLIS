@@ -1,6 +1,7 @@
 using SkyLIS.Application.Common;
 using SkyLIS.Domain.Billing;
 using SkyLIS.Domain.Catalog;
+using SkyLIS.Domain.Org;
 using SkyLIS.Domain.Patients;
 using SkyLIS.Domain.Visits;
 
@@ -23,12 +24,28 @@ internal sealed class FakeNumberSeries : INumberSeriesService
 {
     private readonly Dictionary<string, int> _counters = [];
 
-    public Task<string> NextAsync(string seriesKind, CancellationToken ct = default)
+    public Task<string> NextAsync(string seriesKind, string? scope = null, CancellationToken ct = default)
     {
-        _counters[seriesKind] = _counters.GetValueOrDefault(seriesKind) + 1;
+        var kind = scope is null ? seriesKind : $"{seriesKind}:{scope}";
+        _counters[kind] = _counters.GetValueOrDefault(kind) + 1;
         var prefix = seriesKind switch { "visit" => "V", "patient" => "PN", "invoice" => "INV", _ => "X" };
-        return Task.FromResult($"{prefix}-260815-{_counters[seriesKind]:D4}");
+        return Task.FromResult(scope is null
+            ? $"{prefix}-260815-{_counters[kind]:D4}"
+            : $"{prefix}-{scope}-260815-{_counters[kind]:D4}");
     }
+}
+
+internal sealed class FakeBranchRepository : IBranchRepository
+{
+    public List<Branch> Items { get; } = [];
+
+    public Task<Branch?> GetAsync(Guid id, CancellationToken ct = default) =>
+        Task.FromResult(Items.FirstOrDefault(b => b.Id == id));
+
+    public Task<bool> CodeExistsAsync(string code, CancellationToken ct = default) =>
+        Task.FromResult(Items.Any(b => b.Code == code));
+
+    public void Add(Branch branch) => Items.Add(branch);
 }
 
 internal sealed class FakePatientRepository : IPatientRepository
@@ -71,6 +88,9 @@ internal sealed class FakeSampleTypeRepository : ISampleTypeRepository
         IReadOnlyCollection<Guid> conditionIds, CancellationToken ct = default) =>
         Task.FromResult<IReadOnlyList<SampleCondition>>(
             Items.SelectMany(s => s.Conditions).Where(c => conditionIds.Contains(c.Id)).ToList());
+
+    public Task<bool> NameExistsAsync(string name, CancellationToken ct = default) =>
+        Task.FromResult(Items.Any(s => s.Name == name));
 
     public void Add(SampleType sampleType) => Items.Add(sampleType);
 }

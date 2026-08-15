@@ -3,7 +3,9 @@ using SkyLIS.Application.Common;
 using SkyLIS.Domain.Billing;
 using SkyLIS.Domain.Catalog;
 using SkyLIS.Domain.Common;
+using SkyLIS.Domain.Org;
 using SkyLIS.Domain.Patients;
+using SkyLIS.Domain.Platform;
 using SkyLIS.Domain.Reports;
 using SkyLIS.Domain.Results;
 using SkyLIS.Domain.Tenants;
@@ -37,6 +39,8 @@ public sealed class SkyLisDbContext : DbContext, IUnitOfWork
     }
 
     public DbSet<Tenant> Tenants => Set<Tenant>();
+    public DbSet<CountryPack> CountryPacks => Set<CountryPack>();
+    public DbSet<Branch> Branches => Set<Branch>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Patient> Patients => Set<Patient>();
     public DbSet<LabTest> LabTests => Set<LabTest>();
@@ -67,6 +71,7 @@ public sealed class SkyLisDbContext : DbContext, IUnitOfWork
         }
 
         // Defense-in-depth tenant filter on every tenant-owned aggregate root.
+        modelBuilder.Entity<Branch>().HasQueryFilter(b => b.TenantId == _tenantContext.TenantId);
         modelBuilder.Entity<User>().HasQueryFilter(u => u.TenantId == _tenantContext.TenantId);
         modelBuilder.Entity<Patient>().HasQueryFilter(p => p.TenantId == _tenantContext.TenantId);
         modelBuilder.Entity<LabTest>().HasQueryFilter(t => t.TenantId == _tenantContext.TenantId);

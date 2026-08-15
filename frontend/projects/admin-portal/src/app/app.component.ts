@@ -30,10 +30,10 @@ import { AuthService } from './core/auth.service';
         <div class="group">PLATFORM CONSOLE</div>
         <a routerLink="/tenants" routerLinkActive="on">🏢 Tenant Directory</a>
         <a routerLink="/health" routerLinkActive="on">❤️ Platform Health</a>
+        <a routerLink="/country-packs" routerLinkActive="on">🌍 Country Packs</a>
         <span class="soon">💠 Plans Builder <em>next slice</em></span>
-        <span class="soon">🌍 Country Packs <em>next slice</em></span>
         <span class="soon">🗂️ Master Data Packs <em>next slice</em></span>
-        <div class="foot">console.skylis.app · v0.2</div>
+        <div class="foot">console.skylis.app · v0.3</div>
       </nav>
       <main class="main"><router-outlet /></main>
     } @else {

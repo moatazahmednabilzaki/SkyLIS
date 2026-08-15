@@ -22,6 +22,7 @@ public sealed record RegisteredSampleDto(
 /// </summary>
 public sealed record RegisterVisitCommand(
     Guid PatientId,
+    Guid BranchId,
     IReadOnlyList<Guid> TestIds,
     bool IsStat,
     string? StatReason) : ICommand<RegisteredVisitDto>, IRequirePermission
@@ -34,6 +35,7 @@ internal sealed class RegisterVisitValidator : AbstractValidator<RegisterVisitCo
     public RegisterVisitValidator()
     {
         RuleFor(x => x.PatientId).NotEmpty();
+        RuleFor(x => x.BranchId).NotEmpty().WithMessage("A visit shall be registered at a branch.");
         RuleFor(x => x.TestIds).NotEmpty().WithMessage("A visit shall not be registered with zero tests.");
         RuleFor(x => x.StatReason).NotEmpty().When(x => x.IsStat)
             .WithMessage("STAT priority requires a reason.");
@@ -43,6 +45,7 @@ internal sealed class RegisterVisitValidator : AbstractValidator<RegisterVisitCo
 internal sealed class RegisterVisitHandler : IRequestHandler<RegisterVisitCommand, RegisteredVisitDto>
 {
     private readonly IPatientRepository _patients;
+    private readonly IBranchRepository _branches;
     private readonly ILabTestRepository _tests;
     private readonly ISampleTypeRepository _sampleTypes;
     private readonly IVisitRepository _visits;
@@ -52,11 +55,12 @@ internal sealed class RegisterVisitHandler : IRequestHandler<RegisterVisitComman
     private readonly IClock _clock;
 
     public RegisterVisitHandler(
-        IPatientRepository patients, ILabTestRepository tests, ISampleTypeRepository sampleTypes,
-        IVisitRepository visits, IInvoiceRepository invoices, INumberSeriesService numbers,
-        ITenantContext tenant, IClock clock)
+        IPatientRepository patients, IBranchRepository branches, ILabTestRepository tests,
+        ISampleTypeRepository sampleTypes, IVisitRepository visits, IInvoiceRepository invoices,
+        INumberSeriesService numbers, ITenantContext tenant, IClock clock)
     {
         _patients = patients;
+        _branches = branches;
         _tests = tests;
         _sampleTypes = sampleTypes;
         _visits = visits;
@@ -70,6 +74,11 @@ internal sealed class RegisterVisitHandler : IRequestHandler<RegisterVisitComman
     {
         var patient = await _patients.GetAsync(request.PatientId, ct)
             ?? throw new NotFoundException("Patient", request.PatientId);
+
+        var branch = await _branches.GetAsync(request.BranchId, ct)
+            ?? throw new NotFoundException("Branch", request.BranchId);
+        if (!branch.IsActive)
+            throw new ConflictException($"Branch {branch.Code} is deactivated — visits cannot be registered there.");
 
         var tests = await _tests.GetManyAsync(request.TestIds.Distinct().ToArray(), ct);
         var missing = request.TestIds.Except(tests.Select(t => t.Id)).ToList();
@@ -86,8 +95,9 @@ internal sealed class RegisterVisitHandler : IRequestHandler<RegisterVisitComman
 
         // Number series commit independently (gap-tolerant); both are acquired BEFORE any
         // aggregate is tracked so the single SaveChanges at the end stays atomic.
-        var visitNumber = await _numbers.NextAsync("visit", ct);
-        var invoiceNumber = await _numbers.NextAsync("invoice", ct);
+        // Series run per branch (P03.2): the branch code is embedded in the number.
+        var visitNumber = await _numbers.NextAsync("visit", branch.Code, ct);
+        var invoiceNumber = await _numbers.NextAsync("invoice", branch.Code, ct);
 
         var barcodeIndex = 0;
         var plan = SpecimenPlanner.Compute(
@@ -97,14 +107,14 @@ internal sealed class RegisterVisitHandler : IRequestHandler<RegisterVisitComman
 
         var now = _clock.UtcNow;
         var visit = Visit.Register(
-            Guid.CreateVersion7(), _tenant.TenantId, visitNumber, patient.Id,
+            Guid.CreateVersion7(), _tenant.TenantId, branch.Id, visitNumber, patient.Id,
             plan.Tests, plan.Samples, request.IsStat, request.StatReason, now);
         patient.RecordVisit(now);
         _visits.Add(visit);
 
         var currency = tests[0].Price!.Currency;
         var invoice = Invoice.IssueForVisit(
-            Guid.CreateVersion7(), _tenant.TenantId, invoiceNumber, visit.Id, visit.Total(currency), now);
+            Guid.CreateVersion7(), _tenant.TenantId, branch.Id, invoiceNumber, visit.Id, visit.Total(currency), now);
         _invoices.Add(invoice);
 
         return new RegisteredVisitDto(

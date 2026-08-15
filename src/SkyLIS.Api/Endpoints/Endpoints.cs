@@ -42,6 +42,60 @@ public static class TenantEndpoints
             sender.Send(new SkyLIS.Application.Platform.GetOutboxStatusQuery(), ct))
             .RequireAuthorization().WithTags("Admin Portal — Platform Health");
 
+        // P01.4 country default packs (seed new tenants at provisioning, FR-TEN-040)
+        var packs = group.MapGroup("/platform/country-packs").RequireAuthorization()
+            .WithTags("Admin Portal — Country Packs");
+
+        packs.MapGet("/", (ISender sender, CancellationToken ct) =>
+            sender.Send(new SkyLIS.Application.Platform.ListCountryPacksQuery(), ct));
+
+        packs.MapPut("/", async (
+            ISender sender, SkyLIS.Application.Platform.UpsertCountryPackCommand command, CancellationToken ct) =>
+        {
+            var id = await sender.Send(command, ct);
+            return Results.Ok(new { id });
+        });
+
+        return group;
+    }
+}
+
+public static class OrgEndpoints
+{
+    public sealed record CreateBranchRequest(string Code, string Name, string? Address, string? Phone);
+    public sealed record AddDepartmentRequest(string Code, string Name);
+    public sealed record SetBranchActiveRequest(bool IsActive);
+
+    public static RouteGroupBuilder MapOrgEndpoints(this RouteGroupBuilder group)
+    {
+        var branches = group.MapGroup("/org/branches").RequireAuthorization()
+            .WithTags("Client Portal — Branches & Departments (P03.2)");
+
+        branches.MapGet("/", (ISender sender, CancellationToken ct) =>
+            sender.Send(new SkyLIS.Application.Org.ListBranchesQuery(), ct));
+
+        branches.MapPost("/", async (ISender sender, CreateBranchRequest request, CancellationToken ct) =>
+        {
+            var id = await sender.Send(new SkyLIS.Application.Org.CreateBranchCommand(
+                request.Code, request.Name, request.Address, request.Phone), ct);
+            return Results.Created($"/api/v1/org/branches/{id}", new { id });
+        });
+
+        branches.MapPost("/{branchId:guid}/departments", async (
+            ISender sender, Guid branchId, AddDepartmentRequest request, CancellationToken ct) =>
+        {
+            var id = await sender.Send(new SkyLIS.Application.Org.AddDepartmentCommand(
+                branchId, request.Code, request.Name), ct);
+            return Results.Created($"/api/v1/org/branches/{branchId}/departments/{id}", new { id });
+        });
+
+        branches.MapPost("/{branchId:guid}/set-active", async (
+            ISender sender, Guid branchId, SetBranchActiveRequest request, CancellationToken ct) =>
+        {
+            await sender.Send(new SkyLIS.Application.Org.SetBranchActiveCommand(branchId, request.IsActive), ct);
+            return Results.NoContent();
+        });
+
         return group;
     }
 }
@@ -111,6 +165,9 @@ public static class CatalogEndpoints
     {
         var sampleTypes = group.MapGroup("/catalog/sample-types").RequireAuthorization().WithTags("Client Portal — Catalog");
 
+        sampleTypes.MapGet("/", (ISender sender, CancellationToken ct) =>
+            sender.Send(new ListSampleTypesQuery(), ct));
+
         sampleTypes.MapPost("/", async (ISender sender, CreateSampleTypeRequest request, CancellationToken ct) =>
         {
             var dto = await sender.Send(new CreateSampleTypeCommand(
@@ -119,6 +176,9 @@ public static class CatalogEndpoints
         });
 
         var catalog = group.MapGroup("/catalog/tests").RequireAuthorization().WithTags("Client Portal — Catalog");
+
+        catalog.MapGet("/", (ISender sender, string? status, CancellationToken ct) =>
+            sender.Send(new ListTestsQuery(status), ct));
 
         catalog.MapPost("/{testId:guid}/submit", async (ISender sender, Guid testId, CancellationToken ct) =>
         {
@@ -162,7 +222,8 @@ public static class CatalogEndpoints
 
 public static class VisitEndpoints
 {
-    public sealed record RegisterVisitRequest(Guid PatientId, IReadOnlyList<Guid> TestIds, bool IsStat, string? StatReason);
+    public sealed record RegisterVisitRequest(
+        Guid PatientId, Guid BranchId, IReadOnlyList<Guid> TestIds, bool IsStat, string? StatReason);
     public sealed record RejectSampleRequest(string ReasonCode);
 
     public static RouteGroupBuilder MapVisitEndpoints(this RouteGroupBuilder group)
@@ -172,7 +233,7 @@ public static class VisitEndpoints
         visits.MapPost("/", async (ISender sender, RegisterVisitRequest request, CancellationToken ct) =>
         {
             var result = await sender.Send(new RegisterVisitCommand(
-                request.PatientId, request.TestIds, request.IsStat, request.StatReason), ct);
+                request.PatientId, request.BranchId, request.TestIds, request.IsStat, request.StatReason), ct);
             return Results.Created($"/api/v1/visits/{result.VisitId}", result);
         });
 

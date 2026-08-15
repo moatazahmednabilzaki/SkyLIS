@@ -55,7 +55,7 @@ internal sealed class RegisterPatientHandler : IRequestHandler<RegisterPatientCo
             throw new ConflictException("A patient with this national ID already exists.");
         }
 
-        var patientNumber = await _numbers.NextAsync("patient", ct);
+        var patientNumber = await _numbers.NextAsync("patient", ct: ct);
         var patient = Patient.Register(
             Guid.CreateVersion7(), _tenant.TenantId, patientNumber, request.FullName,
             request.Sex, request.DateOfBirth, PhoneNumber.Of(request.Mobile),

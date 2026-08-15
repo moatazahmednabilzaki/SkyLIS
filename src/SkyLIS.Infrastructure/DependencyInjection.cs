@@ -36,6 +36,8 @@ public static class DependencyInjection
 
         // Write side
         services.AddScoped<ITenantRepository, TenantRepository>();
+        services.AddScoped<ICountryPackRepository, CountryPackRepository>();
+        services.AddScoped<IBranchRepository, BranchRepository>();
         services.AddScoped<IPatientRepository, PatientRepository>();
         services.AddScoped<ILabTestRepository, LabTestRepository>();
         services.AddScoped<ISampleTypeRepository, SampleTypeRepository>();
@@ -46,6 +48,9 @@ public static class DependencyInjection
 
         // Read side
         services.AddScoped<ITenantQueries, TenantQueries>();
+        services.AddScoped<Application.Org.IBranchQueries, BranchQueries>();
+        services.AddScoped<Application.Platform.ICountryPackQueries, CountryPackQueries>();
+        services.AddScoped<Application.Catalog.ICatalogQueries, CatalogQueries>();
         services.AddScoped<IPatientQueries, PatientQueries>();
         services.AddScoped<IVisitQueries, VisitQueries>();
         services.AddScoped<IResultQueries, ResultQueries>();
@@ -60,6 +65,9 @@ public static class DependencyInjection
         services.AddScoped<INumberSeriesService, NumberSeriesService>();
         services.AddSingleton<IReportRenderer, HtmlReportRenderer>();
         services.AddSingleton<INotificationSender, DevNotificationSender>();
+
+        // Platform seed data: canonical country packs ship with the platform (P01.4)
+        services.AddHostedService<Platform.CountryPackSeeder>();
 
         // Outbox dispatch + integration consumers (at-least-once, inbox-deduplicated)
         services.AddHostedService<Outbox.OutboxDispatcher>();

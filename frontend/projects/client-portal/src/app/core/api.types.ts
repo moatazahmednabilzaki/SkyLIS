@@ -20,9 +20,55 @@ export interface RegisterPatientRequest {
 
 export interface RegisterVisitRequest {
   patientId: string;
+  branchId: string;
   testIds: string[];
   isStat: boolean;
   statReason: string | null;
+}
+
+export interface Department {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface Branch {
+  id: string;
+  code: string;
+  name: string;
+  address: string | null;
+  phone: string | null;
+  isMain: boolean;
+  isActive: boolean;
+  departments: Department[];
+}
+
+export interface CatalogCondition {
+  id: string;
+  name: string;
+  delayMinutes: number | null;
+  compatibilityGroup: string;
+}
+
+export interface CatalogSampleType {
+  id: string;
+  name: string;
+  containerName: string;
+  conditions: CatalogCondition[];
+}
+
+export interface CatalogTest {
+  id: string;
+  code: string;
+  name: string;
+  department: string;
+  status: string;
+  origin: string;
+  price: number | null;
+  currency: string | null;
+  sampleTypeId: string;
+  requiredConditionId: string | null;
+  hasResultSchema: boolean;
 }
 
 export interface RegisteredSample {

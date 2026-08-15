@@ -16,6 +16,8 @@ public sealed class Visit : AggregateRoot, ITenantOwned
 
     public Guid TenantId { get; private set; }
     public string VisitNumber { get; private set; } = null!;
+    /// <summary>The branch this visit was registered at (P03.2) — drives per-branch numbering.</summary>
+    public Guid BranchId { get; private set; }
     public Guid PatientId { get; private set; }
     public VisitStatus Status { get; private set; }
     public bool IsStat { get; private set; }
@@ -28,11 +30,12 @@ public sealed class Visit : AggregateRoot, ITenantOwned
     private Visit() { } // EF
 
     public static Visit Register(
-        Guid id, Guid tenantId, string visitNumber, Guid patientId,
+        Guid id, Guid tenantId, Guid branchId, string visitNumber, Guid patientId,
         IReadOnlyList<PlannedTest> plannedTests, IReadOnlyList<PlannedSample> plannedSamples,
         bool isStat, string? statReason, DateTimeOffset nowUtc)
     {
         if (tenantId == Guid.Empty) throw new DomainException("Tenant id is required.");
+        if (branchId == Guid.Empty) throw new DomainException("A visit shall be registered at a branch.");
         if (patientId == Guid.Empty) throw new DomainException("Patient id is required.");
         if (string.IsNullOrWhiteSpace(visitNumber)) throw new DomainException("Visit number is required.");
         if (plannedTests.Count == 0) throw new DomainException("A visit shall not be registered with zero tests.");
@@ -46,6 +49,7 @@ public sealed class Visit : AggregateRoot, ITenantOwned
         {
             Id = id,
             TenantId = tenantId,
+            BranchId = branchId,
             VisitNumber = visitNumber,
             PatientId = patientId,
             Status = VisitStatus.Registered,

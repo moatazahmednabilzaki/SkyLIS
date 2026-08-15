@@ -15,6 +15,8 @@ public sealed class Invoice : AggregateRoot, ITenantOwned
 
     public Guid TenantId { get; private set; }
     public string InvoiceNumber { get; private set; } = null!;
+    /// <summary>The branch the visit was registered at — cash reconciliation runs per branch.</summary>
+    public Guid BranchId { get; private set; }
     public Guid VisitId { get; private set; }
     public Money Total { get; private set; } = null!;
     public InvoiceStatus Status { get; private set; }
@@ -24,15 +26,18 @@ public sealed class Invoice : AggregateRoot, ITenantOwned
 
     private Invoice() { } // EF
 
-    public static Invoice IssueForVisit(Guid id, Guid tenantId, string invoiceNumber, Guid visitId, Money total, DateTimeOffset nowUtc)
+    public static Invoice IssueForVisit(
+        Guid id, Guid tenantId, Guid branchId, string invoiceNumber, Guid visitId, Money total, DateTimeOffset nowUtc)
     {
         if (tenantId == Guid.Empty) throw new DomainException("Tenant id is required.");
+        if (branchId == Guid.Empty) throw new DomainException("An invoice shall be issued at a branch.");
         if (string.IsNullOrWhiteSpace(invoiceNumber)) throw new DomainException("Invoice number is required.");
         if (total.Amount <= 0) throw new DomainException("Invoice total must be positive.");
         return new Invoice
         {
             Id = id,
             TenantId = tenantId,
+            BranchId = branchId,
             InvoiceNumber = invoiceNumber,
             VisitId = visitId,
             Total = total,

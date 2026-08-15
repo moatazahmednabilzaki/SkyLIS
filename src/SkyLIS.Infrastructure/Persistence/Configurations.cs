@@ -1,9 +1,13 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SkyLIS.Domain.Billing;
 using SkyLIS.Domain.Catalog;
 using SkyLIS.Domain.Common;
+using SkyLIS.Domain.Org;
 using SkyLIS.Domain.Patients;
+using SkyLIS.Domain.Platform;
 using SkyLIS.Domain.Tenants;
 using SkyLIS.Domain.Visits;
 using SkyLIS.Infrastructure.Outbox;
@@ -27,6 +31,65 @@ internal sealed class TenantConfig : IEntityTypeConfiguration<Tenant>
         b.Property(t => t.Status).HasConversion<string>().HasMaxLength(20);
         b.Property(t => t.IsolationTier).HasConversion<string>().HasMaxLength(30);
         b.Property(t => t.SuspensionReason).HasMaxLength(500);
+        b.Property<uint>("xmin").IsRowVersion();
+    }
+}
+
+internal sealed class BranchConfig : IEntityTypeConfiguration<Branch>
+{
+    public void Configure(EntityTypeBuilder<Branch> b)
+    {
+        b.ToTable("branches", "org");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.TenantId).IsRequired();
+        b.Property(x => x.Code).HasMaxLength(10).IsRequired();
+        b.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
+        b.Property(x => x.Name).HasMaxLength(120).IsRequired();
+        b.Property(x => x.Address).HasMaxLength(300);
+        b.Property(x => x.Phone).HasMaxLength(20);
+        b.HasMany(x => x.Departments).WithOne().HasForeignKey(d => d.BranchId).OnDelete(DeleteBehavior.Restrict);
+        b.Navigation(x => x.Departments).UsePropertyAccessMode(PropertyAccessMode.Field);
+        b.Property<uint>("xmin").IsRowVersion();
+    }
+}
+
+internal sealed class DepartmentConfig : IEntityTypeConfiguration<Department>
+{
+    public void Configure(EntityTypeBuilder<Department> b)
+    {
+        b.ToTable("branch_departments", "org");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.TenantId).IsRequired();
+        b.Property(x => x.Code).HasMaxLength(10).IsRequired();
+        b.HasIndex(x => new { x.TenantId, x.BranchId, x.Code }).IsUnique();
+        b.Property(x => x.Name).HasMaxLength(120).IsRequired();
+    }
+}
+
+internal sealed class CountryPackConfig : IEntityTypeConfiguration<CountryPack>
+{
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.General);
+
+    public void Configure(EntityTypeBuilder<CountryPack> b)
+    {
+        b.ToTable("country_packs", "platform");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.CountryCode).HasMaxLength(2).IsRequired();
+        b.HasIndex(x => x.CountryCode).IsUnique();
+        b.Property(x => x.Name).HasMaxLength(120).IsRequired();
+        b.Property(x => x.Currency).HasMaxLength(3).IsRequired();
+        // The pack content is a document, not a relation: persisted as one jsonb column.
+        b.Property(x => x.SampleTypes)
+            .HasColumnName("sample_types")
+            .HasColumnType("jsonb")
+            .HasConversion(
+                v => JsonSerializer.Serialize(v, JsonOptions),
+                v => JsonSerializer.Deserialize<List<PackSampleType>>(v, JsonOptions)!,
+                new ValueComparer<IReadOnlyList<PackSampleType>>(
+                    (a, c) => JsonSerializer.Serialize(a, JsonOptions) == JsonSerializer.Serialize(c, JsonOptions),
+                    v => JsonSerializer.Serialize(v, JsonOptions).GetHashCode(),
+                    v => JsonSerializer.Deserialize<List<PackSampleType>>(
+                        JsonSerializer.Serialize(v, JsonOptions), JsonOptions)!));
         b.Property<uint>("xmin").IsRowVersion();
     }
 }

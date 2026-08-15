@@ -26,6 +26,11 @@ export const appRoutes: Routes = [
         path: 'health',
         loadComponent: () => import('./features/health/health.component').then(m => m.HealthComponent),
       },
+      {
+        path: 'country-packs',
+        loadComponent: () =>
+          import('./features/country-packs/country-packs.component').then(m => m.CountryPacksComponent),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

@@ -17,6 +17,8 @@ public static class DevAuthEndpoints
     private static readonly string[] TenantPermissions =
     [
         "users.user.create", "users.user.read",
+        "org.branch.read", "org.branch.manage",
+        "catalog.catalog.read",
         "patients.patient.create", "patients.patient.read",
         "orders.visit.create", "orders.visit.read",
         "samples.sample.collect", "samples.sample.receive", "samples.sample.reject",
@@ -33,6 +35,7 @@ public static class DevAuthEndpoints
     private static readonly string[] PlatformPermissions =
     [
         "platform.tenant.provision", "platform.tenant.read", "platform.outbox.read",
+        "platform.masterdata.read", "platform.masterdata.manage",
     ];
 
     public static void MapDevAuthEndpoints(this RouteGroupBuilder group, IConfiguration configuration)

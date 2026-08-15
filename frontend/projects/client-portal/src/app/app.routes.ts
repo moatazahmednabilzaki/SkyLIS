@@ -59,6 +59,10 @@ export const appRoutes: Routes = [
         path: 'users',
         loadComponent: () => import('./features/users/users.component').then(m => m.UsersComponent),
       },
+      {
+        path: 'branches',
+        loadComponent: () => import('./features/org/branches.component').then(m => m.BranchesComponent),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

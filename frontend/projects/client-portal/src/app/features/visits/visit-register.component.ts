@@ -1,14 +1,15 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { PatientsApi } from '../patients/patients.api';
+import { CatalogApi, OrgApi } from '../org/org.api';
 import { VisitsApi } from './visits.api';
-import { PatientSearchResult, RegisteredVisit, problemMessage } from '../../core/api.types';
+import { Branch, CatalogTest, PatientSearchResult, RegisteredVisit, problemMessage } from '../../core/api.types';
 
 /**
- * P05.2 Visit Registration wizard: Patient → Tests → Confirm.
+ * P05.2 Visit Registration wizard: Patient → Branch & Tests → Confirm.
  * The specimen plan (condition consolidation + reservation) is computed server-side by
  * the SpecimenPlanner; this screen only captures intent and renders the result.
  */
@@ -21,7 +22,7 @@ import { PatientSearchResult, RegisteredVisit, problemMessage } from '../../core
 
     <div class="steps">
       <span class="step" [class.cur]="step() === 1" [class.done]="step() > 1">1 · Patient</span>
-      <span class="step" [class.cur]="step() === 2" [class.done]="step() > 2">2 · Tests</span>
+      <span class="step" [class.cur]="step() === 2" [class.done]="step() > 2">2 · Branch &amp; Tests</span>
       <span class="step" [class.cur]="step() === 3">3 · Confirmed</span>
     </div>
 
@@ -63,14 +64,16 @@ import { PatientSearchResult, RegisteredVisit, problemMessage } from '../../core
     @if (step() === 2) {
       <div class="card">
         <h3>Patient: {{ patient()!.fullName }} <span class="chip c-blue mono">{{ patient()!.patientNumber }}</span></h3>
+
         <div class="f-row">
-          <div class="f" style="flex:2">
-            <label for="tests">TEST IDS (comma-separated GUIDs — the test-picker UI arrives with the catalog slice)</label>
-            <input id="tests" class="mono" [formControl]="testIds"
-                   placeholder="guid-1, guid-2">
+          <div class="f" style="flex:0 0 260px">
+            <label for="branch">BRANCH (P03.2)</label>
+            <select id="branch" [formControl]="branchId">
+              @for (b of activeBranches(); track b.id) {
+                <option [value]="b.id">{{ b.code }} — {{ b.name }}</option>
+              }
+            </select>
           </div>
-        </div>
-        <div class="f-row">
           <div class="f" style="flex:0 0 auto">
             <label for="stat">PRIORITY</label>
             <select id="stat" [formControl]="isStat">
@@ -85,8 +88,28 @@ import { PatientSearchResult, RegisteredVisit, problemMessage } from '../../core
             </div>
           }
         </div>
+
+        <label class="lbl">TESTS (ACTIVE CATALOG)</label>
+        @if (tests().length === 0) {
+          <p class="hint">No active tests in the catalog yet — create and approve tests first (P03.3).</p>
+        }
+        <div class="picker">
+          @for (t of tests(); track t.id) {
+            <label class="pick" [class.sel]="selected().has(t.id)">
+              <input type="checkbox" [checked]="selected().has(t.id)" (change)="toggleTest(t.id)">
+              <span class="mono code">{{ t.code }}</span>
+              <span class="tname">{{ t.name }}</span>
+              <span class="price">{{ t.price }} {{ t.currency }}</span>
+            </label>
+          }
+        </div>
+        <p class="hint" style="margin-top:6px">
+          {{ selected().size }} test(s) selected — total {{ selectedTotal() }} {{ tests()[0]?.currency ?? '' }}
+        </p>
+
         <button class="btn ghost sm" (click)="step.set(1)">← Back</button>
-        <button class="btn green" style="margin-left:8px" [disabled]="testIds.invalid || busy()" (click)="confirm()">
+        <button class="btn green" style="margin-left:8px"
+                [disabled]="selected().size === 0 || !branchId.value || busy()" (click)="confirm()">
           {{ busy() ? 'Registering…' : 'Confirm visit — compute specimen plan' }}
         </button>
       </div>
@@ -127,10 +150,22 @@ import { PatientSearchResult, RegisteredVisit, problemMessage } from '../../core
     }
     .step.cur { color: #fff; background: var(--blue); border-color: var(--blue); font-weight: 700; }
     .step.done { color: var(--green); border-color: var(--green); }
+    .lbl { display:block; font-size: 10px; font-weight: 700; letter-spacing: .1em; color: var(--slate); margin: 12px 0 6px; }
+    .picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px; }
+    .pick {
+      display: flex; align-items: center; gap: 8px; border: 1px solid var(--line);
+      border-radius: 8px; padding: 8px 10px; font-size: 12px; cursor: pointer; background: #fff;
+    }
+    .pick.sel { border-color: var(--blue); background: #f0f9ff; }
+    .code { font-weight: 700; color: var(--blue); }
+    .tname { flex: 1; }
+    .price { color: var(--slate); font-size: 11px; }
   `,
 })
-export class VisitRegisterComponent {
+export class VisitRegisterComponent implements OnInit {
   private readonly patientsApi = inject(PatientsApi);
+  private readonly orgApi = inject(OrgApi);
+  private readonly catalogApi = inject(CatalogApi);
   private readonly visitsApi = inject(VisitsApi);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
@@ -141,11 +176,37 @@ export class VisitRegisterComponent {
   readonly results = signal<PatientSearchResult[]>([]);
   readonly patient = signal<PatientSearchResult | null>(null);
   readonly registered = signal<RegisteredVisit | null>(null);
+  readonly branches = signal<Branch[]>([]);
+  readonly tests = signal<CatalogTest[]>([]);
+  readonly selected = signal<Set<string>>(new Set());
+
+  readonly activeBranches = computed(() => this.branches().filter(b => b.isActive));
+  readonly selectedTotal = computed(() =>
+    this.tests().filter(t => this.selected().has(t.id)).reduce((sum, t) => sum + (t.price ?? 0), 0));
 
   readonly term = this.fb.nonNullable.control('', [Validators.required, Validators.minLength(2)]);
-  readonly testIds = this.fb.nonNullable.control('', Validators.required);
+  readonly branchId = this.fb.nonNullable.control('');
   readonly isStat = this.fb.nonNullable.control<boolean | string>(false);
   readonly statReason = this.fb.nonNullable.control('');
+
+  ngOnInit(): void {
+    void this.loadLookups();
+  }
+
+  private async loadLookups(): Promise<void> {
+    try {
+      const [branches, tests] = await Promise.all([
+        firstValueFrom(this.orgApi.listBranches()),
+        firstValueFrom(this.catalogApi.listTests('Active')),
+      ]);
+      this.branches.set(branches);
+      this.tests.set(tests);
+      const main = branches.find(b => b.isMain && b.isActive) ?? branches.find(b => b.isActive);
+      if (main) this.branchId.setValue(main.id);
+    } catch (e) {
+      this.error.set(problemMessage(e));
+    }
+  }
 
   async search(): Promise<void> {
     this.busy.set(true);
@@ -164,6 +225,15 @@ export class VisitRegisterComponent {
     this.step.set(2);
   }
 
+  toggleTest(testId: string): void {
+    this.selected.update(set => {
+      const next = new Set(set);
+      if (next.has(testId)) next.delete(testId);
+      else next.add(testId);
+      return next;
+    });
+  }
+
   async confirm(): Promise<void> {
     this.busy.set(true);
     this.error.set(null);
@@ -171,7 +241,8 @@ export class VisitRegisterComponent {
     try {
       const visit = await firstValueFrom(this.visitsApi.register({
         patientId: this.patient()!.id,
-        testIds: this.testIds.value.split(',').map(id => id.trim()).filter(id => id.length > 0),
+        branchId: this.branchId.value,
+        testIds: [...this.selected()],
         isStat: stat,
         statReason: stat ? this.statReason.value : null,
       }));
@@ -193,7 +264,7 @@ export class VisitRegisterComponent {
     this.patient.set(null);
     this.registered.set(null);
     this.results.set([]);
+    this.selected.set(new Set());
     this.term.reset();
-    this.testIds.reset();
   }
 }

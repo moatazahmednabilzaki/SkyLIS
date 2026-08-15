@@ -41,7 +41,8 @@ import { AuthService } from './core/auth.service';
         <a routerLink="/audit" routerLinkActive="on">🔗 Audit Trail</a>
         <div class="group">ADMINISTRATION</div>
         <a routerLink="/users" routerLinkActive="on">🔐 Users &amp; Roles</a>
-        <div class="foot">Client Portal · v0.8 · SRS Rev 2.0</div>
+        <a routerLink="/branches" routerLinkActive="on">🏢 Branches</a>
+        <div class="foot">Client Portal · v0.9 · SRS Rev 2.0</div>
       </nav>
       <main class="main"><router-outlet /></main>
     } @else {

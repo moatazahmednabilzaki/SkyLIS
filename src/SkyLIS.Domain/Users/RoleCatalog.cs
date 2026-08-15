@@ -20,6 +20,8 @@ public static class RoleCatalog
         [TenantAdmin] =
         [
             "users.user.create", "users.user.read",
+            "org.branch.read", "org.branch.manage",
+            "catalog.catalog.read",
             "catalog.sampletype.create", "catalog.test.create", "catalog.test.update", "catalog.test.approve",
             "patients.patient.create", "patients.patient.read",
             "orders.visit.create", "orders.visit.read",
@@ -33,6 +35,7 @@ public static class RoleCatalog
         [LabDirector] =
         [
             "patients.patient.read", "orders.visit.read",
+            "org.branch.read", "catalog.catalog.read",
             "results.result.validateTechnical", "results.result.validateMedical",
             "catalog.test.approve",
             "reports.report.render", "reports.report.deliver", "reports.report.read",
@@ -41,6 +44,7 @@ public static class RoleCatalog
         [Supervisor] =
         [
             "patients.patient.read", "orders.visit.read",
+            "org.branch.read", "catalog.catalog.read",
             "samples.sample.receive", "samples.sample.reject",
             "results.result.enter", "results.result.validateTechnical",
             "reports.report.read", "analytics.dashboard.read",
@@ -48,11 +52,13 @@ public static class RoleCatalog
         [Technologist] =
         [
             "patients.patient.read", "orders.visit.read",
+            "org.branch.read", "catalog.catalog.read",
             "samples.sample.receive", "samples.sample.reject",
             "results.result.enter",
         ],
         [Receptionist] =
         [
+            "org.branch.read", "catalog.catalog.read",
             "patients.patient.create", "patients.patient.read",
             "orders.visit.create", "orders.visit.read",
             "samples.sample.collect", "samples.sample.informPatient",
@@ -62,10 +68,12 @@ public static class RoleCatalog
         [Cashier] =
         [
             "patients.patient.read", "orders.visit.read", "billing.payment.capture",
+            "org.branch.read",
         ],
         [QualityManager] =
         [
             "patients.patient.read", "orders.visit.read",
+            "org.branch.read", "catalog.catalog.read",
             "reports.report.read", "analytics.dashboard.read", "audit.trail.read",
         ],
     };

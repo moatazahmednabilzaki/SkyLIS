@@ -2,7 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using SkyLIS.Application.Common;
 using SkyLIS.Domain.Billing;
 using SkyLIS.Domain.Catalog;
+using SkyLIS.Domain.Org;
 using SkyLIS.Domain.Patients;
+using SkyLIS.Domain.Platform;
 using SkyLIS.Domain.Tenants;
 using SkyLIS.Domain.Visits;
 
@@ -71,7 +73,35 @@ internal sealed class SampleTypeRepository : ISampleTypeRepository
             .Where(c => conditionIds.Contains(c.Id))
             .ToListAsync(ct);
 
+    public Task<bool> NameExistsAsync(string name, CancellationToken ct = default) =>
+        _db.SampleTypes.AnyAsync(s => s.Name == name, ct);
+
     public void Add(SampleType sampleType) => _db.SampleTypes.Add(sampleType);
+}
+
+internal sealed class BranchRepository : IBranchRepository
+{
+    private readonly SkyLisDbContext _db;
+    public BranchRepository(SkyLisDbContext db) => _db = db;
+
+    public Task<Branch?> GetAsync(Guid id, CancellationToken ct = default) =>
+        _db.Branches.Include(b => b.Departments).FirstOrDefaultAsync(b => b.Id == id, ct);
+
+    public Task<bool> CodeExistsAsync(string code, CancellationToken ct = default) =>
+        _db.Branches.AnyAsync(b => b.Code == code, ct);
+
+    public void Add(Branch branch) => _db.Branches.Add(branch);
+}
+
+internal sealed class CountryPackRepository : ICountryPackRepository
+{
+    private readonly SkyLisDbContext _db;
+    public CountryPackRepository(SkyLisDbContext db) => _db = db;
+
+    public Task<CountryPack?> GetByCountryAsync(string countryCode, CancellationToken ct = default) =>
+        _db.CountryPacks.FirstOrDefaultAsync(p => p.CountryCode == countryCode, ct);
+
+    public void Add(CountryPack pack) => _db.CountryPacks.Add(pack);
 }
 
 internal sealed class VisitRepository : IVisitRepository

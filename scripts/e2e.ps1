@@ -53,12 +53,54 @@ ExpectError 'duplicate subdomain rejected' 409 {
         adminUserName = 'copy.admin'; adminFullName = 'Copy Admin'; adminPassword = 'CopycatLab#2026!' } | ConvertTo-Json)
 }
 
+Step 'country packs: EG pack ships with the platform (P01.4)' {
+    $packs = Invoke-RestMethod -Uri "$api/platform/country-packs" -Headers $ph
+    $eg = $packs | Where-Object countryCode -eq 'EG'
+    if (-not $eg) { throw 'EG country pack missing' }
+    if ($eg.sampleTypes.Count -lt 4) { throw "expected >=4 pack sample types, got $($eg.sampleTypes.Count)" }
+} | Out-Null
+
 # ---------- Client Portal flow (tenant A) ----------
 $tokenA = (Step 'tenant A dev token' {
     Invoke-RestMethod -Method Post -Uri "$api/dev/token" -ContentType 'application/json' -Body (@{
         scope = 'tenant'; tenantId = $tenantA } | ConvertTo-Json)
 }).token
 $ha = @{ Authorization = "Bearer $tokenA" }
+
+$branch = Step 'MAIN branch + EG defaults seeded via outbox (P03.2 / FR-TEN-040)' {
+    $deadline = (Get-Date).AddSeconds(30)
+    do {
+        Start-Sleep -Seconds 2
+        $branches = Invoke-RestMethod -Uri "$api/org/branches" -Headers $ha
+        $types = Invoke-RestMethod -Uri "$api/catalog/sample-types" -Headers $ha
+        $main = $branches | Where-Object code -eq 'MAIN'
+    } while ((-not $main -or $types.Count -lt 4) -and (Get-Date) -lt $deadline)
+    if (-not $main -or -not $main.isMain) { throw 'MAIN branch not seeded' }
+    if (-not ($types | Where-Object name -eq 'Serum')) { throw 'EG pack sample taxonomy not seeded' }
+    if (-not (($types | Where-Object name -eq 'Serum').conditions | Where-Object name -eq 'Fasting 8h')) {
+        throw 'seeded Serum type missing its condition tree'
+    }
+    $main
+}
+
+Step 'add department to MAIN (P03.2)' {
+    Invoke-RestMethod -Method Post -Uri "$api/org/branches/$($branch.id)/departments" -Headers $ha `
+        -ContentType 'application/json' -Body '{"code":"CHEM","name":"Chemistry"}' | Out-Null
+    $b = (Invoke-RestMethod -Uri "$api/org/branches" -Headers $ha) | Where-Object code -eq 'MAIN'
+    if (-not ($b.departments | Where-Object code -eq 'CHEM')) { throw 'department not listed' }
+} | Out-Null
+ExpectError 'duplicate department code rejected' 422 {
+    Invoke-RestMethod -Method Post -Uri "$api/org/branches/$($branch.id)/departments" -Headers $ha `
+        -ContentType 'application/json' -Body '{"code":"CHEM","name":"Chemistry again"}'
+}
+
+$zamalek = Step 'open second branch ZMLK (P03.2)' {
+    $created = Invoke-RestMethod -Method Post -Uri "$api/org/branches" -Headers $ha -ContentType 'application/json' `
+        -Body '{"code":"zmlk","name":"Zamalek Branch","address":"26 July St.","phone":"+20221234567"}'
+    $b = (Invoke-RestMethod -Uri "$api/org/branches" -Headers $ha) | Where-Object id -eq $created.id
+    if ($b.code -ne 'ZMLK') { throw "expected normalized code ZMLK, got $($b.code)" }
+    $b
+}
 
 $sampleType = Step 'create sample type with condition trees (P03.4)' {
     Invoke-RestMethod -Method Post -Uri "$api/catalog/sample-types" -Headers $ha -ContentType 'application/json' -Body (@{
@@ -97,13 +139,20 @@ $search = Step 'patient search shows identity triple (P04.1)' {
     $hits[0]
 }
 
-$visit = Step 'register visit: consolidation + reservation (P05.2)' {
+$visit = Step 'register visit: consolidation + reservation + branch numbering (P05.2)' {
     $v = Invoke-RestMethod -Method Post -Uri "$api/visits" -Headers $ha -ContentType 'application/json' -Body (@{
-        patientId = $patient; testIds = @($gluF, $hba1c, $gluPp); isStat = $false; statReason = $null } | ConvertTo-Json)
+        patientId = $patient; branchId = $branch.id; testIds = @($gluF, $hba1c, $gluPp)
+        isStat = $false; statReason = $null } | ConvertTo-Json)
     if ($v.samples.Count -ne 2) { throw "expected 2 samples, got $($v.samples.Count)" }
     if ($v.total -ne 380) { throw "expected total 380, got $($v.total)" }
     if (-not ($v.samples | Where-Object state -eq 'ConditionPending')) { throw 'no reserved sample' }
+    if ($v.visitNumber -notmatch '^V-MAIN-\d{6}-0001$') { throw "expected V-MAIN-…-0001, got $($v.visitNumber)" }
+    if ($v.invoiceNumber -notmatch '^INV-MAIN-') { throw "expected INV-MAIN-…, got $($v.invoiceNumber)" }
     $v
+}
+ExpectError 'registering a visit without a branch is rejected' 400 {
+    Invoke-RestMethod -Method Post -Uri "$api/visits" -Headers $ha -ContentType 'application/json' -Body (@{
+        patientId = $patient; testIds = @($gluF); isStat = $false; statReason = $null } | ConvertTo-Json)
 }
 $readySample = ($visit.samples | Where-Object state -eq 'ReadyToCollect').sampleId
 $reservedSample = ($visit.samples | Where-Object state -eq 'ConditionPending').sampleId
@@ -255,9 +304,12 @@ Step 'medical sign-out by a different user (P09.3, e-signature)' {
 
 # Critical value on the PP sample: collect after the window would take 2h, so verify the
 # critical path on a fresh STAT visit with an immediate-collection test instead.
-$visit2 = Step 'second visit for the critical-value path' {
-    Invoke-RestMethod -Method Post -Uri "$api/visits" -Headers $ha -ContentType 'application/json' -Body (@{
-        patientId = $patient; testIds = @($gluF); isStat = $true; statReason = 'ER request' } | ConvertTo-Json)
+$visit2 = Step 'second visit for the critical-value path (branch series advances)' {
+    $v = Invoke-RestMethod -Method Post -Uri "$api/visits" -Headers $ha -ContentType 'application/json' -Body (@{
+        patientId = $patient; branchId = $branch.id; testIds = @($gluF)
+        isStat = $true; statReason = 'ER request' } | ConvertTo-Json)
+    if ($v.visitNumber -notmatch '-0002$') { throw "expected MAIN series -0002, got $($v.visitNumber)" }
+    $v
 }
 $v2sample = $visit2.samples[0].sampleId
 Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit2.visitId)/samples/$v2sample/collect" -Headers $ha | Out-Null
@@ -352,9 +404,15 @@ Step 'public verification: tampered hash detected' {
     if ($v.hashValid) { throw 'tampered hash accepted!' }
 } | Out-Null
 
-# Critical gate: a FINAL cannot render while a critical value is open
-$visit3 = Invoke-RestMethod -Method Post -Uri "$api/visits" -Headers $ha -ContentType 'application/json' -Body (@{
-    patientId = $patient; testIds = @($gluF); isStat = $true; statReason = 'ICU follow-up' } | ConvertTo-Json)
+# Critical gate: a FINAL cannot render while a critical value is open.
+# Registered at the ZMLK branch: proves per-branch number series run independently.
+$visit3 = Step 'third visit at ZMLK starts its own series (P03.2)' {
+    $v = Invoke-RestMethod -Method Post -Uri "$api/visits" -Headers $ha -ContentType 'application/json' -Body (@{
+        patientId = $patient; branchId = $zamalek.id; testIds = @($gluF)
+        isStat = $true; statReason = 'ICU follow-up' } | ConvertTo-Json)
+    if ($v.visitNumber -notmatch '^V-ZMLK-\d{6}-0001$') { throw "expected V-ZMLK-…-0001, got $($v.visitNumber)" }
+    $v
+}
 $v3sample = $visit3.samples[0].sampleId
 Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit3.visitId)/samples/$v3sample/collect" -Headers $ha | Out-Null
 Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit3.visitId)/samples/$v3sample/receive" -Headers $ha | Out-Null

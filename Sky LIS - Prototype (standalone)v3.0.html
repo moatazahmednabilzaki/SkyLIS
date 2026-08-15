@@ -792,14 +792,35 @@ table.t{width:100%;border-collapse:collapse;font-size:12px}
     <button class="tab" data-t="md3">Price Lists</button>
   </div>
   <div class="tabpane on" id="md1"><div class="card">
+    <div class="flex" style="margin-bottom:10px">
+      <span class="hint">Origins: <span class="chip c-blue">Platform seed</span> <span class="chip c-navy">Customized</span> <span class="chip c-purple">Tenant-defined</span> — tenant-defined tests exist in <b>this tenant only</b>.</span>
+      <span class="sp"></span>
+      <button class="btn">＋ Add tenant test</button>
+    </div>
     <table class="t">
       <tr><th>Code</th><th>Test</th><th>Dept</th><th>Specimen</th><th>Condition</th><th>Origin</th><th>Status</th></tr>
       <tr><td class="mono">GLU-F</td><td>Fasting Glucose</td><td>Chemistry</td><td>Serum (fluoride)</td><td>Fasting 8h</td><td><span class="chip c-blue">Platform seed</span></td><td><span class="chip c-green">Active</span></td></tr>
       <tr><td class="mono">GLU-PP</td><td>Glucose PP 2h</td><td>Chemistry</td><td>Serum (fluoride)</td><td>PP +2h</td><td><span class="chip c-blue">Platform seed</span></td><td><span class="chip c-green">Active</span></td></tr>
       <tr><td class="mono">HBA1C</td><td>HbA1c</td><td>Chemistry</td><td>Whole blood EDTA</td><td>—</td><td><span class="chip c-navy">Customized</span></td><td><span class="chip c-green">Active</span></td></tr>
       <tr><td class="mono">VITD-T</td><td>Vitamin D Total</td><td>Immunoassay</td><td>Serum</td><td>—</td><td><span class="chip c-purple">Tenant-defined</span></td><td><span class="chip c-amber">In Review</span></td></tr>
+      <tr style="background:var(--tint)"><td class="mono">D-DIM</td><td>D-Dimer (quantitative) <span class="chip c-blue">NEW from platform</span></td><td>Coagulation</td><td>Citrated plasma</td><td>—</td><td><span class="chip c-blue">Platform push</span></td><td><span class="chip c-amber">Pending Activation — set price</span> <button class="btn sm">Activate…</button></td></tr>
     </table>
     <p class="hint">Platform-seeded tests are cloned-on-edit; the seed original stays referenceable. Activation requires: department, specimen (+condition), result schema, range set, TAT targets, resolvable price.</p>
+  </div>
+  <div class="card">
+    <h3>＋ Add tenant test — this tenant only (P03.3)</h3>
+    <div class="f-row">
+      <div class="f"><label>TEST CODE</label><input class="mono" value="CA-153"></div>
+      <div class="f" style="flex:2"><label>NAME</label><input value="CA 15-3 Tumor Marker"></div>
+      <div class="f"><label>DEPARTMENT</label><select><option>Immunoassay</option><option>Chemistry</option></select></div>
+    </div>
+    <div class="f-row">
+      <div class="f"><label>SPECIMEN + CONDITION</label><select><option>Serum — no condition</option><option>Serum — Fasting 8h</option></select></div>
+      <div class="f"><label>PRICE — WALK-IN v14 (EGP)</label><input class="mono" value="650"></div>
+      <div class="f"><label>TAT TARGET</label><input value="Routine 24h · STAT n/a"></div>
+    </div>
+    <div class="note">Tenant-defined tests are visible <b>only to this tenant</b> and are never affected by platform packs or pushes. Lab Director approval activates the test (Draft → In Review → Approved → Active).</div>
+    <button class="btn">Save as draft → send for Lab Director review</button>
   </div></div>
   <div class="tabpane" id="md2"><div class="grid2">
     <div class="card">
@@ -1008,6 +1029,36 @@ table.t{width:100%;border-collapse:collapse;font-size:12px}
       <tr><td class="mono">D-DIM</td><td>D-Dimer</td><td>Coagulation</td><td>Citrated plasma</td><td>—</td><td>Adult · 1 band</td><td><span class="chip c-blue">Draft — v8</span></td></tr>
     </table>
     <p class="hint">Seed tests are delivered to every new tenant at provisioning (P01.2 step 3). Tenants clone-on-edit: their customizations never block pack updates and are never overwritten. Governance details of merge/update mechanics: OPEN — §3.3 of the SRS.</p>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h3>＋ Create new test (platform) — FR-MDM-071</h3>
+      <div class="f-row">
+        <div class="f"><label>TEST CODE</label><input class="mono" value="D-DIM"></div>
+        <div class="f" style="flex:2"><label>NAME</label><input value="D-Dimer (quantitative)"></div>
+      </div>
+      <div class="f-row">
+        <div class="f"><label>DEPARTMENT</label><select><option>Coagulation</option><option>Chemistry</option><option>Hematology</option><option>Immunoassay</option></select></div>
+        <div class="f"><label>SPECIMEN + CONDITION</label><select><option>Citrated plasma — no condition</option><option>Serum — Fasting 8h</option></select></div>
+      </div>
+      <div class="f-row"><div class="f"><label>DISTRIBUTION</label>
+        <select>
+          <option>🚀 Push to all tenants now — arrives as “Pending Activation”</option>
+          <option>📦 Include in next pack (v8) — opt-in merge</option>
+        </select></div></div>
+      <div class="note">Push broadcasts the test to <b>every tenant catalogue immediately</b>. It arrives as <b>Pending Activation</b>: each Tenant Admin sets a price (and any local tweaks) to activate — a test can never activate without a resolvable price. Tenant customizations are unaffected.</div>
+      <button class="btn">Create &amp; distribute</button>
+    </div>
+    <div class="card">
+      <h3>Push status — recent platform tests</h3>
+      <table class="t">
+        <tr><th>Test</th><th>Mode</th><th>Received</th><th>Activated by tenant</th><th>Status</th></tr>
+        <tr><td class="mono">D-DIM</td><td><span class="chip c-blue">Push</span></td><td class="mono">37 / 37</td><td class="mono">22 / 37</td><td><span class="chip c-green">Delivered</span></td></tr>
+        <tr><td class="mono">FERR</td><td><span class="chip c-blue">Push</span></td><td class="mono">37 / 37</td><td class="mono">35 / 37</td><td><span class="chip c-green">Delivered</span></td></tr>
+        <tr><td class="mono">HSV-PCR</td><td><span class="chip c-navy">Pack v8</span></td><td class="mono">awaits publish</td><td class="mono">—</td><td><span class="chip c-amber">Queued</span></td></tr>
+      </table>
+      <p class="hint">Pushed tests cannot be deleted by tenants (they may retire/hide them locally). Delivery and activation are metered per tenant and fully audited.</p>
+    </div>
   </div></div>
   <div class="tabpane" id="mp2"><div class="grid2">
     <div class="card">

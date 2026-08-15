@@ -11,6 +11,8 @@
 
 ---
 
+![CI](https://github.com/moatazahmednabilzaki/SkyLIS/actions/workflows/ci.yml/badge.svg)
+
 ## About
 
 **Sky LIS** is a multi-tenant SaaS Laboratory Information System covering the full clinical laboratory workflow: patient registration, order management, phlebotomy and collection, accessioning and sample tracking, results entry, technical and medical validation, and reporting and delivery — plus specialty departments (microbiology, histopathology and cytology, blood bank and transfusion, molecular diagnostics), quality control (IQC/EQA), inventory, billing and insurance, and B2B referral, patient, and physician portals.

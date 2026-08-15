@@ -163,6 +163,16 @@ public sealed class Visit : AggregateRoot, ITenantOwned
             Status = VisitStatus.Validated;
     }
 
+    /// <summary>Final report rendered (M10): the visit reaches Reported.</summary>
+    public void MarkReported()
+    {
+        if (Status != VisitStatus.Validated)
+            throw new InvalidStateTransitionException(nameof(Visit), Status.ToString(), VisitStatus.Reported.ToString());
+        Status = VisitStatus.Reported;
+        foreach (var line in _tests.Where(t => t.Status == VisitTestStatus.MedValid))
+            line.SetStatus(VisitTestStatus.Reported);
+    }
+
     /// <summary>Rerun ordered: the line returns to Pending for a fresh entry.</summary>
     public void MarkTestRerun(Guid visitTestId)
     {

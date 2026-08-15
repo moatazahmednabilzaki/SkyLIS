@@ -257,6 +257,98 @@ Step 'rerun voids a result and reopens the line' {
     if ($line.status -ne 'Pending') { throw "expected Pending line, got $($line.status)" }
 } | Out-Null
 
+# ---------- M10: Reporting & Delivery ----------
+# Complete visit2: re-enter after rerun (auto-verify) and sign out -> Validated
+Step 'visit2: re-enter after rerun, sign out -> Validated' {
+    $r2 = Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit2.visitId)/results" -Headers $ha `
+        -ContentType 'application/json' -Body (@{ visitTestId = $v2line; value = 88 } | ConvertTo-Json)
+    if (-not $r2.autoVerified) { throw 'expected auto-verify' }
+    Invoke-RestMethod -Method Post -Uri "$api/results/$($r2.resultId)/validate-medical" -Headers $hd `
+        -ContentType 'application/json' -Body '{"interpretiveComment":null,"signatureIntent":"I medically validate GLU-F = 88 mg/dL"}' | Out-Null
+    $v = Invoke-RestMethod -Uri "$api/visits/$($visit2.visitId)" -Headers $ha
+    if ($v.status -ne 'Validated') { throw "expected Validated, got $($v.status)" }
+} | Out-Null
+
+ExpectError 'FINAL blocked on partially validated visit1 (interim required)' 422 {
+    Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit.visitId)/reports" -Headers $ha `
+        -ContentType 'application/json' -Body '{"kind":"Final"}'
+}
+$interim = Step 'INTERIM renders for visit1 (validated subset)' {
+    $r = Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit.visitId)/reports" -Headers $ha `
+        -ContentType 'application/json' -Body '{"kind":"Interim"}'
+    if ($r.kind -ne 'Interim' -or $r.version -ne 1) { throw "unexpected $($r.kind) v$($r.version)" }
+    $r
+}
+
+$final = Step 'FINAL renders for visit2 -> visit Reported + metering event' {
+    $r = Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit2.visitId)/reports" -Headers $ha `
+        -ContentType 'application/json' -Body '{"kind":"Final"}'
+    $v = Invoke-RestMethod -Uri "$api/visits/$($visit2.visitId)" -Headers $ha
+    if ($v.status -ne 'Reported') { throw "expected Reported, got $($v.status)" }
+    $r
+}
+ExpectError 'second FINAL for the same visit rejected' 409 {
+    Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit2.visitId)/reports" -Headers $ha `
+        -ContentType 'application/json' -Body '{"kind":"Final"}'
+}
+
+Step 'report artifact is retrievable and hash-stable' {
+    # Hash over the RAW bytes (the artifact contains UTF-8 Arabic text).
+    $response = Invoke-WebRequest -Uri "$api/reports/$($final.reportId)/content" -Headers $ha -UseBasicParsing
+    $stream = New-Object System.IO.MemoryStream
+    $response.RawContentStream.CopyTo($stream)
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    $hash = [BitConverter]::ToString($sha.ComputeHash($stream.ToArray())).Replace('-','')
+    if ($hash -ne $final.contentHash) { throw "artifact hash mismatch: $hash vs $($final.contentHash)" }
+} | Out-Null
+
+Step 'delivery via whatsapp logs attempt and marks Delivered' {
+    $d = Invoke-RestMethod -Method Post -Uri "$api/reports/$($final.reportId)/deliver" -Headers $ha `
+        -ContentType 'application/json' -Body '{"channel":"whatsapp","destination":"+201002345678"}'
+    if ($d.outcome -ne 'Sent' -or $d.reportStatus -ne 'Delivered') { throw "unexpected $($d | ConvertTo-Json -Compress)" }
+} | Out-Null
+
+Step 'public verification: valid hash, initials only, no PHI (anonymous)' {
+    $v = Invoke-RestMethod -Uri "$api/public/reports/$($final.reportId)/verify?hash=$($final.contentHash)"
+    if (-not $v.found -or -not $v.hashValid) { throw 'expected valid' }
+    if ($v.patientInitials -ne 'M.E.') { throw "expected initials M.E., got $($v.patientInitials)" }
+    if (($v | ConvertTo-Json) -match 'Mona') { throw 'PHI leaked in public verification!' }
+} | Out-Null
+Step 'public verification: tampered hash detected' {
+    $v = Invoke-RestMethod -Uri "$api/public/reports/$($final.reportId)/verify?hash=DEADBEEF"
+    if ($v.hashValid) { throw 'tampered hash accepted!' }
+} | Out-Null
+
+# Critical gate: a FINAL cannot render while a critical value is open
+$visit3 = Invoke-RestMethod -Method Post -Uri "$api/visits" -Headers $ha -ContentType 'application/json' -Body (@{
+    patientId = $patient; testIds = @($gluF); isStat = $true; statReason = 'ICU follow-up' } | ConvertTo-Json)
+$v3sample = $visit3.samples[0].sampleId
+Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit3.visitId)/samples/$v3sample/collect" -Headers $ha | Out-Null
+Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit3.visitId)/samples/$v3sample/receive" -Headers $ha | Out-Null
+$v3line = (Invoke-RestMethod -Uri "$api/visits/$($visit3.visitId)" -Headers $ha).tests[0].id
+$v3result = Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit3.visitId)/results" -Headers $ha `
+    -ContentType 'application/json' -Body (@{ visitTestId = $v3line; value = 30 } | ConvertTo-Json)
+Invoke-RestMethod -Method Post -Uri "$api/results/$($v3result.resultId)/accept-technical" -Headers $ha | Out-Null
+Invoke-RestMethod -Method Post -Uri "$api/results/$($v3result.resultId)/validate-medical" -Headers $hd `
+    -ContentType 'application/json' -Body '{"interpretiveComment":null,"signatureIntent":"I medically validate GLU-F = 30 mg/dL"}' | Out-Null
+
+ExpectError 'FINAL blocked while a critical value is open (P09.4 gate)' 422 {
+    Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit3.visitId)/reports" -Headers $ha `
+        -ContentType 'application/json' -Body '{"kind":"Final"}'
+}
+Step 'closing the critical unblocks the FINAL report' {
+    Invoke-RestMethod -Method Post -Uri "$api/results/$($v3result.resultId)/critical/document-call" -Headers $ha `
+        -ContentType 'application/json' -Body '{"calledPerson":"Dr. Aya Salem","phone":"+201118887777","readBackConfirmed":true}' | Out-Null
+    $r = Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit3.visitId)/reports" -Headers $ha `
+        -ContentType 'application/json' -Body '{"kind":"Final"}'
+    if ($r.kind -ne 'Final') { throw 'final expected' }
+} | Out-Null
+
+Step 'reporting worklist shows the reported visits' {
+    $wl = Invoke-RestMethod -Uri "$api/reports/worklist" -Headers $ha
+    if (-not ($wl | Where-Object { $_.visitId -eq $visit2.visitId -and $_.kind -eq 'Final' })) { throw 'visit2 final missing from worklist' }
+} | Out-Null
+
 # ---------- Tenant isolation proof ----------
 $tokenB = (Invoke-RestMethod -Method Post -Uri "$api/dev/token" -ContentType 'application/json' -Body (@{
     scope = 'tenant'; tenantId = $tenantB } | ConvertTo-Json)).token

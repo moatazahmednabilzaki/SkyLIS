@@ -39,6 +39,10 @@ export const appRoutes: Routes = [
         path: 'critical',
         loadComponent: () => import('./features/results/critical.component').then(m => m.CriticalComponent),
       },
+      {
+        path: 'reports',
+        loadComponent: () => import('./features/reports/reports.component').then(m => m.ReportsComponent),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

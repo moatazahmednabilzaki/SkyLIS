@@ -39,6 +39,7 @@ api.MapPatientEndpoints();
 api.MapCatalogEndpoints();
 api.MapVisitEndpoints();
 api.MapResultEndpoints();
+api.MapReportEndpoints();
 api.MapBillingEndpoints();
 if (app.Environment.IsDevelopment())
     api.MapDevAuthEndpoints(app.Configuration);

@@ -34,7 +34,8 @@ import { AuthService } from './core/auth.service';
         <a routerLink="/results" routerLinkActive="on">🧪 Results Entry</a>
         <a routerLink="/validation" routerLinkActive="on">✅ Validation &amp; Sign-Out</a>
         <a routerLink="/critical" routerLinkActive="on">🚨 Critical Values</a>
-        <div class="foot">Client Portal · v0.2 · SRS Rev 2.0</div>
+        <a routerLink="/reports" routerLinkActive="on">📄 Reporting</a>
+        <div class="foot">Client Portal · v0.3 · SRS Rev 2.0</div>
       </nav>
       <main class="main"><router-outlet /></main>
     } @else {

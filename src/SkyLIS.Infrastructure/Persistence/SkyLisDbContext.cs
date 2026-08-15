@@ -4,6 +4,7 @@ using SkyLIS.Domain.Billing;
 using SkyLIS.Domain.Catalog;
 using SkyLIS.Domain.Common;
 using SkyLIS.Domain.Patients;
+using SkyLIS.Domain.Reports;
 using SkyLIS.Domain.Results;
 using SkyLIS.Domain.Tenants;
 using SkyLIS.Domain.Visits;
@@ -30,6 +31,8 @@ public sealed class SkyLisDbContext : DbContext, IUnitOfWork
     public DbSet<SampleType> SampleTypes => Set<SampleType>();
     public DbSet<Visit> Visits => Set<Visit>();
     public DbSet<TestResult> TestResults => Set<TestResult>();
+    public DbSet<LabReport> LabReports => Set<LabReport>();
+    public DbSet<ReportVerification> ReportVerifications => Set<ReportVerification>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<NumberSeries> NumberSeries => Set<NumberSeries>();
@@ -55,6 +58,9 @@ public sealed class SkyLisDbContext : DbContext, IUnitOfWork
         modelBuilder.Entity<SampleType>().HasQueryFilter(s => s.TenantId == _tenantContext.TenantId);
         modelBuilder.Entity<Visit>().HasQueryFilter(v => v.TenantId == _tenantContext.TenantId);
         modelBuilder.Entity<TestResult>().HasQueryFilter(r => r.TenantId == _tenantContext.TenantId);
+        modelBuilder.Entity<LabReport>().HasQueryFilter(r => r.TenantId == _tenantContext.TenantId);
+        // ReportVerification intentionally has NO tenant filter: platform-scoped, PHI-free,
+        // read by the anonymous QR verification endpoint.
         modelBuilder.Entity<Invoice>().HasQueryFilter(i => i.TenantId == _tenantContext.TenantId);
         modelBuilder.Entity<NumberSeries>().HasQueryFilter(n => n.TenantId == _tenantContext.TenantId);
     }

@@ -1,6 +1,7 @@
 using SkyLIS.Domain.Billing;
 using SkyLIS.Domain.Catalog;
 using SkyLIS.Domain.Patients;
+using SkyLIS.Domain.Reports;
 using SkyLIS.Domain.Results;
 using SkyLIS.Domain.Tenants;
 using SkyLIS.Domain.Visits;
@@ -86,6 +87,14 @@ public interface ITestResultRepository
     /// <summary>The non-voided result for a visit test line, if any (reruns void results).</summary>
     Task<TestResult?> GetActiveByLineAsync(Guid visitTestId, CancellationToken ct = default);
     void Add(TestResult result);
+}
+
+public interface ILabReportRepository
+{
+    Task<LabReport?> GetAsync(Guid id, CancellationToken ct = default);
+    void Add(LabReport report);
+    /// <summary>Verification records are platform-scoped (public QR check) — no tenant filter.</summary>
+    void AddVerification(ReportVerification verification);
 }
 
 public interface IInvoiceRepository

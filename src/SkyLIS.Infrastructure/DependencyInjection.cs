@@ -45,12 +45,15 @@ public static class DependencyInjection
         services.AddScoped<ITestResultRepository, TestResultRepository>();
         services.AddScoped<ILabReportRepository, LabReportRepository>();
         services.AddScoped<IInvoiceRepository, InvoiceRepository>();
+        services.AddScoped<ICreditNoteRepository, CreditNoteRepository>();
+        services.AddScoped<ICashierShiftRepository, CashierShiftRepository>();
 
         // Read side
         services.AddScoped<ITenantQueries, TenantQueries>();
         services.AddScoped<Application.Org.IBranchQueries, BranchQueries>();
         services.AddScoped<Application.Platform.ICountryPackQueries, CountryPackQueries>();
         services.AddScoped<Application.Catalog.ICatalogQueries, CatalogQueries>();
+        services.AddScoped<Application.Billing.IBillingQueries, BillingQueries>();
         services.AddScoped<IPatientQueries, PatientQueries>();
         services.AddScoped<IVisitQueries, VisitQueries>();
         services.AddScoped<IResultQueries, ResultQueries>();

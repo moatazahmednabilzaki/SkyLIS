@@ -53,9 +53,9 @@ internal sealed class AnalyticsQueries : IAnalyticsQueries
         var payments = await _db.Invoices.AsNoTracking()
             .SelectMany(i => i.Payments)
             .Where(p => p.CapturedAtUtc >= dayStart && p.CapturedAtUtc < dayEnd)
-            .Select(p => new { p.Amount.Amount, p.Amount.Currency })
+            .Select(p => new { p.Amount.Amount, p.Amount.Currency, p.IsRefund })
             .ToListAsync(ct);
-        var revenue = payments.Sum(p => p.Amount);
+        var revenue = payments.Sum(p => p.IsRefund ? -p.Amount : p.Amount);
         var currency = payments.Select(p => p.Currency).FirstOrDefault() ?? "EGP";
 
         // Register -> Reported TAT for today's reported visits (first final report render).

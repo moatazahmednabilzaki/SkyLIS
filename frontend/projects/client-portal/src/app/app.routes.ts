@@ -63,6 +63,10 @@ export const appRoutes: Routes = [
         path: 'branches',
         loadComponent: () => import('./features/org/branches.component').then(m => m.BranchesComponent),
       },
+      {
+        path: 'cashier',
+        loadComponent: () => import('./features/billing/cashier.component').then(m => m.CashierComponent),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

@@ -225,6 +225,7 @@ public static class VisitEndpoints
     public sealed record RegisterVisitRequest(
         Guid PatientId, Guid BranchId, IReadOnlyList<Guid> TestIds, bool IsStat, string? StatReason);
     public sealed record RejectSampleRequest(string ReasonCode);
+    public sealed record CancelVisitRequest(string Reason);
 
     public static RouteGroupBuilder MapVisitEndpoints(this RouteGroupBuilder group)
     {
@@ -239,6 +240,11 @@ public static class VisitEndpoints
 
         visits.MapGet("/{visitId:guid}", (ISender sender, Guid visitId, CancellationToken ct) =>
             sender.Send(new GetVisitQuery(visitId), ct));
+
+        // M05/M17: cancellation waives the unpaid balance via an automatic credit note
+        visits.MapPost("/{visitId:guid}/cancel", (
+            ISender sender, Guid visitId, CancelVisitRequest request, CancellationToken ct) =>
+            sender.Send(new CancelVisitCommand(visitId, request.Reason), ct));
 
         // Explicit business-action endpoints (EAA API rule)
         visits.MapPost("/{visitId:guid}/samples/{sampleId:guid}/collect", async (
@@ -269,14 +275,55 @@ public static class VisitEndpoints
 public static class BillingEndpoints
 {
     public sealed record CapturePaymentRequest(decimal Amount, string Currency, string Method);
+    public sealed record ApplyDiscountRequest(decimal Amount, string Reason);
+    public sealed record IssueCreditNoteRequest(decimal Amount, string Reason);
+    public sealed record RefundRequest(decimal Amount, string Reason);
+    public sealed record OpenShiftRequest(Guid BranchId, decimal OpeningFloat, string Currency);
+    public sealed record CloseShiftRequest(decimal DeclaredCash);
 
     public static RouteGroupBuilder MapBillingEndpoints(this RouteGroupBuilder group)
     {
         var billing = group.MapGroup("/billing/invoices").RequireAuthorization().WithTags("Client Portal — Billing");
 
+        billing.MapGet("/{invoiceId:guid}", (ISender sender, Guid invoiceId, CancellationToken ct) =>
+            sender.Send(new GetInvoiceQuery(invoiceId), ct));
+
         billing.MapPost("/{invoiceId:guid}/payments", (
             ISender sender, Guid invoiceId, CapturePaymentRequest request, CancellationToken ct) =>
             sender.Send(new CapturePaymentCommand(invoiceId, request.Amount, request.Currency, request.Method), ct));
+
+        // P17.1: discount before payment (reason mandatory, audited)
+        billing.MapPost("/{invoiceId:guid}/discount", (
+            ISender sender, Guid invoiceId, ApplyDiscountRequest request, CancellationToken ct) =>
+            sender.Send(new ApplyDiscountCommand(invoiceId, request.Amount, request.Reason), ct));
+
+        // M17: manual credit note against the open balance
+        billing.MapPost("/{invoiceId:guid}/credit-notes", (
+            ISender sender, Guid invoiceId, IssueCreditNoteRequest request, CancellationToken ct) =>
+            sender.Send(new IssueCreditNoteCommand(invoiceId, request.Amount, request.Reason), ct));
+
+        // M17: refund captured money (SoD: billing.refund.approve)
+        billing.MapPost("/{invoiceId:guid}/refunds", (
+            ISender sender, Guid invoiceId, RefundRequest request, CancellationToken ct) =>
+            sender.Send(new RefundPaymentCommand(invoiceId, request.Amount, request.Reason), ct));
+
+        // P17.2: cashier shifts & day close (Z-report)
+        var shifts = group.MapGroup("/billing/shifts").RequireAuthorization()
+            .WithTags("Client Portal — Cashier Shifts (P17.2)");
+
+        shifts.MapGet("/", (ISender sender, CancellationToken ct) =>
+            sender.Send(new ListShiftsQuery(), ct));
+
+        shifts.MapPost("/", async (ISender sender, OpenShiftRequest request, CancellationToken ct) =>
+        {
+            var id = await sender.Send(new OpenShiftCommand(
+                request.BranchId, request.OpeningFloat, request.Currency), ct);
+            return Results.Created($"/api/v1/billing/shifts/{id}", new { id });
+        });
+
+        shifts.MapPost("/{shiftId:guid}/close", (
+            ISender sender, Guid shiftId, CloseShiftRequest request, CancellationToken ct) =>
+            sender.Send(new CloseShiftCommand(shiftId, request.DeclaredCash), ct));
 
         return group;
     }

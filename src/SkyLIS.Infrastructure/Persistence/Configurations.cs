@@ -259,11 +259,53 @@ internal sealed class PaymentConfig : IEntityTypeConfiguration<Payment>
         b.HasKey(p => p.Id);
         b.Property(p => p.TenantId).IsRequired();
         b.Property(p => p.Method).HasMaxLength(20).IsRequired();
+        b.Property(p => p.Reason).HasMaxLength(300);
         b.OwnsOne(p => p.Amount, money =>
         {
             money.Property(m => m.Amount).HasColumnName("amount").HasPrecision(12, 2);
             money.Property(m => m.Currency).HasColumnName("currency").HasMaxLength(3);
         });
+    }
+}
+
+internal sealed class CreditNoteConfig : IEntityTypeConfiguration<CreditNote>
+{
+    public void Configure(EntityTypeBuilder<CreditNote> b)
+    {
+        b.ToTable("credit_notes", "billing");
+        b.HasKey(c => c.Id);
+        b.Property(c => c.TenantId).IsRequired();
+        b.Property(c => c.CreditNoteNumber).HasMaxLength(30).IsRequired();
+        b.HasIndex(c => new { c.TenantId, c.CreditNoteNumber }).IsUnique();
+        b.HasIndex(c => new { c.TenantId, c.InvoiceId });
+        b.Property(c => c.Reason).HasMaxLength(400).IsRequired();
+        b.OwnsOne(c => c.Amount, money =>
+        {
+            money.Property(m => m.Amount).HasColumnName("amount").HasPrecision(12, 2);
+            money.Property(m => m.Currency).HasColumnName("currency").HasMaxLength(3);
+        });
+        b.Property<uint>("xmin").IsRowVersion();
+    }
+}
+
+internal sealed class CashierShiftConfig : IEntityTypeConfiguration<CashierShift>
+{
+    public void Configure(EntityTypeBuilder<CashierShift> b)
+    {
+        b.ToTable("cashier_shifts", "billing");
+        b.HasKey(s => s.Id);
+        b.Property(s => s.TenantId).IsRequired();
+        b.Property(s => s.Status).HasConversion<string>().HasMaxLength(10);
+        b.HasIndex(s => new { s.TenantId, s.BranchId, s.Status });
+        b.Property(s => s.DeclaredCash).HasPrecision(12, 2);
+        b.Property(s => s.ExpectedCash).HasPrecision(12, 2);
+        b.Property(s => s.Variance).HasPrecision(12, 2);
+        b.OwnsOne(s => s.OpeningFloat, money =>
+        {
+            money.Property(m => m.Amount).HasColumnName("opening_float").HasPrecision(12, 2);
+            money.Property(m => m.Currency).HasColumnName("currency").HasMaxLength(3);
+        });
+        b.Property<uint>("xmin").IsRowVersion();
     }
 }
 

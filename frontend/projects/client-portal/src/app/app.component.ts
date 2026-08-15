@@ -31,6 +31,7 @@ import { AuthService } from './core/auth.service';
         <a routerLink="/visits/new" routerLinkActive="on">📝 Visit Registration</a>
         <a routerLink="/reception" routerLinkActive="on">🛎️ Reception Worklist</a>
         <a routerLink="/patients" routerLinkActive="on">👤 Patients</a>
+        <a routerLink="/cashier" routerLinkActive="on">💰 Cashier &amp; Day Close</a>
         <div class="group">LABORATORY</div>
         <a routerLink="/phlebotomist" routerLinkActive="on">💉 Phlebotomist Worklist</a>
         <a routerLink="/results" routerLinkActive="on">🧪 Results Entry</a>

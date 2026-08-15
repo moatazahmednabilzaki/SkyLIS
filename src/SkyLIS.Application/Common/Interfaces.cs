@@ -129,3 +129,15 @@ public interface IInvoiceRepository
     Task<Invoice?> GetByVisitAsync(Guid visitId, CancellationToken ct = default);
     void Add(Invoice invoice);
 }
+
+public interface ICreditNoteRepository
+{
+    void Add(CreditNote creditNote);
+}
+
+public interface ICashierShiftRepository
+{
+    Task<CashierShift?> GetAsync(Guid id, CancellationToken ct = default);
+    Task<CashierShift?> GetOpenByBranchAsync(Guid branchId, CancellationToken ct = default);
+    void Add(CashierShift shift);
+}

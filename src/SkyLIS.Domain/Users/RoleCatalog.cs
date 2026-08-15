@@ -24,12 +24,12 @@ public static class RoleCatalog
             "catalog.catalog.read",
             "catalog.sampletype.create", "catalog.test.create", "catalog.test.update", "catalog.test.approve",
             "patients.patient.create", "patients.patient.read",
-            "orders.visit.create", "orders.visit.read",
+            "orders.visit.create", "orders.visit.read", "orders.visit.cancel",
             "samples.sample.collect", "samples.sample.receive", "samples.sample.reject",
             "samples.sample.informPatient",
             "results.result.enter", "results.result.validateTechnical", "results.result.validateMedical",
             "reports.report.render", "reports.report.deliver", "reports.report.read",
-            "billing.payment.capture",
+            "billing.payment.capture", "billing.invoice.adjust", "billing.refund.approve", "billing.shift.manage",
             "analytics.dashboard.read", "audit.trail.read",
         ],
         [LabDirector] =
@@ -60,15 +60,15 @@ public static class RoleCatalog
         [
             "org.branch.read", "catalog.catalog.read",
             "patients.patient.create", "patients.patient.read",
-            "orders.visit.create", "orders.visit.read",
+            "orders.visit.create", "orders.visit.read", "orders.visit.cancel",
             "samples.sample.collect", "samples.sample.informPatient",
-            "billing.payment.capture",
+            "billing.payment.capture", "billing.invoice.adjust",
             "reports.report.read", "reports.report.deliver",
         ],
         [Cashier] =
         [
             "patients.patient.read", "orders.visit.read", "billing.payment.capture",
-            "org.branch.read",
+            "billing.shift.manage", "org.branch.read",
         ],
         [QualityManager] =
         [

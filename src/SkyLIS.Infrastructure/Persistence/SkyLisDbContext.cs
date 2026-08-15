@@ -50,6 +50,8 @@ public sealed class SkyLisDbContext : DbContext, IUnitOfWork
     public DbSet<LabReport> LabReports => Set<LabReport>();
     public DbSet<ReportVerification> ReportVerifications => Set<ReportVerification>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<CreditNote> CreditNotes => Set<CreditNote>();
+    public DbSet<CashierShift> CashierShifts => Set<CashierShift>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<InboxConsumption> InboxConsumptions => Set<InboxConsumption>();
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
@@ -82,6 +84,8 @@ public sealed class SkyLisDbContext : DbContext, IUnitOfWork
         // ReportVerification intentionally has NO tenant filter: platform-scoped, PHI-free,
         // read by the anonymous QR verification endpoint.
         modelBuilder.Entity<Invoice>().HasQueryFilter(i => i.TenantId == _tenantContext.TenantId);
+        modelBuilder.Entity<CreditNote>().HasQueryFilter(c => c.TenantId == _tenantContext.TenantId);
+        modelBuilder.Entity<CashierShift>().HasQueryFilter(s => s.TenantId == _tenantContext.TenantId);
         modelBuilder.Entity<NumberSeries>().HasQueryFilter(n => n.TenantId == _tenantContext.TenantId);
     }
 

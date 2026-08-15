@@ -131,3 +131,26 @@ internal sealed class InvoiceRepository : IInvoiceRepository
 
     public void Add(Invoice invoice) => _db.Invoices.Add(invoice);
 }
+
+internal sealed class CreditNoteRepository : ICreditNoteRepository
+{
+    private readonly SkyLisDbContext _db;
+    public CreditNoteRepository(SkyLisDbContext db) => _db = db;
+
+    public void Add(CreditNote creditNote) => _db.CreditNotes.Add(creditNote);
+}
+
+internal sealed class CashierShiftRepository : ICashierShiftRepository
+{
+    private readonly SkyLisDbContext _db;
+    public CashierShiftRepository(SkyLisDbContext db) => _db = db;
+
+    public Task<CashierShift?> GetAsync(Guid id, CancellationToken ct = default) =>
+        _db.CashierShifts.FirstOrDefaultAsync(s => s.Id == id, ct);
+
+    public Task<CashierShift?> GetOpenByBranchAsync(Guid branchId, CancellationToken ct = default) =>
+        _db.CashierShifts.FirstOrDefaultAsync(
+            s => s.BranchId == branchId && s.Status == Domain.Billing.ShiftStatus.Open, ct);
+
+    public void Add(CashierShift shift) => _db.CashierShifts.Add(shift);
+}

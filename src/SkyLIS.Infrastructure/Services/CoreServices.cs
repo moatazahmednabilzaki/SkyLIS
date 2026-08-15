@@ -35,6 +35,7 @@ internal sealed class NumberSeriesService : INumberSeriesService
             "visit" => "V",
             "patient" => "PN",
             "invoice" => "INV",
+            "creditnote" => "CN",
             "report" => "R",
             _ => throw new ArgumentException($"Unknown number series '{seriesKind}'.", nameof(seriesKind)),
         };

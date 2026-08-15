@@ -470,6 +470,77 @@ Step 'metering counted 2 finalized reports for tenant A (FR-SYS-011)' {
     if ($month.finalizedReports -ne 2) { throw "expected 2 finalized reports, got $($month.finalizedReports)" }
 } | Out-Null
 
+# ---------- M17 completion: shifts, discounts, credit notes, refunds (P17.1/P17.2) ----------
+$shiftId = (Step 'open cashier shift at MAIN with float 200 (P17.2)' {
+    Invoke-RestMethod -Method Post -Uri "$api/billing/shifts" -Headers $ha -ContentType 'application/json' -Body (@{
+        branchId = $branch.id; openingFloat = 200; currency = 'EGP' } | ConvertTo-Json)
+}).id
+ExpectError 'second open shift on the same branch rejected' 409 {
+    Invoke-RestMethod -Method Post -Uri "$api/billing/shifts" -Headers $ha -ContentType 'application/json' -Body (@{
+        branchId = $branch.id; openingFloat = 0; currency = 'EGP' } | ConvertTo-Json)
+}
+
+$visit4 = Step 'visit4: discount before payment (P17.1)' {
+    $v = Invoke-RestMethod -Method Post -Uri "$api/visits" -Headers $ha -ContentType 'application/json' -Body (@{
+        patientId = $patient; branchId = $branch.id; testIds = @($gluF); isStat = $false; statReason = $null } | ConvertTo-Json)
+    $d = Invoke-RestMethod -Method Post -Uri "$api/billing/invoices/$($v.invoiceId)/discount" -Headers $ha `
+        -ContentType 'application/json' -Body '{"amount":20,"reason":"Corporate agreement"}'
+    if ($d.balance -ne 60) { throw "expected balance 60 after discount, got $($d.balance)" }
+    $v
+}
+Step 'pay the discounted balance in cash -> Paid' {
+    $p = Invoke-RestMethod -Method Post -Uri "$api/billing/invoices/$($visit4.invoiceId)/payments" -Headers $ha `
+        -ContentType 'application/json' -Body '{"amount":60,"currency":"EGP","method":"cash"}'
+    if ($p.status -ne 'Paid') { throw "expected Paid, got $($p.status)" }
+} | Out-Null
+ExpectError 'discount after payment rejected' 409 {
+    Invoke-RestMethod -Method Post -Uri "$api/billing/invoices/$($visit4.invoiceId)/discount" -Headers $ha `
+        -ContentType 'application/json' -Body '{"amount":5,"reason":"too late"}'
+}
+ExpectError 'refund beyond captured money rejected' 422 {
+    Invoke-RestMethod -Method Post -Uri "$api/billing/invoices/$($visit4.invoiceId)/refunds" -Headers $ha `
+        -ContentType 'application/json' -Body '{"amount":999,"reason":"over-refund"}'
+}
+
+Step 'refund reopens the balance; credit note closes it as Adjusted (M17)' {
+    $r = Invoke-RestMethod -Method Post -Uri "$api/billing/invoices/$($visit4.invoiceId)/refunds" -Headers $ha `
+        -ContentType 'application/json' -Body '{"amount":60,"reason":"Service complaint"}'
+    if ($r.balance -ne 60) { throw "expected reopened balance 60, got $($r.balance)" }
+    $cn = Invoke-RestMethod -Method Post -Uri "$api/billing/invoices/$($visit4.invoiceId)/credit-notes" -Headers $ha `
+        -ContentType 'application/json' -Body '{"amount":60,"reason":"Goodwill after complaint"}'
+    if ($cn.creditNoteNumber -notmatch '^CN-MAIN-') { throw "expected CN-MAIN-…, got $($cn.creditNoteNumber)" }
+    $inv = Invoke-RestMethod -Uri "$api/billing/invoices/$($visit4.invoiceId)" -Headers $ha
+    if ($inv.status -ne 'Adjusted' -or $inv.balance -ne 0) { throw "expected Adjusted/0, got $($inv.status)/$($inv.balance)" }
+    if (-not ($inv.payments | Where-Object { $_.isRefund -and $_.amount -eq 60 })) { throw 'refund row missing' }
+} | Out-Null
+
+$visit5 = Invoke-RestMethod -Method Post -Uri "$api/visits" -Headers $ha -ContentType 'application/json' -Body (@{
+    patientId = $patient; branchId = $branch.id; testIds = @($hba1c); isStat = $false; statReason = $null } | ConvertTo-Json)
+Step 'cancel unpaid visit -> automatic credit note (M05/M17)' {
+    $c = Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit5.visitId)/cancel" -Headers $ha `
+        -ContentType 'application/json' -Body '{"reason":"Patient request"}'
+    if ($c.visitStatus -ne 'Cancelled') { throw "expected Cancelled, got $($c.visitStatus)" }
+    if ($c.invoiceStatus -ne 'Adjusted') { throw "expected Adjusted invoice, got $($c.invoiceStatus)" }
+    if (-not $c.autoCreditNote -or $c.autoCreditNote.amount -ne 220) { throw 'auto credit note missing or wrong amount' }
+} | Out-Null
+ExpectError 'paying a cancelled (adjusted) invoice is a state conflict' 409 {
+    Invoke-RestMethod -Method Post -Uri "$api/billing/invoices/$($visit5.invoiceId)/payments" -Headers $ha `
+        -ContentType 'application/json' -Body '{"amount":10,"currency":"EGP","method":"cash"}'
+}
+
+Step 'close shift -> Z-report reconciles cash (P17.2)' {
+    $z = Invoke-RestMethod -Method Post -Uri "$api/billing/shifts/$shiftId/close" -Headers $ha `
+        -ContentType 'application/json' -Body '{"declaredCash":200}'
+    $cash = $z.byMethod | Where-Object method -eq 'cash'
+    if ($cash.captured -ne 60 -or $cash.refunded -ne 60) { throw "cash totals wrong: $($cash | ConvertTo-Json -Compress)" }
+    if ($z.expectedCash -ne 200) { throw "expected cash 200, got $($z.expectedCash)" }
+    if ($z.variance -ne 0) { throw "expected variance 0, got $($z.variance)" }
+} | Out-Null
+ExpectError 'closing a closed shift rejected' 409 {
+    Invoke-RestMethod -Method Post -Uri "$api/billing/shifts/$shiftId/close" -Headers $ha `
+        -ContentType 'application/json' -Body '{"declaredCash":200}'
+}
+
 # ---------- M02: Real users, login & role-based permissions ----------
 Step 'initial Tenant Admin created via outbox; real login works' {
     $deadline = (Get-Date).AddSeconds(20)

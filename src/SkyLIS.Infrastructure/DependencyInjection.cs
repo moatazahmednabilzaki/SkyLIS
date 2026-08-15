@@ -25,6 +25,9 @@ public static class DependencyInjection
                     ?? throw new InvalidOperationException("Connection string 'Postgres' is not configured."),
                 npgsql => npgsql.MigrationsHistoryTable("__ef_migrations", "platform"));
             options.UseSnakeCaseNamingConvention();
+            // RLS: stamp the ambient tenant onto every opened connection (defense in depth
+            // with the global query filters).
+            options.AddInterceptors(new TenantSessionInterceptor(sp.GetRequiredService<TenantContext>()));
         });
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<SkyLisDbContext>());
 

@@ -64,7 +64,7 @@ interface ProblemDetails {
             </tr>
           }
         </table>
-        <p class="hint">Use a tenant id to sign in to the Client Portal (http://localhost:4200).</p>
+        <p class="hint">Use a tenant id to sign in to the Client Portal (http://localhost:4300).</p>
       }
     </div>
 

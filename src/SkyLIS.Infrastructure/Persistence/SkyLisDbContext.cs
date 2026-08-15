@@ -36,6 +36,17 @@ public sealed class SkyLisDbContext : DbContext, IUnitOfWork
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(SkyLisDbContext).Assembly);
 
+        // Ids are always supplied by the domain (UUID v7). Without this, EF treats
+        // graph-discovered children with set keys as Modified and issues phantom UPDATEs
+        // (e.g., the recollection sample spawned inside Visit.RejectSample).
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            var primaryKey = entityType.FindPrimaryKey();
+            if (primaryKey is null) continue;
+            foreach (var property in primaryKey.Properties)
+                property.ValueGenerated = Microsoft.EntityFrameworkCore.Metadata.ValueGenerated.Never;
+        }
+
         // Defense-in-depth tenant filter on every tenant-owned aggregate root.
         modelBuilder.Entity<Patient>().HasQueryFilter(p => p.TenantId == _tenantContext.TenantId);
         modelBuilder.Entity<LabTest>().HasQueryFilter(t => t.TenantId == _tenantContext.TenantId);

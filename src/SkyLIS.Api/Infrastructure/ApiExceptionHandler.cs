@@ -12,13 +12,29 @@ namespace SkyLIS.Api.Infrastructure;
 internal sealed class ApiExceptionHandler : IExceptionHandler
 {
     private readonly IProblemDetailsService _problemDetails;
+    private readonly ILogger<ApiExceptionHandler> _logger;
 
-    public ApiExceptionHandler(IProblemDetailsService problemDetails) => _problemDetails = problemDetails;
+    public ApiExceptionHandler(IProblemDetailsService problemDetails, ILogger<ApiExceptionHandler> logger)
+    {
+        _problemDetails = problemDetails;
+        _logger = logger;
+    }
 
     public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken ct)
     {
+        // Expected (business/authorization) exceptions are logged by the pipeline; anything
+        // else is a defect and must be fully logged server-side (never exposed to clients).
+        if (exception is not (RequestValidationException or NotFoundException or ForbiddenAccessException
+            or ConflictException or DomainException or BadHttpRequestException))
+        {
+            _logger.LogError(exception, "Unhandled exception for {Method} {Path}",
+                httpContext.Request.Method, httpContext.Request.Path);
+        }
+
         var (status, title, detail, errors) = exception switch
         {
+            BadHttpRequestException => (StatusCodes.Status400BadRequest, "Malformed request",
+                "The request body could not be read. Check field names and value types.", (object?)null),
             RequestValidationException v => (StatusCodes.Status400BadRequest, "Validation failed", v.Message, (object?)v.Errors),
             NotFoundException n => (StatusCodes.Status404NotFound, "Not found", n.Message, null),
             ForbiddenAccessException f => (StatusCodes.Status403Forbidden, "Forbidden", f.Message, null),

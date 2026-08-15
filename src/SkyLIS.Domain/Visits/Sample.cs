@@ -57,8 +57,13 @@ public sealed class Sample : Entity, ITenantOwned
 
     internal void Collect(DateTimeOffset nowUtc)
     {
-        if (State == SampleState.ConditionPending && ConditionReadyAtUtc is not null && nowUtc >= ConditionReadyAtUtc)
+        if (State == SampleState.ConditionPending)
+        {
+            if (ConditionReadyAtUtc is not null && nowUtc < ConditionReadyAtUtc)
+                throw new DomainException(
+                    $"Sample {Barcode} is reserved for '{ConditionName}': the condition window opens at {ConditionReadyAtUtc:HH:mm} UTC.");
             State = SampleState.ReadyToCollect; // window opened; allow collect in one step
+        }
         if (State != SampleState.ReadyToCollect)
             throw new InvalidStateTransitionException(nameof(Sample), State.ToString(), SampleState.Collected.ToString());
         State = SampleState.Collected;

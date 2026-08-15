@@ -19,7 +19,8 @@ public static class DevAuthEndpoints
         "patients.patient.create", "patients.patient.read",
         "orders.visit.create", "orders.visit.read",
         "samples.sample.collect", "samples.sample.receive", "samples.sample.reject",
-        "catalog.test.create", "catalog.test.update",
+        "catalog.test.create", "catalog.test.update", "catalog.test.approve",
+        "catalog.sampletype.create",
         "billing.payment.capture",
     ];
 

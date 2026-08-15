@@ -17,7 +17,7 @@ builder.Services.AddApiServices(builder.Configuration);
 
 // Portal dev servers (Development only; production portals are same-origin behind the gateway).
 builder.Services.AddCors(options => options.AddPolicy("portals", policy => policy
-    .WithOrigins("http://localhost:4200", "http://localhost:4201")
+    .WithOrigins("http://localhost:4300", "http://localhost:4201")
     .AllowAnyHeader()
     .AllowAnyMethod()));
 

@@ -65,10 +65,32 @@ public static class CatalogEndpoints
         Guid? RequiredConditionId, decimal Price, string Currency);
 
     public sealed record ActivatePushedTestRequest(decimal Price, string Currency);
+    public sealed record CreateSampleTypeRequest(string Name, string ContainerName, List<ConditionInput> Conditions);
 
     public static RouteGroupBuilder MapCatalogEndpoints(this RouteGroupBuilder group)
     {
+        var sampleTypes = group.MapGroup("/catalog/sample-types").RequireAuthorization().WithTags("Client Portal — Catalog");
+
+        sampleTypes.MapPost("/", async (ISender sender, CreateSampleTypeRequest request, CancellationToken ct) =>
+        {
+            var dto = await sender.Send(new CreateSampleTypeCommand(
+                request.Name, request.ContainerName, request.Conditions), ct);
+            return Results.Created($"/api/v1/catalog/sample-types/{dto.Id}", dto);
+        });
+
         var catalog = group.MapGroup("/catalog/tests").RequireAuthorization().WithTags("Client Portal — Catalog");
+
+        catalog.MapPost("/{testId:guid}/submit", async (ISender sender, Guid testId, CancellationToken ct) =>
+        {
+            await sender.Send(new SubmitTestForReviewCommand(testId), ct);
+            return Results.NoContent();
+        });
+
+        catalog.MapPost("/{testId:guid}/approve", async (ISender sender, Guid testId, CancellationToken ct) =>
+        {
+            await sender.Send(new ApproveTestCommand(testId), ct);
+            return Results.NoContent();
+        });
 
         catalog.MapPost("/", async (ISender sender, CreateTenantTestRequest request, CancellationToken ct) =>
         {

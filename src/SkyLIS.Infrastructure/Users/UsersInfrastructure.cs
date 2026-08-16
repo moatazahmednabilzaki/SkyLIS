@@ -76,6 +76,9 @@ internal sealed class UserRepository : IUserRepository
     public Task<bool> UserNameExistsAsync(string userName, CancellationToken ct = default) =>
         _db.Users.AnyAsync(u => u.UserName == userName, ct);
 
+    public Task<int> CountSeatsAsync(CancellationToken ct = default) =>
+        _db.Users.CountAsync(u => u.Status != UserStatus.Deactivated, ct);
+
     public void Add(User user) => _db.Users.Add(user);
 }
 

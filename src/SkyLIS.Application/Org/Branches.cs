@@ -53,12 +53,18 @@ internal sealed class CreateBranchValidator : AbstractValidator<CreateBranchComm
 internal sealed class CreateBranchHandler : IRequestHandler<CreateBranchCommand, Guid>
 {
     private readonly IBranchRepository _branches;
+    private readonly ITenantRepository _tenants;
+    private readonly IPlanRepository _plans;
     private readonly ITenantContext _tenant;
     private readonly IClock _clock;
 
-    public CreateBranchHandler(IBranchRepository branches, ITenantContext tenant, IClock clock)
+    public CreateBranchHandler(
+        IBranchRepository branches, ITenantRepository tenants, IPlanRepository plans,
+        ITenantContext tenant, IClock clock)
     {
         _branches = branches;
+        _tenants = tenants;
+        _plans = plans;
         _tenant = tenant;
         _clock = clock;
     }
@@ -68,6 +74,12 @@ internal sealed class CreateBranchHandler : IRequestHandler<CreateBranchCommand,
         var code = request.Code.Trim().ToUpperInvariant();
         if (await _branches.CodeExistsAsync(code, ct))
             throw new ConflictException($"Branch code '{code}' is already in use.");
+
+        // §8 branch quota: only ACTIVE branches count — deactivate one to open another.
+        var plan = await Platform.Entitlements.RequirePlanAsync(_tenants, _plans, _tenant.TenantId, ct);
+        if (await _branches.CountActiveAsync(ct) >= plan.MaxBranches)
+            throw new Domain.Common.DomainException(
+                $"The {plan.Code} plan allows {plan.MaxBranches} active branch(es); deactivate one or upgrade the plan.");
 
         var branch = Branch.Create(
             Guid.CreateVersion7(), _tenant.TenantId, code, request.Name,

@@ -66,6 +66,12 @@ public interface ITenantRepository
     void Add(Tenant tenant);
 }
 
+public interface IPlanRepository
+{
+    Task<Domain.Platform.Plan?> GetByCodeAsync(string code, CancellationToken ct = default);
+    void Add(Domain.Platform.Plan plan);
+}
+
 public interface IMasterTestRepository
 {
     Task<Domain.Platform.MasterTest?> GetAsync(Guid id, CancellationToken ct = default);
@@ -107,6 +113,7 @@ public interface IBranchRepository
 {
     Task<Branch?> GetAsync(Guid id, CancellationToken ct = default);
     Task<bool> CodeExistsAsync(string code, CancellationToken ct = default);
+    Task<int> CountActiveAsync(CancellationToken ct = default);
     void Add(Branch branch);
 }
 

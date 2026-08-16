@@ -53,7 +53,8 @@ interface ProblemDetails {
               <td><b style="color:#fff">{{ t.legalName }}</b></td>
               <td class="mono">{{ t.subdomain }}.skylis.app</td>
               <td>{{ t.countryCode }}</td>
-              <td><span class="chip c-blue">{{ t.planCode }}</span></td>
+              <td><span class="chip c-blue" style="cursor:pointer" (click)="changePlan(t)"
+                    title="Change plan (P01.3)">{{ t.planCode }} ✎</span></td>
               <td><span class="chip"
                     [class.c-green]="t.status === 'Active'"
                     [class.c-blue]="t.status === 'Trial'"
@@ -78,7 +79,8 @@ interface ProblemDetails {
             </tr>
             @if (usageFor() === t.id) {
               <tr><td colspan="8" style="background:#0e1c2e">
-                <b style="color:#fff">Metering (P01.3 · FR-SYS-011)</b> — finalized reports per month; the billing unit.
+                <b style="color:#fff">Metering (P01.3 · FR-SYS-011)</b> — finalized reports per month
+                @if (usageQuota()) { <span class="chip c-amber">quota {{ usageQuota() }}/mo</span> }
                 @if (usage().length === 0) { <span class="hint"> No finalized reports yet.</span> }
                 @else {
                   @for (m of usage(); track (m.year + '-' + m.month)) {
@@ -174,6 +176,7 @@ export class TenantsComponent implements OnInit {
   readonly provisioned = signal<string | null>(null);
   readonly usageFor = signal<string | null>(null);
   readonly usage = signal<{ year: number; month: number; finalizedReports: number }[]>([]);
+  readonly usageQuota = signal<number | null>(null);
 
   readonly search = this.fb.nonNullable.control('');
   readonly form = this.fb.nonNullable.group({
@@ -211,9 +214,27 @@ export class TenantsComponent implements OnInit {
       return;
     }
     try {
-      this.usage.set(await firstValueFrom(this.http.get<{ year: number; month: number; finalizedReports: number }[]>(
-        `${API_BASE_URL}/platform/tenants/${tenantId}/usage`)));
+      const response = await firstValueFrom(this.http.get<{
+        planCode: string; planName: string | null; monthlyReportQuota: number | null;
+        months: { year: number; month: number; finalizedReports: number }[];
+      }>(`${API_BASE_URL}/platform/tenants/${tenantId}/usage`));
+      this.usage.set(response.months);
+      this.usageQuota.set(response.monthlyReportQuota);
       this.usageFor.set(tenantId);
+    } catch (e) {
+      this.error.set(this.message(e));
+    }
+  }
+
+  async changePlan(tenant: TenantDto): Promise<void> {
+    const planCode = window.prompt(
+      `New plan for ${tenant.legalName} (LITE / STARTER / PROFESSIONAL / ENTERPRISE):`, tenant.planCode);
+    if (!planCode || planCode === tenant.planCode) return;
+    this.error.set(null);
+    try {
+      await firstValueFrom(this.http.post(
+        `${API_BASE_URL}/platform/tenants/${tenant.id}/change-plan`, { planCode }));
+      await this.load();
     } catch (e) {
       this.error.set(this.message(e));
     }

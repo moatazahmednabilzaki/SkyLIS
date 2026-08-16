@@ -36,6 +36,10 @@ export const appRoutes: Routes = [
         loadComponent: () =>
           import('./features/master-data/master-data.component').then(m => m.MasterDataComponent),
       },
+      {
+        path: 'plans',
+        loadComponent: () => import('./features/plans/plans.component').then(m => m.PlansComponent),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

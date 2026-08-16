@@ -5,6 +5,38 @@ using SkyLIS.Application.Search;
 
 namespace SkyLIS.Infrastructure.Persistence;
 
+internal sealed class PlanQueries : IPlanQueries
+{
+    private readonly SkyLisDbContext _db;
+    public PlanQueries(SkyLisDbContext db) => _db = db;
+
+    public async Task<IReadOnlyList<PlanDto>> ListAsync(CancellationToken ct = default) =>
+        await _db.Plans.AsNoTracking()
+            .OrderBy(p => p.MonthlyPrice)
+            .Select(p => new PlanDto(
+                p.Id, p.Code, p.Name, p.MonthlyPrice, p.Currency,
+                p.MaxUsers, p.MaxBranches, p.MonthlyReportQuota, p.IsActive))
+            .ToListAsync(ct);
+}
+
+internal sealed class TenantUserMonitorQueries : ITenantUserMonitorQueries
+{
+    private readonly SkyLisDbContext _db;
+    public TenantUserMonitorQueries(SkyLisDbContext db) => _db = db;
+
+    public async Task<IReadOnlyList<MonitoredUserDto>> ListAsync(Guid tenantId, CancellationToken ct = default) =>
+        // P01.5: platform-scoped read-only monitor. The tenant filter is bypassed HERE
+        // deliberately (with the matching RLS platform-read policy on users.users) —
+        // identity metadata only, no PHI.
+        await _db.Users.AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(u => u.TenantId == tenantId)
+            .OrderBy(u => u.UserName)
+            .Select(u => new MonitoredUserDto(
+                u.UserName, u.FullName, u.Roles, u.Status.ToString(), u.LastLoginAtUtc))
+            .ToListAsync(ct);
+}
+
 internal sealed class MasterTestQueries : IMasterTestQueries
 {
     private readonly SkyLisDbContext _db;

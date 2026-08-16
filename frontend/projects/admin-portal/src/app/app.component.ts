@@ -32,8 +32,8 @@ import { AuthService } from './core/auth.service';
         <a routerLink="/health" routerLinkActive="on">❤️ Platform Health</a>
         <a routerLink="/country-packs" routerLinkActive="on">🌍 Country Packs</a>
         <a routerLink="/master-data" routerLinkActive="on">🗂️ Master Data Packs</a>
-        <span class="soon">💠 Plans Builder <em>next slice</em></span>
-        <div class="foot">console.skylis.app · v0.4</div>
+        <a routerLink="/plans" routerLinkActive="on">💠 Plans</a>
+        <div class="foot">console.skylis.app · v0.5</div>
       </nav>
       <main class="main"><router-outlet /></main>
     } @else {

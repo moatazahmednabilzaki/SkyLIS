@@ -40,6 +40,7 @@ public sealed class SkyLisDbContext : DbContext, IUnitOfWork
 
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<CountryPack> CountryPacks => Set<CountryPack>();
+    public DbSet<Plan> Plans => Set<Plan>();
     public DbSet<MasterTest> MasterTests => Set<MasterTest>();
     public DbSet<Domain.Files.Attachment> Attachments => Set<Domain.Files.Attachment>();
     public DbSet<Branch> Branches => Set<Branch>();

@@ -17,6 +17,7 @@ public static class TenantEndpoints
         string LegalName, string Subdomain, string CountryCode, string PlanCode, IsolationTier IsolationTier,
         string AdminUserName, string AdminFullName, string AdminPassword);
     public sealed record SuspendTenantRequest(string Reason);
+    public sealed record ChangePlanRequest(string PlanCode);
 
     public static RouteGroupBuilder MapTenantEndpoints(this RouteGroupBuilder group)
     {
@@ -54,6 +55,32 @@ public static class TenantEndpoints
         {
             await sender.Send(new OffboardTenantCommand(tenantId), ct);
             return Results.NoContent();
+        });
+
+        // P01.3: move the tenant to another plan (entitlements apply immediately)
+        tenants.MapPost("/{tenantId:guid}/change-plan", async (
+            ISender sender, Guid tenantId, ChangePlanRequest request, CancellationToken ct) =>
+        {
+            await sender.Send(new SkyLIS.Application.Platform.ChangeTenantPlanCommand(tenantId, request.PlanCode), ct);
+            return Results.NoContent();
+        });
+
+        // P01.5: read-only monitor of the tenant's user accounts (identity metadata, no PHI)
+        tenants.MapGet("/{tenantId:guid}/users", (ISender sender, Guid tenantId, CancellationToken ct) =>
+            sender.Send(new SkyLIS.Application.Platform.GetTenantUsersQuery(tenantId), ct));
+
+        // P01.3 plan builder
+        var plans = group.MapGroup("/platform/plans").RequireAuthorization()
+            .WithTags("Admin Portal — Plans (P01.3)");
+
+        plans.MapGet("/", (ISender sender, CancellationToken ct) =>
+            sender.Send(new SkyLIS.Application.Platform.ListPlansQuery(), ct));
+
+        plans.MapPut("/", async (
+            ISender sender, SkyLIS.Application.Platform.UpsertPlanCommand command, CancellationToken ct) =>
+        {
+            var id = await sender.Send(command, ct);
+            return Results.Ok(new { id });
         });
 
         // P01.6 platform health: outbox dispatch status

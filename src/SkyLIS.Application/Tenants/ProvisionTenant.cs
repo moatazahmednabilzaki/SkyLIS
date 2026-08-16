@@ -47,12 +47,15 @@ internal sealed class ProvisionTenantValidator : AbstractValidator<ProvisionTena
 internal sealed class ProvisionTenantHandler : IRequestHandler<ProvisionTenantCommand, Guid>
 {
     private readonly ITenantRepository _tenants;
+    private readonly IPlanRepository _plans;
     private readonly Users.IPasswordHasher _hasher;
     private readonly IClock _clock;
 
-    public ProvisionTenantHandler(ITenantRepository tenants, Users.IPasswordHasher hasher, IClock clock)
+    public ProvisionTenantHandler(
+        ITenantRepository tenants, IPlanRepository plans, Users.IPasswordHasher hasher, IClock clock)
     {
         _tenants = tenants;
+        _plans = plans;
         _hasher = hasher;
         _clock = clock;
     }
@@ -62,9 +65,14 @@ internal sealed class ProvisionTenantHandler : IRequestHandler<ProvisionTenantCo
         if (await _tenants.SubdomainExistsAsync(request.Subdomain.ToLowerInvariant(), ct))
             throw new ConflictException($"Subdomain '{request.Subdomain}' is already taken.");
 
+        // P01.3: tenants subscribe to a REAL plan — entitlements apply from day one (§8).
+        var plan = await _plans.GetByCodeAsync(request.PlanCode.Trim().ToUpperInvariant(), ct);
+        if (plan is null || !plan.IsActive)
+            throw new NotFoundException("Plan", request.PlanCode);
+
         var tenant = Tenant.Provision(
             Guid.CreateVersion7(), request.LegalName, request.Subdomain, request.CountryCode,
-            request.PlanCode, request.IsolationTier,
+            plan.Code, request.IsolationTier,
             request.AdminUserName, request.AdminFullName, _hasher.Hash(request.AdminPassword),
             _clock.UtcNow);
 

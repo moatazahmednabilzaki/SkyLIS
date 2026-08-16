@@ -95,6 +95,15 @@ public sealed class Tenant : AggregateRoot
         Raise(new TenantOffboarded(Id));
     }
 
+    /// <summary>P01.3: move the tenant to another plan (entitlements apply immediately).</summary>
+    public void ChangePlan(string planCode)
+    {
+        if (string.IsNullOrWhiteSpace(planCode)) throw new DomainException("Plan code is required.");
+        if (Status == TenantStatus.Offboarded)
+            throw new InvalidStateTransitionException(nameof(Tenant), Status.ToString(), "plan change");
+        PlanCode = planCode.Trim().ToUpperInvariant();
+    }
+
     private void Transition(TenantStatus to)
     {
         if (!AllowedTransitions.Contains((Status, to)))

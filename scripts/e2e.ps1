@@ -53,6 +53,21 @@ ExpectError 'duplicate subdomain rejected' 409 {
         adminUserName = 'copy.admin'; adminFullName = 'Copy Admin'; adminPassword = 'CopycatLab#2026!' } | ConvertTo-Json)
 }
 
+Step 'plans: the canonical Egypt plans ship with the platform (P01.3)' {
+    $plans = Invoke-RestMethod -Uri "$api/platform/plans" -Headers $ph
+    foreach ($code in @('LITE', 'STARTER', 'PROFESSIONAL', 'ENTERPRISE')) {
+        if (-not ($plans | Where-Object code -eq $code)) { throw "plan $code missing" }
+    }
+    $lite = $plans | Where-Object code -eq 'LITE'
+    if ($lite.maxUsers -ne 2 -or $lite.maxBranches -ne 1) { throw "LITE entitlements wrong" }
+} | Out-Null
+ExpectError 'provisioning with an unknown plan rejected (P01.3)' 404 {
+    Invoke-RestMethod -Method Post -Uri "$api/platform/tenants" -Headers $ph -ContentType 'application/json' -Body (@{
+        legalName = 'Ghost Lab'; subdomain = "ghost-$suffix"; countryCode = 'EG'
+        planCode = 'NOSUCHPLAN'; isolationTier = 'SharedRls'
+        adminUserName = 'ghost.admin'; adminFullName = 'Ghost'; adminPassword = 'GhostLab#2026!x' } | ConvertTo-Json)
+}
+
 Step 'country packs: EG pack ships with the platform (P01.4)' {
     $packs = Invoke-RestMethod -Uri "$api/platform/country-packs" -Headers $ph
     $eg = $packs | Where-Object countryCode -eq 'EG'
@@ -464,9 +479,12 @@ Step 'outbox drains (at-least-once dispatch)' {
     if ($s.processed -lt 20) { throw "expected >=20 processed, got $($s.processed)" }
 } | Out-Null
 
-Step 'metering counted 2 finalized reports for tenant A (FR-SYS-011)' {
+Step 'metering counted 2 finalized reports against the plan quota (FR-SYS-011/P01.3)' {
     $usage = Invoke-RestMethod -Uri "$api/platform/tenants/$tenantA/usage" -Headers $ph
-    $month = $usage | Select-Object -First 1
+    if ($usage.planCode -ne 'PROFESSIONAL' -or $usage.monthlyReportQuota -ne 5000) {
+        throw "plan info wrong: $($usage.planCode)/$($usage.monthlyReportQuota)"
+    }
+    $month = $usage.months | Select-Object -First 1
     if ($month.finalizedReports -ne 2) { throw "expected 2 finalized reports, got $($month.finalizedReports)" }
 } | Out-Null
 
@@ -776,6 +794,38 @@ Step 'resuming tenant B restores sign-in' {
     Invoke-RestMethod -Method Post -Uri "$api/platform/tenants/$tenantB/activate" -Headers $ph | Out-Null
     Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
         tenantId = $tenantB; userName = 'delta.admin'; password = 'DeltaLab#Dev2026!' } | ConvertTo-Json) | Out-Null
+} | Out-Null
+
+# ---------- §8 plan entitlements ----------
+Step 'move tenant B to LITE (P01.3 plan change)' {
+    Invoke-RestMethod -Method Post -Uri "$api/platform/tenants/$tenantB/change-plan" -Headers $ph `
+        -ContentType 'application/json' -Body '{"planCode":"LITE"}' | Out-Null
+    $dir = Invoke-RestMethod -Uri "$api/platform/tenants" -Headers $ph
+    if (($dir | Where-Object id -eq $tenantB).planCode -ne 'LITE') { throw 'plan not changed' }
+} | Out-Null
+
+$deltaAuth = Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
+    tenantId = $tenantB; userName = 'delta.admin'; password = 'DeltaLab#Dev2026!' } | ConvertTo-Json)
+$hDelta = @{ Authorization = "Bearer $($deltaAuth.token)" }
+
+Step 'seat quota: the second LITE seat fits (§8)' {
+    Invoke-RestMethod -Method Post -Uri "$api/users" -Headers $hDelta -ContentType 'application/json' -Body (@{
+        userName = 'delta.tech'; fullName = 'Delta Tech'; password = 'DeltaTech#2026!x'
+        roles = @('Technologist') } | ConvertTo-Json) | Out-Null
+} | Out-Null
+ExpectError 'the third seat exceeds the LITE quota (§8)' 422 {
+    Invoke-RestMethod -Method Post -Uri "$api/users" -Headers $hDelta -ContentType 'application/json' -Body (@{
+        userName = 'delta.extra'; fullName = 'One Too Many'; password = 'DeltaMore#2026!x'
+        roles = @('Receptionist') } | ConvertTo-Json)
+}
+ExpectError 'a second active branch exceeds the LITE quota (§8)' 422 {
+    Invoke-RestMethod -Method Post -Uri "$api/org/branches" -Headers $hDelta -ContentType 'application/json' `
+        -Body '{"code":"BR2","name":"Second Branch","address":null,"phone":null}'
+}
+Step 'platform monitors tenant B users read-only (P01.5)' {
+    $monitored = Invoke-RestMethod -Uri "$api/platform/tenants/$tenantB/users" -Headers $ph
+    if (-not ($monitored | Where-Object userName -eq 'delta.admin')) { throw 'delta.admin missing from monitor' }
+    if (@($monitored).Count -lt 2) { throw "expected >=2 monitored users, got $(@($monitored).Count)" }
 } | Out-Null
 
 # ---------- FR-SYS-001: Audit trail & tamper evidence ----------

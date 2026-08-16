@@ -17,6 +17,8 @@ public interface IUserRepository
     Task<User?> GetAsync(Guid id, CancellationToken ct = default);
     Task<User?> FindByUserNameAsync(string userName, CancellationToken ct = default);
     Task<bool> UserNameExistsAsync(string userName, CancellationToken ct = default);
+    /// <summary>Accounts that count against the plan seat quota (Active + Locked).</summary>
+    Task<int> CountSeatsAsync(CancellationToken ct = default);
     void Add(User user);
 }
 
@@ -50,13 +52,19 @@ internal sealed class CreateUserValidator : AbstractValidator<CreateUserCommand>
 internal sealed class CreateUserHandler : IRequestHandler<CreateUserCommand, Guid>
 {
     private readonly IUserRepository _users;
+    private readonly ITenantRepository _tenants;
+    private readonly IPlanRepository _plans;
     private readonly IPasswordHasher _hasher;
     private readonly ITenantContext _tenant;
     private readonly IClock _clock;
 
-    public CreateUserHandler(IUserRepository users, IPasswordHasher hasher, ITenantContext tenant, IClock clock)
+    public CreateUserHandler(
+        IUserRepository users, ITenantRepository tenants, IPlanRepository plans,
+        IPasswordHasher hasher, ITenantContext tenant, IClock clock)
     {
         _users = users;
+        _tenants = tenants;
+        _plans = plans;
         _hasher = hasher;
         _tenant = tenant;
         _clock = clock;
@@ -67,6 +75,12 @@ internal sealed class CreateUserHandler : IRequestHandler<CreateUserCommand, Gui
         var userName = request.UserName.Trim().ToLowerInvariant();
         if (await _users.UserNameExistsAsync(userName, ct))
             throw new ConflictException($"User name '{userName}' already exists in this tenant.");
+
+        // §8 seat quota: Active + Locked accounts count; deactivate to free a seat.
+        var plan = await Platform.Entitlements.RequirePlanAsync(_tenants, _plans, _tenant.TenantId, ct);
+        if (await _users.CountSeatsAsync(ct) >= plan.MaxUsers)
+            throw new Domain.Common.DomainException(
+                $"The {plan.Code} plan allows {plan.MaxUsers} user seat(s); deactivate an account or upgrade the plan.");
 
         var user = User.Create(
             Guid.CreateVersion7(), _tenant.TenantId, userName, request.FullName,

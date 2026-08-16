@@ -94,6 +94,21 @@ internal sealed class CountryPackConfig : IEntityTypeConfiguration<CountryPack>
     }
 }
 
+internal sealed class PlanConfig : IEntityTypeConfiguration<SkyLIS.Domain.Platform.Plan>
+{
+    public void Configure(EntityTypeBuilder<SkyLIS.Domain.Platform.Plan> b)
+    {
+        b.ToTable("plans", "platform");
+        b.HasKey(p => p.Id);
+        b.Property(p => p.Code).HasMaxLength(40).IsRequired();
+        b.HasIndex(p => p.Code).IsUnique();
+        b.Property(p => p.Name).HasMaxLength(120).IsRequired();
+        b.Property(p => p.MonthlyPrice).HasPrecision(12, 2);
+        b.Property(p => p.Currency).HasMaxLength(3).IsRequired();
+        b.Property<uint>("xmin").IsRowVersion();
+    }
+}
+
 internal sealed class MasterTestConfig : IEntityTypeConfiguration<SkyLIS.Domain.Platform.MasterTest>
 {
     public void Configure(EntityTypeBuilder<SkyLIS.Domain.Platform.MasterTest> b)

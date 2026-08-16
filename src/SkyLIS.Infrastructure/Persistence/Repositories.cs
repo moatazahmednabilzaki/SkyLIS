@@ -35,6 +35,17 @@ internal sealed class TenantRepository : ITenantRepository
     public void Add(Tenant tenant) => _db.Tenants.Add(tenant);
 }
 
+internal sealed class PlanRepository : IPlanRepository
+{
+    private readonly SkyLisDbContext _db;
+    public PlanRepository(SkyLisDbContext db) => _db = db;
+
+    public Task<Plan?> GetByCodeAsync(string code, CancellationToken ct = default) =>
+        _db.Plans.FirstOrDefaultAsync(p => p.Code == code, ct);
+
+    public void Add(Plan plan) => _db.Plans.Add(plan);
+}
+
 internal sealed class MasterTestRepository : IMasterTestRepository
 {
     private readonly SkyLisDbContext _db;
@@ -125,6 +136,9 @@ internal sealed class BranchRepository : IBranchRepository
 
     public Task<bool> CodeExistsAsync(string code, CancellationToken ct = default) =>
         _db.Branches.AnyAsync(b => b.Code == code, ct);
+
+    public Task<int> CountActiveAsync(CancellationToken ct = default) =>
+        _db.Branches.CountAsync(b => b.IsActive, ct);
 
     public void Add(Branch branch) => _db.Branches.Add(branch);
 }

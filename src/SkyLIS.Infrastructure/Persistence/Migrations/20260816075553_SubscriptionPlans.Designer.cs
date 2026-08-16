@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SkyLIS.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using SkyLIS.Infrastructure.Persistence;
 namespace SkyLIS.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(SkyLisDbContext))]
-    partial class SkyLisDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260816075553_SubscriptionPlans")]
+    partial class SubscriptionPlans
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

@@ -45,6 +45,9 @@ internal sealed class FakeBranchRepository : IBranchRepository
     public Task<bool> CodeExistsAsync(string code, CancellationToken ct = default) =>
         Task.FromResult(Items.Any(b => b.Code == code));
 
+    public Task<int> CountActiveAsync(CancellationToken ct = default) =>
+        Task.FromResult(Items.Count(b => b.IsActive));
+
     public void Add(Branch branch) => Items.Add(branch);
 }
 

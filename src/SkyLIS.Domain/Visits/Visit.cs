@@ -80,6 +80,47 @@ public sealed class Visit : AggregateRoot, ITenantOwned
         return visit;
     }
 
+    /// <summary>
+    /// P05.4 add-on tests: extend an open visit with new tests on NEW samples (joining
+    /// already-collected samples would break specimen integrity). Billing issues a
+    /// supplementary invoice for the added amount.
+    /// </summary>
+    public void AddTests(
+        IReadOnlyList<PlannedTest> plannedTests, IReadOnlyList<PlannedSample> plannedSamples, DateTimeOffset nowUtc)
+    {
+        EnsureNotTerminal();
+        if (Status is VisitStatus.Validated or VisitStatus.Reported)
+            throw new InvalidStateTransitionException(nameof(Visit), Status.ToString(), "add-on tests");
+        if (plannedTests.Count == 0) throw new DomainException("Add at least one test.");
+        if (plannedSamples.Count == 0) throw new DomainException("Add-on tests require at least one new sample.");
+        if (plannedTests.Any(t => t.Price is null))
+            throw new DomainException("A test shall not be added with an unresolved price.");
+        var duplicate = plannedTests.FirstOrDefault(t => _tests.Any(existing =>
+            existing.TestId == t.TestId && existing.Status != VisitTestStatus.Cancelled));
+        if (duplicate is not null)
+            throw new DomainException($"Test {duplicate.TestCode} is already on this visit.");
+
+        foreach (var ps in plannedSamples)
+        {
+            var sample = ps.DelayMinutes is null
+                ? Sample.CreateReadyToCollect(ps.SampleId, TenantId, Id, ps.Barcode, ps.SampleTypeId, ps.ConditionName)
+                : Sample.CreateReserved(ps.SampleId, TenantId, Id, ps.Barcode, ps.SampleTypeId, ps.ConditionName,
+                    nowUtc.AddMinutes(ps.DelayMinutes.Value));
+            _samples.Add(sample);
+            if (sample.State == SampleState.ConditionPending)
+                Raise(new SampleReserved(Id, sample.Id, TenantId, sample.ConditionReadyAtUtc!.Value));
+        }
+
+        foreach (var pt in plannedTests)
+        {
+            if (_samples.All(s => s.Id != pt.SampleId))
+                throw new DomainException($"Test {pt.TestCode} references a sample outside this visit's plan.");
+            _tests.Add(new VisitTest(pt.LineId, TenantId, pt.TestId, pt.TestCode, pt.SampleId, pt.Price!));
+        }
+
+        Raise(new TestsAddedToVisit(Id, TenantId, plannedTests.Count));
+    }
+
     public Money Total(string currency) =>
         _tests.Where(t => t.Status != VisitTestStatus.Cancelled)
               .Aggregate(Money.Zero(currency), (acc, t) => acc.Add(t.Price));

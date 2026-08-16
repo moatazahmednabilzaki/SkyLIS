@@ -154,6 +154,23 @@ internal sealed class CountryPackRepository : ICountryPackRepository
     public void Add(CountryPack pack) => _db.CountryPacks.Add(pack);
 }
 
+internal sealed class PanelRepository : IPanelRepository
+{
+    private readonly SkyLisDbContext _db;
+    public PanelRepository(SkyLisDbContext db) => _db = db;
+
+    public Task<Panel?> GetAsync(Guid id, CancellationToken ct = default) =>
+        _db.Panels.Include(p => p.Items).FirstOrDefaultAsync(p => p.Id == id, ct);
+
+    public async Task<IReadOnlyList<Panel>> GetManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default) =>
+        await _db.Panels.Include(p => p.Items).Where(p => ids.Contains(p.Id)).ToListAsync(ct);
+
+    public Task<bool> CodeExistsAsync(string code, CancellationToken ct = default) =>
+        _db.Panels.AnyAsync(p => p.Code == code, ct);
+
+    public void Add(Panel panel) => _db.Panels.Add(panel);
+}
+
 internal sealed class VisitRepository : IVisitRepository
 {
     private readonly SkyLisDbContext _db;
@@ -177,7 +194,15 @@ internal sealed class InvoiceRepository : IInvoiceRepository
         _db.Invoices.Include(i => i.Payments).FirstOrDefaultAsync(i => i.Id == id, ct);
 
     public Task<Invoice?> GetByVisitAsync(Guid visitId, CancellationToken ct = default) =>
-        _db.Invoices.Include(i => i.Payments).FirstOrDefaultAsync(i => i.VisitId == visitId, ct);
+        _db.Invoices.Include(i => i.Payments)
+            .OrderBy(i => i.IssuedAtUtc)
+            .FirstOrDefaultAsync(i => i.VisitId == visitId, ct);
+
+    public async Task<IReadOnlyList<Invoice>> GetAllByVisitAsync(Guid visitId, CancellationToken ct = default) =>
+        await _db.Invoices.Include(i => i.Payments)
+            .Where(i => i.VisitId == visitId)
+            .OrderBy(i => i.IssuedAtUtc)
+            .ToListAsync(ct);
 
     public void Add(Invoice invoice) => _db.Invoices.Add(invoice);
 }

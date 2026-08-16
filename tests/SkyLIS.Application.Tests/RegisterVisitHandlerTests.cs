@@ -17,6 +17,7 @@ public class RegisterVisitHandlerTests
     private readonly FakePatientRepository _patients = new();
     private readonly FakeBranchRepository _branches = new();
     private readonly FakeLabTestRepository _tests = new();
+    private readonly FakePanelRepository _panels = new();
     private readonly FakeSampleTypeRepository _sampleTypes = new();
     private readonly FakeVisitRepository _visits = new();
     private readonly FakeInvoiceRepository _invoices = new();
@@ -49,7 +50,7 @@ public class RegisterVisitHandlerTests
         _patients.Add(_patient);
 
         return new RegisterVisitHandler(
-            _patients, _branches, _tests, _sampleTypes, _visits, _invoices,
+            _patients, _branches, _tests, _panels, _sampleTypes, _visits, _invoices,
             new FakeNumberSeries(), _tenant, _clock);
     }
 
@@ -72,6 +73,37 @@ public class RegisterVisitHandlerTests
         _visits.Items.Should().ContainSingle();
         _invoices.Items.Should().ContainSingle(i => i.Status == InvoiceStatus.Issued && i.Total.Amount == 160);
         _patient.LastVisitAtUtc.Should().NotBeNull("visit registration stamps the identity-confirmation triple");
+    }
+
+    [Fact]
+    public async Task Panel_expands_to_member_tests_at_the_bundle_price()
+    {
+        var handler = Arrange();
+        var panel = SkyLIS.Domain.Catalog.Panel.Create(
+            Guid.NewGuid(), _tenant.TenantId, "GLUP", "Glucose Profile",
+            Money.Of(130, "EGP"), [_gluF.Id, _gluPp.Id]); // individual sum is 160
+        _panels.Add(panel);
+
+        var result = await handler.Handle(new RegisterVisitCommand(
+            _patient.Id, _branch.Id, [], IsStat: false, StatReason: null,
+            PanelIds: [panel.Id]), CancellationToken.None);
+
+        result.Total.Should().Be(130, "the invoice charges the bundle price (P03.5)");
+        _visits.Items.Single().Tests.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task Test_ordered_both_individually_and_in_a_panel_is_a_conflict()
+    {
+        var handler = Arrange();
+        var panel = SkyLIS.Domain.Catalog.Panel.Create(
+            Guid.NewGuid(), _tenant.TenantId, "GLUP", "Glucose Profile",
+            Money.Of(130, "EGP"), [_gluF.Id, _gluPp.Id]);
+        _panels.Add(panel);
+
+        var act = () => handler.Handle(new RegisterVisitCommand(
+            _patient.Id, _branch.Id, [_gluF.Id], false, null, [panel.Id]), CancellationToken.None);
+        await act.Should().ThrowAsync<ConflictException>().WithMessage("*individually*");
     }
 
     [Fact]

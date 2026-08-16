@@ -607,6 +607,50 @@ Step 'cumulative marks the amended point (P10.3)' {
     if (-not $p.isAmended -or $p.value -ne 95) { throw "unexpected: $($p | ConvertTo-Json -Compress)" }
 } | Out-Null
 
+# ---------- P03.5 panels / P05.4 add-on tests ----------
+$panel = Step 'create panel GLUP: GLU-F + HBA1C bundled at 250 (P03.5)' {
+    Invoke-RestMethod -Method Post -Uri "$api/catalog/panels" -Headers $ha -ContentType 'application/json' -Body (@{
+        code = 'GLUP'; name = 'Glucose Profile'; price = 250; currency = 'EGP'
+        testIds = @($gluF, $hba1c) } | ConvertTo-Json)
+}
+$visit6 = Step 'ordering the panel charges the bundle price on one sample (P03.5)' {
+    $v = Invoke-RestMethod -Method Post -Uri "$api/visits" -Headers $ha -ContentType 'application/json' -Body (@{
+        patientId = $patient; branchId = $branch.id; testIds = @(); panelIds = @($panel.id)
+        isStat = $false; statReason = $null } | ConvertTo-Json)
+    if ($v.total -ne 250) { throw "expected bundle price 250, got $($v.total)" }
+    if (@($v.samples).Count -ne 1) { throw "expected 1 consolidated sample, got $(@($v.samples).Count)" }
+    $v
+}
+ExpectError 'a test ordered both individually and in a panel rejected' 409 {
+    Invoke-RestMethod -Method Post -Uri "$api/visits" -Headers $ha -ContentType 'application/json' -Body (@{
+        patientId = $patient; branchId = $branch.id; testIds = @($gluF); panelIds = @($panel.id)
+        isStat = $false; statReason = $null } | ConvertTo-Json)
+}
+Step 'add-on GLU-PP -> supplementary invoice + new reserved sample (P05.4)' {
+    $a = Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit6.visitId)/add-tests" -Headers $ha `
+        -ContentType 'application/json' -Body (@{ testIds = @($gluPp) } | ConvertTo-Json)
+    if ($a.addedAmount -ne 80) { throw "expected added amount 80, got $($a.addedAmount)" }
+    if (-not ($a.newSamples | Where-Object state -eq 'ConditionPending')) { throw 'expected a reserved add-on sample' }
+    if ($a.supplementaryInvoiceNumber -notmatch '^INV-MAIN-') { throw 'supplementary invoice number wrong' }
+    $d = Invoke-RestMethod -Uri "$api/visits/$($visit6.visitId)" -Headers $ha
+    if (@($d.tests).Count -ne 3) { throw "expected 3 lines after add-on, got $(@($d.tests).Count)" }
+} | Out-Null
+ExpectError 'adding a test already on the visit rejected' 422 {
+    Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit6.visitId)/add-tests" -Headers $ha `
+        -ContentType 'application/json' -Body (@{ testIds = @($gluF) } | ConvertTo-Json)
+}
+ExpectError 'add-on to a reported visit rejected' 409 {
+    Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit2.visitId)/add-tests" -Headers $ha `
+        -ContentType 'application/json' -Body (@{ testIds = @($gluPp) } | ConvertTo-Json)
+}
+Step 'cancelling the add-on visit credits BOTH invoices (M17)' {
+    $c = Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit6.visitId)/cancel" -Headers $ha `
+        -ContentType 'application/json' -Body '{"reason":"Patient left"}'
+    if ($c.invoiceStatus -ne 'Adjusted') { throw "expected Adjusted, got $($c.invoiceStatus)" }
+    $inv = Invoke-RestMethod -Uri "$api/billing/invoices/$($visit6.invoiceId)" -Headers $ha
+    if ($inv.balance -ne 0 -or $inv.status -ne 'Adjusted') { throw 'original invoice not fully credited' }
+} | Out-Null
+
 # ---------- P01.7 master data push / FR-SYS-007 attachments / FR-SYS-008 search ----------
 $masterTest = Step 'platform: add CBC to the master catalogue (P01.7)' {
     Invoke-RestMethod -Method Post -Uri "$api/platform/master-tests" -Headers $ph -ContentType 'application/json' -Body (@{

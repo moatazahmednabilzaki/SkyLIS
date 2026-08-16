@@ -25,7 +25,8 @@ public sealed record RegisterVisitCommand(
     Guid BranchId,
     IReadOnlyList<Guid> TestIds,
     bool IsStat,
-    string? StatReason) : ICommand<RegisteredVisitDto>, IRequirePermission
+    string? StatReason,
+    IReadOnlyList<Guid>? PanelIds = null) : ICommand<RegisteredVisitDto>, IRequirePermission
 {
     public string Permission => "orders.visit.create";
 }
@@ -36,7 +37,10 @@ internal sealed class RegisterVisitValidator : AbstractValidator<RegisterVisitCo
     {
         RuleFor(x => x.PatientId).NotEmpty();
         RuleFor(x => x.BranchId).NotEmpty().WithMessage("A visit shall be registered at a branch.");
-        RuleFor(x => x.TestIds).NotEmpty().WithMessage("A visit shall not be registered with zero tests.");
+        RuleFor(x => x)
+            .Must(x => x.TestIds.Count > 0 || (x.PanelIds?.Count ?? 0) > 0)
+            .WithMessage("A visit shall not be registered with zero tests.")
+            .OverridePropertyName(nameof(RegisterVisitCommand.TestIds));
         RuleFor(x => x.StatReason).NotEmpty().When(x => x.IsStat)
             .WithMessage("STAT priority requires a reason.");
     }
@@ -47,6 +51,7 @@ internal sealed class RegisterVisitHandler : IRequestHandler<RegisterVisitComman
     private readonly IPatientRepository _patients;
     private readonly IBranchRepository _branches;
     private readonly ILabTestRepository _tests;
+    private readonly IPanelRepository _panels;
     private readonly ISampleTypeRepository _sampleTypes;
     private readonly IVisitRepository _visits;
     private readonly IInvoiceRepository _invoices;
@@ -56,12 +61,13 @@ internal sealed class RegisterVisitHandler : IRequestHandler<RegisterVisitComman
 
     public RegisterVisitHandler(
         IPatientRepository patients, IBranchRepository branches, ILabTestRepository tests,
-        ISampleTypeRepository sampleTypes, IVisitRepository visits, IInvoiceRepository invoices,
-        INumberSeriesService numbers, ITenantContext tenant, IClock clock)
+        IPanelRepository panels, ISampleTypeRepository sampleTypes, IVisitRepository visits,
+        IInvoiceRepository invoices, INumberSeriesService numbers, ITenantContext tenant, IClock clock)
     {
         _patients = patients;
         _branches = branches;
         _tests = tests;
+        _panels = panels;
         _sampleTypes = sampleTypes;
         _visits = visits;
         _invoices = invoices;
@@ -80,8 +86,35 @@ internal sealed class RegisterVisitHandler : IRequestHandler<RegisterVisitComman
         if (!branch.IsActive)
             throw new ConflictException($"Branch {branch.Code} is deactivated — visits cannot be registered there.");
 
-        var tests = await _tests.GetManyAsync(request.TestIds.Distinct().ToArray(), ct);
-        var missing = request.TestIds.Except(tests.Select(t => t.Id)).ToList();
+        // P03.5: expand panels into member tests with the bundle price allocated per line.
+        var panelIds = request.PanelIds?.Distinct().ToArray() ?? [];
+        var panels = await _panels.GetManyAsync(panelIds, ct);
+        var missingPanels = panelIds.Except(panels.Select(p => p.Id)).ToList();
+        if (missingPanels.Count > 0)
+            throw new NotFoundException("Panel", string.Join(", ", missingPanels));
+        if (panels.Any(p => !p.IsActive))
+            throw new ConflictException("A retired panel cannot be ordered.");
+
+        var priceOverrides = new Dictionary<Guid, Domain.Common.Money>();
+        foreach (var panel in panels)
+        {
+            var allocation = panel.AllocatePrice();
+            var members = panel.Items.ToList();
+            for (var i = 0; i < members.Count; i++)
+            {
+                if (!priceOverrides.TryAdd(members[i].TestId, allocation[i]))
+                    throw new ConflictException($"Panels overlap on a shared test — order them separately ({panel.Code}).");
+            }
+        }
+
+        var individualIds = request.TestIds.Distinct().ToArray();
+        var overlapping = individualIds.Where(priceOverrides.ContainsKey).ToList();
+        if (overlapping.Count > 0)
+            throw new ConflictException("A test cannot be ordered both individually and inside a panel.");
+
+        var allTestIds = individualIds.Concat(priceOverrides.Keys).Distinct().ToArray();
+        var tests = await _tests.GetManyAsync(allTestIds, ct);
+        var missing = allTestIds.Except(tests.Select(t => t.Id)).ToList();
         if (missing.Count > 0)
             throw new NotFoundException("LabTest", string.Join(", ", missing));
 
@@ -91,7 +124,9 @@ internal sealed class RegisterVisitHandler : IRequestHandler<RegisterVisitComman
         var conditionById = conditions.ToDictionary(c => c.Id);
 
         var inputs = tests.Select(t => new SpecimenPlanner.PlanInput(
-            t, t.RequiredConditionId is null ? null : conditionById[t.RequiredConditionId.Value])).ToList();
+            t,
+            t.RequiredConditionId is null ? null : conditionById[t.RequiredConditionId.Value],
+            priceOverrides.GetValueOrDefault(t.Id))).ToList();
 
         // Number series commit independently (gap-tolerant); both are acquired BEFORE any
         // aggregate is tracked so the single SaveChanges at the end stays atomic.

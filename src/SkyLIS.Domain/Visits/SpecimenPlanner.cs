@@ -11,7 +11,8 @@ namespace SkyLIS.Domain.Visits;
 /// </summary>
 public static class SpecimenPlanner
 {
-    public sealed record PlanInput(LabTest Test, SampleCondition? Condition);
+    /// <summary>PriceOverride carries panel-allocated prices (P03.5); null = the test's own price.</summary>
+    public sealed record PlanInput(LabTest Test, SampleCondition? Condition, Money? PriceOverride = null);
     public sealed record Plan(IReadOnlyList<PlannedSample> Samples, IReadOnlyList<PlannedTest> Tests);
 
     public static Plan Compute(
@@ -51,7 +52,8 @@ public static class SpecimenPlanner
                 condition?.DelayMinutes));
 
             foreach (var input in group)
-                tests.Add(new PlannedTest(newId(), input.Test.Id, input.Test.Code, sampleId, input.Test.Price));
+                tests.Add(new PlannedTest(
+                    newId(), input.Test.Id, input.Test.Code, sampleId, input.PriceOverride ?? input.Test.Price));
         }
 
         return new Plan(samples, tests);

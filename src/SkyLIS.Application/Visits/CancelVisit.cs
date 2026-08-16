@@ -57,15 +57,20 @@ internal sealed class CancelVisitHandler : IRequestHandler<CancelVisitCommand, C
     {
         var visit = await _visits.GetAsync(request.VisitId, ct)
             ?? throw new NotFoundException("Visit", request.VisitId);
-        var invoice = await _invoices.GetByVisitAsync(visit.Id, ct)
-            ?? throw new NotFoundException("Invoice for visit", request.VisitId);
+        var invoices = await _invoices.GetAllByVisitAsync(visit.Id, ct);
+        if (invoices.Count == 0)
+            throw new NotFoundException("Invoice for visit", request.VisitId);
 
         visit.Cancel(request.Reason);
 
+        // Every invoice of the visit (original + supplementary add-ons) gets its open
+        // balance waived; the first credit note is surfaced in the response.
         CreditNoteDto? autoCreditNote = null;
-        var openBalance = invoice.Balance().Amount;
-        if (openBalance > 0)
+        foreach (var invoice in invoices)
         {
+            var openBalance = invoice.Balance().Amount;
+            if (openBalance <= 0) continue;
+
             var branch = await _branches.GetAsync(invoice.BranchId, ct)
                 ?? throw new NotFoundException("Branch", invoice.BranchId);
             var number = await _numbers.NextAsync("creditnote", branch.Code, ct);
@@ -77,12 +82,12 @@ internal sealed class CancelVisitHandler : IRequestHandler<CancelVisitCommand, C
                 $"Visit cancelled: {request.Reason.Trim()}", _clock.UtcNow);
             _creditNotes.Add(creditNote);
 
-            autoCreditNote = new CreditNoteDto(
+            autoCreditNote ??= new CreditNoteDto(
                 creditNote.Id, creditNote.CreditNoteNumber, creditNote.Amount.Amount,
                 creditNote.Amount.Currency, creditNote.Reason, creditNote.IssuedAtUtc);
         }
 
         return new CancelledVisitDto(
-            visit.Id, visit.Status.ToString(), invoice.Status.ToString(), autoCreditNote);
+            visit.Id, visit.Status.ToString(), invoices[0].Status.ToString(), autoCreditNote);
     }
 }

@@ -6,7 +6,7 @@ import { firstValueFrom } from 'rxjs';
 import { PatientsApi } from '../patients/patients.api';
 import { CatalogApi, OrgApi } from '../org/org.api';
 import { VisitsApi } from './visits.api';
-import { Branch, CatalogTest, PatientSearchResult, RegisteredVisit, problemMessage } from '../../core/api.types';
+import { Branch, CatalogPanel, CatalogTest, PatientSearchResult, RegisteredVisit, problemMessage } from '../../core/api.types';
 
 /**
  * P05.2 Visit Registration wizard: Patient → Branch & Tests → Confirm.
@@ -89,6 +89,20 @@ import { Branch, CatalogTest, PatientSearchResult, RegisteredVisit, problemMessa
           }
         </div>
 
+        @if (panels().length > 0) {
+          <label class="lbl">PANELS / PROFILES (P03.5 — bundle price)</label>
+          <div class="picker">
+            @for (p of panels(); track p.id) {
+              <label class="pick" [class.sel]="selectedPanels().has(p.id)">
+                <input type="checkbox" [checked]="selectedPanels().has(p.id)" (change)="togglePanel(p.id)">
+                <span class="mono code">{{ p.code }}</span>
+                <span class="tname">{{ p.name }} <span class="hint">({{ memberCodes(p) }})</span></span>
+                <span class="price">{{ p.price }} {{ p.currency }}</span>
+              </label>
+            }
+          </div>
+        }
+
         <label class="lbl">TESTS (ACTIVE CATALOG)</label>
         @if (tests().length === 0) {
           <p class="hint">No active tests in the catalog yet — create and approve tests first (P03.3).</p>
@@ -104,12 +118,14 @@ import { Branch, CatalogTest, PatientSearchResult, RegisteredVisit, problemMessa
           }
         </div>
         <p class="hint" style="margin-top:6px">
-          {{ selected().size }} test(s) selected — total {{ selectedTotal() }} {{ tests()[0]?.currency ?? '' }}
+          {{ selected().size }} test(s) + {{ selectedPanels().size }} panel(s) selected —
+          total {{ selectedTotal() }} {{ tests()[0]?.currency ?? 'EGP' }}
         </p>
 
         <button class="btn ghost sm" (click)="step.set(1)">← Back</button>
         <button class="btn green" style="margin-left:8px"
-                [disabled]="selected().size === 0 || !branchId.value || busy()" (click)="confirm()">
+                [disabled]="(selected().size === 0 && selectedPanels().size === 0) || !branchId.value || busy()"
+                (click)="confirm()">
           {{ busy() ? 'Registering…' : 'Confirm visit — compute specimen plan' }}
         </button>
       </div>
@@ -178,11 +194,14 @@ export class VisitRegisterComponent implements OnInit {
   readonly registered = signal<RegisteredVisit | null>(null);
   readonly branches = signal<Branch[]>([]);
   readonly tests = signal<CatalogTest[]>([]);
+  readonly panels = signal<CatalogPanel[]>([]);
   readonly selected = signal<Set<string>>(new Set());
+  readonly selectedPanels = signal<Set<string>>(new Set());
 
   readonly activeBranches = computed(() => this.branches().filter(b => b.isActive));
   readonly selectedTotal = computed(() =>
-    this.tests().filter(t => this.selected().has(t.id)).reduce((sum, t) => sum + (t.price ?? 0), 0));
+    this.tests().filter(t => this.selected().has(t.id)).reduce((sum, t) => sum + (t.price ?? 0), 0)
+    + this.panels().filter(p => this.selectedPanels().has(p.id)).reduce((sum, p) => sum + p.price, 0));
 
   readonly term = this.fb.nonNullable.control('', [Validators.required, Validators.minLength(2)]);
   readonly branchId = this.fb.nonNullable.control('');
@@ -195,12 +214,14 @@ export class VisitRegisterComponent implements OnInit {
 
   private async loadLookups(): Promise<void> {
     try {
-      const [branches, tests] = await Promise.all([
+      const [branches, tests, panels] = await Promise.all([
         firstValueFrom(this.orgApi.listBranches()),
         firstValueFrom(this.catalogApi.listTests('Active')),
+        firstValueFrom(this.catalogApi.listPanels()),
       ]);
       this.branches.set(branches);
       this.tests.set(tests);
+      this.panels.set(panels.filter(p => p.isActive));
       const main = branches.find(b => b.isMain && b.isActive) ?? branches.find(b => b.isActive);
       if (main) this.branchId.setValue(main.id);
     } catch (e) {
@@ -234,6 +255,19 @@ export class VisitRegisterComponent implements OnInit {
     });
   }
 
+  togglePanel(panelId: string): void {
+    this.selectedPanels.update(set => {
+      const next = new Set(set);
+      if (next.has(panelId)) next.delete(panelId);
+      else next.add(panelId);
+      return next;
+    });
+  }
+
+  memberCodes(panel: CatalogPanel): string {
+    return panel.members.map(m => m.testCode).join(' + ');
+  }
+
   async confirm(): Promise<void> {
     this.busy.set(true);
     this.error.set(null);
@@ -243,6 +277,7 @@ export class VisitRegisterComponent implements OnInit {
         patientId: this.patient()!.id,
         branchId: this.branchId.value,
         testIds: [...this.selected()],
+        panelIds: [...this.selectedPanels()],
         isStat: stat,
         statReason: stat ? this.statReason.value : null,
       }));
@@ -265,6 +300,7 @@ export class VisitRegisterComponent implements OnInit {
     this.registered.set(null);
     this.results.set([]);
     this.selected.set(new Set());
+    this.selectedPanels.set(new Set());
     this.term.reset();
   }
 }

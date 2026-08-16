@@ -224,6 +224,38 @@ internal sealed class SampleConditionConfig : IEntityTypeConfiguration<SampleCon
     }
 }
 
+internal sealed class PanelConfig : IEntityTypeConfiguration<Panel>
+{
+    public void Configure(EntityTypeBuilder<Panel> b)
+    {
+        b.ToTable("panels", "catalog");
+        b.HasKey(p => p.Id);
+        b.Property(p => p.TenantId).IsRequired();
+        b.Property(p => p.Code).HasMaxLength(20).IsRequired();
+        b.HasIndex(p => new { p.TenantId, p.Code }).IsUnique();
+        b.Property(p => p.Name).HasMaxLength(200).IsRequired();
+        b.OwnsOne(p => p.Price, money =>
+        {
+            money.Property(m => m.Amount).HasColumnName("price_amount").HasPrecision(12, 2);
+            money.Property(m => m.Currency).HasColumnName("price_currency").HasMaxLength(3);
+        });
+        b.HasMany(p => p.Items).WithOne().HasForeignKey(i => i.PanelId).OnDelete(DeleteBehavior.Cascade);
+        b.Navigation(p => p.Items).UsePropertyAccessMode(PropertyAccessMode.Field);
+        b.Property<uint>("xmin").IsRowVersion();
+    }
+}
+
+internal sealed class PanelItemConfig : IEntityTypeConfiguration<PanelItem>
+{
+    public void Configure(EntityTypeBuilder<PanelItem> b)
+    {
+        b.ToTable("panel_items", "catalog");
+        b.HasKey(i => i.Id);
+        b.Property(i => i.TenantId).IsRequired();
+        b.HasIndex(i => new { i.TenantId, i.PanelId, i.TestId }).IsUnique();
+    }
+}
+
 internal sealed class VisitConfig : IEntityTypeConfiguration<Visit>
 {
     public void Configure(EntityTypeBuilder<Visit> b)

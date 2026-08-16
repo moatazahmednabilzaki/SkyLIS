@@ -121,5 +121,24 @@ internal sealed class FakeInvoiceRepository : IInvoiceRepository
     public Task<Invoice?> GetByVisitAsync(Guid visitId, CancellationToken ct = default) =>
         Task.FromResult(Items.FirstOrDefault(i => i.VisitId == visitId));
 
+    public Task<IReadOnlyList<Invoice>> GetAllByVisitAsync(Guid visitId, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<Invoice>>(Items.Where(i => i.VisitId == visitId).ToList());
+
     public void Add(Invoice invoice) => Items.Add(invoice);
+}
+
+internal sealed class FakePanelRepository : IPanelRepository
+{
+    public List<Panel> Items { get; } = [];
+
+    public Task<Panel?> GetAsync(Guid id, CancellationToken ct = default) =>
+        Task.FromResult(Items.FirstOrDefault(p => p.Id == id));
+
+    public Task<IReadOnlyList<Panel>> GetManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<Panel>>(Items.Where(p => ids.Contains(p.Id)).ToList());
+
+    public Task<bool> CodeExistsAsync(string code, CancellationToken ct = default) =>
+        Task.FromResult(Items.Any(p => p.Code == code));
+
+    public void Add(Panel panel) => Items.Add(panel);
 }

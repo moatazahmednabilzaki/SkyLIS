@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_BASE_URL } from '../../core/config';
-import { Branch, CatalogSampleType, CatalogTest } from '../../core/api.types';
+import { Branch, CatalogPanel, CatalogSampleType, CatalogTest } from '../../core/api.types';
 
 /** API access for branches & departments (P03.2). */
 @Injectable({ providedIn: 'root' })
@@ -38,5 +38,9 @@ export class CatalogApi {
 
   listSampleTypes(): Observable<CatalogSampleType[]> {
     return this.http.get<CatalogSampleType[]>(`${API_BASE_URL}/catalog/sample-types`);
+  }
+
+  listPanels(): Observable<CatalogPanel[]> {
+    return this.http.get<CatalogPanel[]>(`${API_BASE_URL}/catalog/panels`);
   }
 }

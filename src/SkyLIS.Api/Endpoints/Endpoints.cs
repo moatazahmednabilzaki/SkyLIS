@@ -299,6 +299,8 @@ public static class CatalogEndpoints
         Guid? RequiredConditionId, decimal Price, string Currency);
 
     public sealed record ActivatePushedTestRequest(decimal Price, string Currency);
+    public sealed record CreatePanelRequest(
+        string Code, string Name, decimal Price, string Currency, List<Guid> TestIds);
     public sealed record CreateSampleTypeRequest(string Name, string ContainerName, List<ConditionInput> Conditions);
     public sealed record ResultSchemaRequest(
         string Unit, decimal? RefLow, decimal? RefHigh, decimal? CriticalLow, decimal? CriticalHigh,
@@ -316,6 +318,19 @@ public static class CatalogEndpoints
             var dto = await sender.Send(new CreateSampleTypeCommand(
                 request.Name, request.ContainerName, request.Conditions), ct);
             return Results.Created($"/api/v1/catalog/sample-types/{dto.Id}", dto);
+        });
+
+        // P03.5 panels/profiles: bundles at a bundle price
+        var panels = group.MapGroup("/catalog/panels").RequireAuthorization().WithTags("Client Portal — Catalog");
+
+        panels.MapGet("/", (ISender sender, CancellationToken ct) =>
+            sender.Send(new ListPanelsQuery(), ct));
+
+        panels.MapPost("/", async (ISender sender, CreatePanelRequest request, CancellationToken ct) =>
+        {
+            var id = await sender.Send(new CreatePanelCommand(
+                request.Code, request.Name, request.Price, request.Currency, request.TestIds), ct);
+            return Results.Created($"/api/v1/catalog/panels/{id}", new { id });
         });
 
         var catalog = group.MapGroup("/catalog/tests").RequireAuthorization().WithTags("Client Portal — Catalog");
@@ -366,7 +381,9 @@ public static class CatalogEndpoints
 public static class VisitEndpoints
 {
     public sealed record RegisterVisitRequest(
-        Guid PatientId, Guid BranchId, IReadOnlyList<Guid> TestIds, bool IsStat, string? StatReason);
+        Guid PatientId, Guid BranchId, IReadOnlyList<Guid> TestIds, bool IsStat, string? StatReason,
+        IReadOnlyList<Guid>? PanelIds = null);
+    public sealed record AddTestsRequest(IReadOnlyList<Guid> TestIds);
     public sealed record RejectSampleRequest(string ReasonCode);
     public sealed record CancelVisitRequest(string Reason);
 
@@ -377,12 +394,18 @@ public static class VisitEndpoints
         visits.MapPost("/", async (ISender sender, RegisterVisitRequest request, CancellationToken ct) =>
         {
             var result = await sender.Send(new RegisterVisitCommand(
-                request.PatientId, request.BranchId, request.TestIds, request.IsStat, request.StatReason), ct);
+                request.PatientId, request.BranchId, request.TestIds, request.IsStat, request.StatReason,
+                request.PanelIds), ct);
             return Results.Created($"/api/v1/visits/{result.VisitId}", result);
         });
 
         visits.MapGet("/{visitId:guid}", (ISender sender, Guid visitId, CancellationToken ct) =>
             sender.Send(new GetVisitQuery(visitId), ct));
+
+        // P05.4: add tests to an open visit (new samples + supplementary invoice)
+        visits.MapPost("/{visitId:guid}/add-tests", (
+            ISender sender, Guid visitId, AddTestsRequest request, CancellationToken ct) =>
+            sender.Send(new AddTestsToVisitCommand(visitId, request.TestIds), ct));
 
         // M05/M17: cancellation waives the unpaid balance via an automatic credit note
         visits.MapPost("/{visitId:guid}/cancel", (

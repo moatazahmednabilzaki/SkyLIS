@@ -150,7 +150,17 @@ public interface IInvoiceRepository
 {
     Task<Invoice?> GetAsync(Guid id, CancellationToken ct = default);
     Task<Invoice?> GetByVisitAsync(Guid visitId, CancellationToken ct = default);
+    /// <summary>All invoices of a visit (the original plus supplementary add-on invoices).</summary>
+    Task<IReadOnlyList<Invoice>> GetAllByVisitAsync(Guid visitId, CancellationToken ct = default);
     void Add(Invoice invoice);
+}
+
+public interface IPanelRepository
+{
+    Task<Panel?> GetAsync(Guid id, CancellationToken ct = default);
+    Task<IReadOnlyList<Panel>> GetManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default);
+    Task<bool> CodeExistsAsync(string code, CancellationToken ct = default);
+    void Add(Panel panel);
 }
 
 public interface ICreditNoteRepository

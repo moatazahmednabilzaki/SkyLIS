@@ -38,6 +38,36 @@ internal sealed class CountryPackQueries : ICountryPackQueries
     }
 }
 
+internal sealed class PanelQueries : IPanelQueries
+{
+    private readonly SkyLisDbContext _db;
+    public PanelQueries(SkyLisDbContext db) => _db = db;
+
+    public async Task<IReadOnlyList<PanelDto>> ListAsync(CancellationToken ct = default)
+    {
+        var panels = await _db.Panels.AsNoTracking()
+            .OrderBy(p => p.Code)
+            .Select(p => new
+            {
+                p.Id, p.Code, p.Name, Price = p.Price.Amount, p.Price.Currency, p.IsActive,
+                TestIds = p.Items.Select(i => i.TestId).ToList(),
+            })
+            .ToListAsync(ct);
+
+        var allTestIds = panels.SelectMany(p => p.TestIds).Distinct().ToList();
+        var tests = await _db.LabTests.AsNoTracking()
+            .Where(t => allTestIds.Contains(t.Id))
+            .Select(t => new { t.Id, t.Code, t.Name })
+            .ToDictionaryAsync(t => t.Id, ct);
+
+        return panels.Select(p => new PanelDto(
+            p.Id, p.Code, p.Name, p.Price, p.Currency, p.IsActive,
+            p.TestIds.Select(id => tests.TryGetValue(id, out var t)
+                ? new PanelMemberDto(id, t.Code, t.Name)
+                : new PanelMemberDto(id, "?", "?")).ToList())).ToList();
+    }
+}
+
 internal sealed class CatalogQueries : ICatalogQueries
 {
     private readonly SkyLisDbContext _db;

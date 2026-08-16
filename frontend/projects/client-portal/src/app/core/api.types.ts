@@ -22,8 +22,19 @@ export interface RegisterVisitRequest {
   patientId: string;
   branchId: string;
   testIds: string[];
+  panelIds?: string[];
   isStat: boolean;
   statReason: string | null;
+}
+
+export interface CatalogPanel {
+  id: string;
+  code: string;
+  name: string;
+  price: number;
+  currency: string;
+  isActive: boolean;
+  members: { testId: string; testCode: string; testName: string }[];
 }
 
 export interface Department {

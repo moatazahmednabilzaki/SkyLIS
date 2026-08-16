@@ -23,10 +23,14 @@ internal sealed class HtmlReportRenderer : IReportRenderer
                 "Low" or "High" => "#b26a00",
                 _ => "#b91c1c",
             };
+            // P09.5: an amended value is marked on the artifact with the superseded value.
+            var amendedBadge = line.IsAmended
+                ? $"""<div style="font-size:10px;color:#b91c1c;font-weight:700">AMENDED — was {line.ValueBeforeAmendment}: {WebUtility.HtmlEncode(line.AmendmentReason ?? "")}</div>"""
+                : string.Empty;
             rows.Append($"""
                 <tr>
                   <td class="mono"><b>{WebUtility.HtmlEncode(line.TestCode)}</b></td>
-                  <td class="mono" style="text-align:right">{line.Value}</td>
+                  <td class="mono" style="text-align:right">{line.Value}{amendedBadge}</td>
                   <td>{WebUtility.HtmlEncode(line.Unit)}</td>
                   <td class="mono">{(line.RefLow is null ? "·" : line.RefLow)}–{(line.RefHigh is null ? "·" : line.RefHigh)}</td>
                   <td style="color:{flagColor};font-weight:700">{WebUtility.HtmlEncode(line.Flag)}</td>
@@ -35,9 +39,14 @@ internal sealed class HtmlReportRenderer : IReportRenderer
                 """);
         }
 
-        var watermark = kind == ReportKind.Interim
-            ? "<div style=\"position:fixed;top:40%;left:15%;font-size:70px;color:rgba(178,106,0,.12);transform:rotate(-20deg);font-weight:800\">INTERIM — NOT FINAL</div>"
-            : string.Empty;
+        var watermark = kind switch
+        {
+            ReportKind.Interim =>
+                "<div style=\"position:fixed;top:40%;left:15%;font-size:70px;color:rgba(178,106,0,.12);transform:rotate(-20deg);font-weight:800\">INTERIM — NOT FINAL</div>",
+            ReportKind.Amended =>
+                "<div style=\"position:fixed;top:40%;left:22%;font-size:70px;color:rgba(185,28,28,.12);transform:rotate(-20deg);font-weight:800\">AMENDED</div>",
+            _ => string.Empty,
+        };
 
         return $$"""
             <!DOCTYPE html>

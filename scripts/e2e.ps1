@@ -541,6 +541,54 @@ ExpectError 'closing a closed shift rejected' 409 {
         -ContentType 'application/json' -Body '{"declaredCash":200}'
 }
 
+# ---------- P04.3 Patient 360 / P10.3 cumulative / P09.5 amendments ----------
+Step 'Patient 360 aggregates demographics, visits, money, reports (P04.3)' {
+    $p360 = Invoke-RestMethod -Uri "$api/patients/$patient/summary" -Headers $ha
+    if ($p360.visits.Count -ne 5) { throw "expected 5 visits, got $($p360.visits.Count)" }
+    if ($p360.outstandingBalance -ne 160) { throw "expected outstanding 160, got $($p360.outstandingBalance)" }
+    if ($p360.testCodes -notcontains 'GLU-F') { throw 'GLU-F missing from cumulative test codes' }
+    if ($p360.reports.Count -lt 3) { throw "expected >=3 reports, got $($p360.reports.Count)" }
+    if (@($p360.visits | Where-Object status -eq 'Cancelled').Count -ne 1) { throw 'cancelled visit missing' }
+} | Out-Null
+
+$gluTrend = Step 'cumulative GLU-F trend: 3 validated points (P10.3)' {
+    $trend = Invoke-RestMethod -Uri "$api/patients/$patient/results/cumulative?testCode=GLU-F" -Headers $ha
+    if ($trend.Count -ne 3) { throw "expected 3 points, got $($trend.Count)" }
+    $trend
+}
+$v2point = $gluTrend | Where-Object visitNumber -eq $visit2.visitNumber
+
+ExpectError 'SoD: the enterer cannot amend their own result (P09.5)' 422 {
+    Invoke-RestMethod -Method Post -Uri "$api/results/$($v2point.resultId)/amend" -Headers $ha `
+        -ContentType 'application/json' -Body (@{
+            newValue = 95; reason = 'try'; signatureIntent = 'I amend' } | ConvertTo-Json)
+}
+Step 'director amends 88 -> 95 with mandatory reason (P09.5)' {
+    $a = Invoke-RestMethod -Method Post -Uri "$api/results/$($v2point.resultId)/amend" -Headers $hd `
+        -ContentType 'application/json' -Body (@{
+            newValue = 95; reason = 'Transcription error at the bench'
+            signatureIntent = 'I amend GLU-F from 88 to 95 mg/dL' } | ConvertTo-Json)
+    if ($a.oldValue -ne 88 -or $a.newValue -ne 95) { throw "unexpected: $($a | ConvertTo-Json -Compress)" }
+} | Out-Null
+
+ExpectError 'AMENDED report requires an existing FINAL (visit1 has none)' 422 {
+    Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit.visitId)/reports" -Headers $ha `
+        -ContentType 'application/json' -Body '{"kind":"Amended"}'
+}
+Step 'AMENDED report renders as a new version with the marking (P09.5/P10)' {
+    $r = Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit2.visitId)/reports" -Headers $ha `
+        -ContentType 'application/json' -Body '{"kind":"Amended"}'
+    if ($r.kind -ne 'Amended' -or $r.version -lt 2) { throw "unexpected $($r.kind) v$($r.version)" }
+    $content = Invoke-WebRequest -Uri "$api/reports/$($r.reportId)/content" -Headers $ha -UseBasicParsing
+    if ($content.Content -notmatch 'AMENDED') { throw 'artifact lacks the AMENDED marking' }
+    if ($content.Content -notmatch 'was 88') { throw 'artifact lacks the superseded value' }
+} | Out-Null
+Step 'cumulative marks the amended point (P10.3)' {
+    $t = Invoke-RestMethod -Uri "$api/patients/$patient/results/cumulative?testCode=GLU-F" -Headers $ha
+    $p = $t | Where-Object resultId -eq $v2point.resultId
+    if (-not $p.isAmended -or $p.value -ne 95) { throw "unexpected: $($p | ConvertTo-Json -Compress)" }
+} | Out-Null
+
 # ---------- M02: Real users, login & role-based permissions ----------
 Step 'initial Tenant Admin created via outbox; real login works' {
     $deadline = (Get-Date).AddSeconds(20)

@@ -2,7 +2,7 @@
 
 namespace SkyLIS.Domain.Reports;
 
-public enum ReportKind { Interim = 0, Final = 1 }
+public enum ReportKind { Interim = 0, Final = 1, Amended = 2 }
 public enum ReportStatus { Rendered = 0, Delivered = 1 }
 public enum DeliveryOutcome { Sent = 0, Failed = 1 }
 
@@ -46,10 +46,10 @@ public sealed class LabReport : AggregateRoot, ITenantOwned
             throw new DomainException("Rendered content and its hash are required.");
         if (medicallyValidResultCount == 0)
             throw new DomainException("A report requires at least one medically valid result.");
-        if (kind == ReportKind.Final && hasOpenCriticalValue)
+        if (kind is ReportKind.Final or ReportKind.Amended && hasOpenCriticalValue)
             throw new DomainException(
                 "A report containing an undocumented open critical value cannot reach Final (P09.4).");
-        if (kind == ReportKind.Final && !visitFullyValidated)
+        if (kind is ReportKind.Final or ReportKind.Amended && !visitFullyValidated)
             throw new DomainException(
                 "A FINAL report requires every test on the visit to be medically valid; render an INTERIM report instead.");
 

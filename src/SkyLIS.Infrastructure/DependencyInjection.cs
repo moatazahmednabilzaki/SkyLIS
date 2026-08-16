@@ -55,6 +55,7 @@ public static class DependencyInjection
         services.AddScoped<Application.Catalog.ICatalogQueries, CatalogQueries>();
         services.AddScoped<Application.Billing.IBillingQueries, BillingQueries>();
         services.AddScoped<IPatientQueries, PatientQueries>();
+        services.AddScoped<Application.Patients.IPatient360Queries, Patient360Queries>();
         services.AddScoped<IVisitQueries, VisitQueries>();
         services.AddScoped<IResultQueries, ResultQueries>();
         services.AddScoped<Application.Worklists.IWorklistQueries, WorklistQueries>();

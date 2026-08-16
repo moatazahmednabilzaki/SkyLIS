@@ -20,7 +20,8 @@ public sealed record ReportContent(
 
 public sealed record ReportResultLine(
     string TestCode, decimal Value, string Unit, string Flag,
-    decimal? RefLow, decimal? RefHigh, string? InterpretiveComment, string SignatureHash);
+    decimal? RefLow, decimal? RefHigh, string? InterpretiveComment, string SignatureHash,
+    bool IsAmended = false, decimal? ValueBeforeAmendment = null, string? AmendmentReason = null);
 
 /// <summary>Rendering port: produces the immutable report artifact (HTML now; PDF converter later).</summary>
 public interface IReportRenderer
@@ -92,7 +93,10 @@ internal sealed class RenderReportHandler : IRequestHandler<RenderReportCommand,
             ?? throw new NotFoundException("Visit", request.VisitId);
         if (request.Kind == ReportKind.Final && await _queries.FinalExistsAsync(visit.Id, ct))
             throw new ConflictException(
-                "A FINAL report already exists for this visit; corrections go through the amendment flow (later slice).");
+                "A FINAL report already exists for this visit; corrections go through the amendment flow (P09.5).");
+        if (request.Kind == ReportKind.Amended && !await _queries.FinalExistsAsync(visit.Id, ct))
+            throw new Domain.Common.DomainException(
+                "An AMENDED report requires an existing FINAL report; render the FINAL first.");
 
         var content = await _queries.GetContentAsync(visit.Id, ct)
             ?? throw new NotFoundException("ReportContent", request.VisitId);
@@ -108,7 +112,8 @@ internal sealed class RenderReportHandler : IRequestHandler<RenderReportCommand,
         var html = _renderer.RenderHtml(content, request.Kind, reportNumber, version, now);
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(html)));
 
-        var fullyValidated = visit.Status == VisitStatus.Validated;
+        // Amended reports render on a visit that already reached Reported (P09.5).
+        var fullyValidated = visit.Status is VisitStatus.Validated or VisitStatus.Reported;
         var report = LabReport.Render(
             Guid.CreateVersion7(), _tenant.TenantId, visit.Id, visit.PatientId,
             reportNumber, version, request.Kind, html, hash,

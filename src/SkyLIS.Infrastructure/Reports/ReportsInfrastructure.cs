@@ -97,7 +97,11 @@ internal sealed class ReportQueries : IReportQueries
         var results = await _db.TestResults.AsNoTracking()
             .Where(r => r.VisitId == visitId && r.Status == ResultStatus.MedicallyValid)
             .OrderBy(r => r.TestCode)
-            .Select(r => new { r.TestCode, r.Value, r.Unit, r.Flag, r.InterpretiveComment, r.SignatureHash, r.VisitTestId })
+            .Select(r => new
+            {
+                r.TestCode, r.Value, r.Unit, r.Flag, r.InterpretiveComment, r.SignatureHash, r.VisitTestId,
+                r.IsAmended, r.ValueBeforeAmendment, r.AmendmentReason,
+            })
             .ToListAsync(ct);
 
         var testIds = await _db.Visits.AsNoTracking()
@@ -129,7 +133,8 @@ internal sealed class ReportQueries : IReportQueries
                 var range = schemaByLine.GetValueOrDefault(r.VisitTestId);
                 return new ReportResultLine(
                     r.TestCode, r.Value, r.Unit, r.Flag.ToString(),
-                    range.Low, range.High, r.InterpretiveComment, r.SignatureHash ?? "");
+                    range.Low, range.High, r.InterpretiveComment, r.SignatureHash ?? "",
+                    r.IsAmended, r.ValueBeforeAmendment, r.AmendmentReason);
             }).ToList());
     }
 

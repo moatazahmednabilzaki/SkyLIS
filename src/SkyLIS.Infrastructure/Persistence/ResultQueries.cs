@@ -39,6 +39,36 @@ internal sealed class ResultQueries : IResultQueries
             .FirstOrDefaultAsync(ct);
     }
 
+    public async Task<IReadOnlyList<CumulativePointDto>> CumulativeAsync(
+        Guid patientId, string testCode, CancellationToken ct = default)
+    {
+        var rows = await _db.TestResults.AsNoTracking()
+            .Where(r => r.PatientId == patientId
+                        && r.TestCode == testCode
+                        && r.Status == ResultStatus.MedicallyValid)
+            .OrderBy(r => r.MedicallyValidatedAtUtc)
+            .Select(r => new
+            {
+                r.Id, r.VisitId, r.Value, r.Unit, r.Flag, r.IsAmended, r.MedicallyValidatedAtUtc,
+            })
+            .ToListAsync(ct);
+
+        var visitIds = rows.Select(r => r.VisitId).Distinct().ToList();
+        var visitNumbers = await _db.Visits.AsNoTracking()
+            .Where(v => visitIds.Contains(v.Id))
+            .Select(v => new { v.Id, v.VisitNumber })
+            .ToDictionaryAsync(v => v.Id, v => v.VisitNumber, ct);
+
+        var range = await _db.LabTests.AsNoTracking()
+            .Where(t => t.Code == testCode && t.ResultSchema != null)
+            .Select(t => new { t.ResultSchema!.RefLow, t.ResultSchema.RefHigh })
+            .FirstOrDefaultAsync(ct);
+
+        return rows.Select(r => new CumulativePointDto(
+            r.Id, visitNumbers.GetValueOrDefault(r.VisitId, "?"), r.Value, r.Unit, r.Flag.ToString(),
+            r.IsAmended, r.MedicallyValidatedAtUtc ?? default, range?.RefLow, range?.RefHigh)).ToList();
+    }
+
     public async Task<IReadOnlyList<PendingEntryDto>> PendingEntryAsync(CancellationToken ct = default)
     {
         var rows = await _db.Visits.AsNoTracking()

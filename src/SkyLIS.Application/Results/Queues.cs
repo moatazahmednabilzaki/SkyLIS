@@ -17,6 +17,10 @@ public sealed record CriticalQueueItemDto(
     decimal Value, string Unit, string Flag, string CriticalState,
     DateTimeOffset FlaggedAtUtc, string? CalledPerson, bool ReadBackConfirmed);
 
+public sealed record CumulativePointDto(
+    Guid ResultId, string VisitNumber, decimal Value, string Unit, string Flag, bool IsAmended,
+    DateTimeOffset ValidatedAtUtc, decimal? RefLow, decimal? RefHigh);
+
 /// <summary>Read ports for the M09 worklists — DTO projections only.</summary>
 public interface IResultQueries
 {
@@ -25,6 +29,8 @@ public interface IResultQueries
     Task<IReadOnlyList<ResultQueueItemDto>> TechnicalQueueAsync(CancellationToken ct = default);
     Task<IReadOnlyList<ResultQueueItemDto>> MedicalQueueAsync(CancellationToken ct = default);
     Task<IReadOnlyList<CriticalQueueItemDto>> CriticalQueueAsync(CancellationToken ct = default);
+    /// <summary>P10.3: the patient's validated time series for one test (cumulative view).</summary>
+    Task<IReadOnlyList<CumulativePointDto>> CumulativeAsync(Guid patientId, string testCode, CancellationToken ct = default);
 }
 
 /// <summary>P09.1: test lines awaiting a result (samples received, no active result).</summary>
@@ -81,4 +87,19 @@ internal sealed class GetCriticalQueueHandler : IRequestHandler<GetCriticalQueue
     public GetCriticalQueueHandler(IResultQueries queries) => _queries = queries;
     public Task<IReadOnlyList<CriticalQueueItemDto>> Handle(GetCriticalQueueQuery request, CancellationToken ct) =>
         _queries.CriticalQueueAsync(ct);
+}
+
+/// <summary>P10.3: cumulative trend for one patient + test (validated results only).</summary>
+public sealed record GetCumulativeQuery(Guid PatientId, string TestCode)
+    : IQuery<IReadOnlyList<CumulativePointDto>>, IRequirePermission
+{
+    public string Permission => "patients.patient.read";
+}
+
+internal sealed class GetCumulativeHandler : IRequestHandler<GetCumulativeQuery, IReadOnlyList<CumulativePointDto>>
+{
+    private readonly IResultQueries _queries;
+    public GetCumulativeHandler(IResultQueries queries) => _queries = queries;
+    public Task<IReadOnlyList<CumulativePointDto>> Handle(GetCumulativeQuery request, CancellationToken ct) =>
+        _queries.CumulativeAsync(request.PatientId, request.TestCode, ct);
 }

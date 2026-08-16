@@ -112,6 +112,15 @@ public static class PatientEndpoints
         patients.MapGet("/search", (ISender sender, string term, CancellationToken ct) =>
             sender.Send(new SearchPatientsQuery(term), ct));
 
+        // P04.3 Patient 360: full story — demographics, visits, money, reports
+        patients.MapGet("/{patientId:guid}/summary", (ISender sender, Guid patientId, CancellationToken ct) =>
+            sender.Send(new GetPatient360Query(patientId), ct));
+
+        // P10.3 cumulative trend for one test on this patient
+        patients.MapGet("/{patientId:guid}/results/cumulative", (
+            ISender sender, Guid patientId, string testCode, CancellationToken ct) =>
+            sender.Send(new SkyLIS.Application.Results.GetCumulativeQuery(patientId, testCode), ct));
+
         patients.MapPost("/", async (ISender sender, RegisterPatientRequest request, CancellationToken ct) =>
         {
             var id = await sender.Send(new RegisterPatientCommand(

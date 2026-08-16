@@ -9,6 +9,7 @@ public static class ResultEndpoints
     public sealed record RerunRequest(string Reason);
     public sealed record ValidateMedicalRequest(string? InterpretiveComment, string SignatureIntent);
     public sealed record CriticalCallRequest(string CalledPerson, string Phone, bool ReadBackConfirmed);
+    public sealed record AmendResultRequest(decimal NewValue, string Reason, string SignatureIntent);
 
     public static RouteGroupBuilder MapResultEndpoints(this RouteGroupBuilder group)
     {
@@ -77,6 +78,11 @@ public static class ResultEndpoints
             await sender.Send(new ValidateMedicalCommand(resultId, request.InterpretiveComment, request.SignatureIntent), ct);
             return Results.NoContent();
         });
+
+        // P09.5: amendment of a medically valid result (re-signed, old value preserved)
+        results.MapPost("/{resultId:guid}/amend", (
+            ISender sender, Guid resultId, AmendResultRequest request, CancellationToken ct) =>
+            sender.Send(new AmendResultCommand(resultId, request.NewValue, request.Reason, request.SignatureIntent), ct));
 
         results.MapPost("/{resultId:guid}/critical/document-call", async (
             ISender sender, Guid resultId, CriticalCallRequest request, CancellationToken ct) =>

@@ -28,6 +28,7 @@ public static class DevAuthEndpoints
         "billing.payment.capture", "billing.invoice.adjust", "billing.refund.approve", "billing.shift.manage",
         "orders.visit.cancel",
         "results.result.enter", "results.result.validateTechnical", "results.result.validateMedical",
+        "results.result.amend",
         "reports.report.render", "reports.report.deliver", "reports.report.read",
         "analytics.dashboard.read",
         "audit.trail.read",

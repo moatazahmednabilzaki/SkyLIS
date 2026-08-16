@@ -49,6 +49,13 @@ public sealed class TestResult : AggregateRoot, ITenantOwned
     public string? SignatureHash { get; private set; }
     public string? RerunReason { get; private set; }
 
+    // P09.5 amendment trail: the pre-amendment value stays on the record forever.
+    public bool IsAmended { get; private set; }
+    public decimal? ValueBeforeAmendment { get; private set; }
+    public string? AmendmentReason { get; private set; }
+    public Guid? AmendedByUserId { get; private set; }
+    public DateTimeOffset? AmendedAtUtc { get; private set; }
+
     public CriticalNotification? Critical { get; private set; }
 
     private TestResult() { } // EF
@@ -140,6 +147,43 @@ public sealed class TestResult : AggregateRoot, ITenantOwned
         Raise(new ResultMedicallyValid(Id, TenantId, VisitId, VisitTestId));
     }
 
+    /// <summary>
+    /// P09.5: amend a MEDICALLY VALID result (pre-validation corrections go through the
+    /// rerun flow instead). The old value is preserved, the amendment is re-signed, and a
+    /// new critical cycle opens if the corrected value is critical. Reports rendered after
+    /// this carry the AMENDED marking.
+    /// </summary>
+    public void Amend(
+        decimal newValue, ResultEvaluation evaluation, string reason,
+        Guid amendedBy, string signatureHash, DateTimeOffset nowUtc)
+    {
+        if (Status != ResultStatus.MedicallyValid)
+            throw new InvalidStateTransitionException(nameof(TestResult), Status.ToString(), "Amended");
+        if (string.IsNullOrWhiteSpace(reason)) throw new DomainException("An amendment reason is mandatory (P09.5).");
+        if (amendedBy == Guid.Empty) throw new DomainException("The amending user must be identified.");
+        if (amendedBy == EnteredByUserId)
+            throw new DomainException("Segregation of duties: the user who entered a result cannot amend it.");
+        if (string.IsNullOrWhiteSpace(signatureHash)) throw new DomainException("The e-signature content hash is required.");
+        if (newValue == Value) throw new DomainException("The amended value must differ from the current value.");
+
+        ValueBeforeAmendment = Value;
+        Value = newValue;
+        Flag = evaluation.Flag;
+        DeltaFlagged = evaluation.DeltaFlagged;
+        IsAmended = true;
+        AmendmentReason = reason.Trim();
+        AmendedByUserId = amendedBy;
+        AmendedAtUtc = nowUtc;
+        SignatureHash = signatureHash;
+        Raise(new ResultAmended(Id, TenantId, VisitId, TestCode, ValueBeforeAmendment.Value, newValue));
+
+        if (evaluation.IsCritical && (Critical is null || Critical.State == CriticalState.Closed))
+        {
+            Critical = CriticalNotification.Open(Guid.NewGuid(), TenantId, Id, nowUtc);
+            Raise(new CriticalValueFlagged(Id, TenantId, VisitId, TestCode, newValue, Unit));
+        }
+    }
+
     public void DocumentCriticalCall(string calledPerson, string phone, bool readBackConfirmed, DateTimeOffset nowUtc)
     {
         if (Critical is null)
@@ -200,3 +244,4 @@ public sealed record ResultMedicallyValid(Guid ResultId, Guid TenantId, Guid Vis
 public sealed record ResultRerunOrdered(Guid ResultId, Guid TenantId, Guid VisitId, Guid VisitTestId, string Reason) : DomainEvent, ITenantEvent;
 public sealed record CriticalValueFlagged(Guid ResultId, Guid TenantId, Guid VisitId, string TestCode, decimal Value, string Unit) : DomainEvent, ITenantEvent;
 public sealed record CriticalValueClosed(Guid ResultId, Guid TenantId, Guid VisitId, string TestCode) : DomainEvent, ITenantEvent;
+public sealed record ResultAmended(Guid ResultId, Guid TenantId, Guid VisitId, string TestCode, decimal OldValue, decimal NewValue) : DomainEvent, ITenantEvent;

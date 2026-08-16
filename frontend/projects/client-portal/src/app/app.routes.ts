@@ -20,6 +20,10 @@ export const appRoutes: Routes = [
         loadComponent: () => import('./features/patients/patients.component').then(m => m.PatientsComponent),
       },
       {
+        path: 'patients/:id',
+        loadComponent: () => import('./features/patients/patient-360.component').then(m => m.Patient360Component),
+      },
+      {
         path: 'visits/new',
         loadComponent: () => import('./features/visits/visit-register.component').then(m => m.VisitRegisterComponent),
       },

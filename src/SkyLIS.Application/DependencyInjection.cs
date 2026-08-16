@@ -37,6 +37,7 @@ public static class DependencyInjection
         AddRealtimeForwarder<Domain.Results.ResultTechnicallyValid>(services, "dashboard", "validation");
         AddRealtimeForwarder<Domain.Results.ResultMedicallyValid>(services, "dashboard", "validation", "reports");
         AddRealtimeForwarder<Domain.Results.ResultRerunOrdered>(services, "dashboard", "results", "validation");
+        AddRealtimeForwarder<Domain.Results.ResultAmended>(services, "dashboard", "validation", "reports");
         AddRealtimeForwarder<Domain.Results.CriticalValueFlagged>(services, "dashboard", "critical");
         AddRealtimeForwarder<Domain.Results.CriticalValueClosed>(services, "dashboard", "critical");
         AddRealtimeForwarder<Domain.Reports.ReportRendered>(services, "dashboard", "reports");

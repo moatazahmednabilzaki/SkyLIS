@@ -1,11 +1,12 @@
 import { DatePipe } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { PatientsFacade } from './patients.facade';
 
 @Component({
   selector: 'app-patients',
-  imports: [ReactiveFormsModule, DatePipe],
+  imports: [ReactiveFormsModule, DatePipe, RouterLink],
   template: `
     <h1 class="pt">Patients</h1>
     <p class="sub">M04 · P04.1 — search by mobile number, part of name, national ID, or patient number.</p>
@@ -32,7 +33,7 @@ import { PatientsFacade } from './patients.facade';
             with a unique patient number and reused on every later visit.</div>
         } @else {
           <table class="t">
-            <tr><th>Patient No.</th><th>Name</th><th>Mobile</th><th>Last visit</th><th>Age</th><th>Gender</th></tr>
+            <tr><th>Patient No.</th><th>Name</th><th>Mobile</th><th>Last visit</th><th>Age</th><th>Gender</th><th></th></tr>
             @for (p of facade.results(); track p.id) {
               <tr>
                 <td class="mono">{{ p.patientNumber }}</td>
@@ -41,6 +42,7 @@ import { PatientsFacade } from './patients.facade';
                 <td>{{ p.lastVisitAtUtc ? (p.lastVisitAtUtc | date: 'yyyy-MM-dd') : '—' }}</td>
                 <td>{{ p.age }}</td>
                 <td>{{ p.gender }}</td>
+                <td><a class="btn sm ghost" [routerLink]="['/patients', p.id]">Patient 360 →</a></td>
               </tr>
             }
           </table>

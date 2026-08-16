@@ -467,6 +467,19 @@ Step 'dashboard KPIs reconcile with the day''s activity (P23.1)' {
     if (($d.pipeline | Where-Object stage -eq 'Reported').count -ne 2) { throw 'pipeline Reported mismatch' }
 } | Out-Null
 
+Step 'analytics detail: TAT, financial, quality (P23.2-P23.4)' {
+    $d = Invoke-RestMethod -Uri "$api/analytics/detail" -Headers $ha
+    $glu = $d.tat | Where-Object testCode -eq 'GLU-F'
+    if (-not $glu -or $glu.count -lt 3) { throw "expected >=3 GLU-F sign-outs, got $($glu.count)" }
+    if ($glu.medianMinutes -lt 0) { throw 'median TAT cannot be negative' }
+    if ($glu.p90Minutes -lt $glu.medianMinutes) { throw 'P90 cannot be below the median' }
+    if (-not ($d.financial.byMethod | Where-Object key -eq 'cash')) { throw 'cash missing from method breakdown' }
+    if (-not ($d.financial.byBranch | Where-Object key -eq 'MAIN')) { throw 'MAIN missing from branch breakdown' }
+    if ($d.quality.samplesRejected -lt 1) { throw 'expected at least 1 rejection' }
+    if (-not ($d.quality.byReason | Where-Object reasonCode -eq 'HEMOLYZED')) { throw 'HEMOLYZED missing from reasons' }
+    if ($d.quality.criticalValues -lt 2) { throw "expected >=2 criticals, got $($d.quality.criticalValues)" }
+} | Out-Null
+
 # ---------- Outbox dispatcher: reliable events -> metering & notifications ----------
 Step 'outbox drains (at-least-once dispatch)' {
     $deadline = (Get-Date).AddSeconds(30)

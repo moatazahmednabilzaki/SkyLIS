@@ -100,4 +100,103 @@ internal sealed class AnalyticsQueries : IAnalyticsQueries
                 new PipelineStageDto("Reported", visitAgg?.Reported ?? 0),
             ]);
     }
+
+    public async Task<AnalyticsDetailDto> DetailAsync(DateOnly fromDay, DateOnly toDay, CancellationToken ct = default)
+    {
+        var fromUtc = new DateTimeOffset(fromDay.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+        var toUtc = new DateTimeOffset(toDay.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero).AddDays(1);
+
+        // ---- P23.2: register -> medical sign-out TAT per test ----
+        var tatRows = await _db.TestResults.AsNoTracking()
+            .Where(r => r.Status == ResultStatus.MedicallyValid
+                        && r.MedicallyValidatedAtUtc != null
+                        && r.MedicallyValidatedAtUtc >= fromUtc && r.MedicallyValidatedAtUtc < toUtc)
+            .Join(_db.Visits.AsNoTracking(), r => r.VisitId, v => v.Id,
+                (r, v) => new { r.TestCode, r.MedicallyValidatedAtUtc, v.RegisteredAtUtc })
+            .ToListAsync(ct);
+
+        var departments = await _db.LabTests.AsNoTracking()
+            .Select(t => new { t.Code, t.Department })
+            .ToListAsync(ct);
+        var departmentByCode = departments
+            .GroupBy(t => t.Code).ToDictionary(g => g.Key, g => g.First().Department);
+
+        var tat = tatRows
+            .GroupBy(r => r.TestCode)
+            .Select(g =>
+            {
+                var minutes = g.Select(r => (r.MedicallyValidatedAtUtc!.Value - r.RegisteredAtUtc).TotalMinutes)
+                    .OrderBy(m => m).ToList();
+                return new TatRowDto(
+                    g.Key, departmentByCode.GetValueOrDefault(g.Key, "?"), minutes.Count,
+                    Math.Round(Percentile(minutes, 0.5), 1), Math.Round(Percentile(minutes, 0.9), 1));
+            })
+            .OrderByDescending(r => r.Count)
+            .ToList();
+
+        // ---- P23.3: financial breakdown (net of refunds) ----
+        var payments = await _db.Invoices.AsNoTracking()
+            .SelectMany(i => i.Payments, (i, p) => new { i.BranchId, Payment = p })
+            .Where(x => x.Payment.CapturedAtUtc >= fromUtc && x.Payment.CapturedAtUtc < toUtc)
+            .Select(x => new
+            {
+                x.BranchId, Amount = x.Payment.Amount.Amount, x.Payment.Amount.Currency,
+                x.Payment.Method, x.Payment.IsRefund, x.Payment.CapturedAtUtc,
+            })
+            .ToListAsync(ct);
+        var branchCodes = await _db.Branches.AsNoTracking()
+            .Select(b => new { b.Id, b.Code }).ToListAsync(ct);
+        var codeById = branchCodes.ToDictionary(b => b.Id, b => b.Code);
+
+        var totalCaptured = payments.Where(p => !p.IsRefund).Sum(p => p.Amount);
+        var totalRefunded = payments.Where(p => p.IsRefund).Sum(p => p.Amount);
+        var financial = new FinancialAnalysisDto(
+            totalCaptured, totalRefunded, totalCaptured - totalRefunded,
+            payments.Select(p => p.Currency).FirstOrDefault() ?? "EGP",
+            payments.GroupBy(p => p.Method)
+                .Select(g => new MoneyByKeyDto(g.Key, g.Sum(p => p.IsRefund ? -p.Amount : p.Amount)))
+                .OrderByDescending(m => m.Amount).ToList(),
+            payments.GroupBy(p => codeById.GetValueOrDefault(p.BranchId, "?"))
+                .Select(g => new MoneyByKeyDto(g.Key, g.Sum(p => p.IsRefund ? -p.Amount : p.Amount)))
+                .OrderByDescending(m => m.Amount).ToList(),
+            payments.GroupBy(p => DateOnly.FromDateTime(p.CapturedAtUtc.UtcDateTime))
+                .OrderBy(g => g.Key)
+                .Select(g => new MoneyByKeyDto(
+                    g.Key.ToString("yyyy-MM-dd"), g.Sum(p => p.IsRefund ? -p.Amount : p.Amount)))
+                .ToList());
+
+        // ---- P23.4: pre-analytic & analytic quality ----
+        var samples = await _db.Visits.AsNoTracking()
+            .SelectMany(v => v.Samples)
+            .Where(s => s.State != SampleState.Reserved && s.State != SampleState.ConditionPending)
+            .Select(s => new { s.State, s.RejectionReasonCode })
+            .ToListAsync(ct);
+        var rejected = samples.Where(s => s.State == SampleState.Rejected).ToList();
+        var criticals = await _db.TestResults.AsNoTracking()
+            .CountAsync(r => r.Critical != null, ct);
+        var criticalsClosed = await _db.TestResults.AsNoTracking()
+            .CountAsync(r => r.Critical != null && r.Critical.State == CriticalState.Closed, ct);
+        var amended = await _db.TestResults.AsNoTracking().CountAsync(r => r.IsAmended, ct);
+        var reruns = await _db.TestResults.AsNoTracking()
+            .CountAsync(r => r.Status == ResultStatus.RerunOrdered, ct);
+
+        var quality = new QualityAnalysisDto(
+            samples.Count, rejected.Count,
+            samples.Count == 0 ? 0 : Math.Round(100.0 * rejected.Count / samples.Count, 1),
+            rejected.GroupBy(s => s.RejectionReasonCode ?? "?")
+                .Select(g => new RejectionReasonDto(g.Key, g.Count()))
+                .OrderByDescending(r => r.Count).ToList(),
+            criticals, criticalsClosed, amended, reruns);
+
+        return new AnalyticsDetailDto(fromDay, toDay, tat, financial, quality);
+    }
+
+    private static double Percentile(IReadOnlyList<double> ordered, double percentile)
+    {
+        if (ordered.Count == 0) return 0;
+        var rank = percentile * (ordered.Count - 1);
+        var low = (int)Math.Floor(rank);
+        var high = (int)Math.Ceiling(rank);
+        return low == high ? ordered[low] : ordered[low] + (rank - low) * (ordered[high] - ordered[low]);
+    }
 }

@@ -16,6 +16,10 @@ export const appRoutes: Routes = [
         loadComponent: () => import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent),
       },
       {
+        path: 'analytics',
+        loadComponent: () => import('./features/dashboard/analytics.component').then(m => m.AnalyticsComponent),
+      },
+      {
         path: 'patients',
         loadComponent: () => import('./features/patients/patients.component').then(m => m.PatientsComponent),
       },

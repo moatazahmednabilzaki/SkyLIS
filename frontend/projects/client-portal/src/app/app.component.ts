@@ -86,6 +86,7 @@ interface GlobalSearch {
         <a routerLink="/critical" routerLinkActive="on">🚨 Critical Values</a>
         <a routerLink="/reports" routerLinkActive="on">📄 Reporting</a>
         <div class="group">QUALITY</div>
+        <a routerLink="/analytics" routerLinkActive="on">📈 Analytics</a>
         <a routerLink="/audit" routerLinkActive="on">🔗 Audit Trail</a>
         <div class="group">ADMINISTRATION</div>
         <a routerLink="/users" routerLinkActive="on">🔐 Users &amp; Roles</a>

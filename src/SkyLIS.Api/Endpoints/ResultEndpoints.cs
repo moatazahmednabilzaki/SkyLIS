@@ -20,6 +20,11 @@ public static class ResultEndpoints
             sender.Send(new SkyLIS.Application.Analytics.GetDashboardQuery(), ct))
             .RequireAuthorization().WithTags("Client Portal — Analytics (M23)");
 
+        // M23 analysis pages: TAT (P23.2), financial (P23.3), quality (P23.4)
+        group.MapGet("/analytics/detail", (ISender sender, CancellationToken ct) =>
+            sender.Send(new SkyLIS.Application.Analytics.GetAnalyticsDetailQuery(), ct))
+            .RequireAuthorization().WithTags("Client Portal — Analytics (M23)");
+
         // FR-SYS-001 audit trail explorer + tamper-evidence verification
         var audit = group.MapGroup("/audit").RequireAuthorization().WithTags("Client Portal — Audit Trail");
         audit.MapGet("/events", (ISender sender, string? entityType, string? entityId, int? take, CancellationToken ct) =>

@@ -54,7 +54,7 @@ Clean Architecture per the Enterprise Application Architect standard — depende
 docker compose up -d          # PostgreSQL 17
 dotnet ef database update --project src/SkyLIS.Infrastructure --startup-project src/SkyLIS.Api
 dotnet run --project src/SkyLIS.Api
-dotnet test                   # 45 tests
+dotnet test                   # 96 unit + architecture tests
 ```
 
 After migrations, apply `src/SkyLIS.Infrastructure/Persistence/Scripts/enable-rls.sql` for Row-Level Security.
@@ -65,8 +65,8 @@ Angular 19 workspace at `frontend/` with two standalone applications (Signals, t
 
 | App | URL (dev) | Contents |
 |---|---|---|
-| `admin-portal` | http://localhost:4201 | Platform console (dark theme): tenant directory with per-tenant usage meters (FR-SYS-011), provisioning with the initial Tenant Admin account, and platform health (outbox pipeline status) |
-| `client-portal` | http://localhost:4300 | Tenant app: credential sign-in, dashboard, patient search/registration, visit-registration wizard, visit details with sample collect/receive/reject, the merged M08 Reception & Phlebotomist worklists (reservations, mandatory patient-information step, collection queue), payment capture, M09 — results entry workbench, technical/medical validation with e-signature, critical-values console; M10 — reporting worklist with interim/final rendering, delivery, and public hash verification; M23 — live executive dashboard; the FR-SYS-001 audit-trail explorer with hash-chain integrity verification; all live pages refresh in real time over SignalR (FR-SYS-010) |
+| `admin-portal` | http://localhost:4201 | Platform console (dark theme): tenant directory with per-tenant usage meters (FR-SYS-011) and lifecycle actions (activate / suspend / resume / offboard — suspended tenants cannot sign in), provisioning with the initial Tenant Admin account, country packs (P01.4 — seed each new tenant's taxonomy, FR-TEN-040), master data packs (P01.7 — platform test catalogue with push-to-all-tenants, FR-MDM-071), and platform health (outbox pipeline status) |
+| `client-portal` | http://localhost:4300 | Tenant app: credential sign-in, dashboard, global search (Ctrl+K, FR-SYS-008), patient search/registration, Patient 360 (P04.3) with cumulative result trends (P10.3) and result amendments (P09.5), visit-registration wizard with branch selection and a real test picker, visit details with sample collect/receive/reject, cancellation with automatic credit note, and attachments (FR-SYS-007); Branches & Departments (P03.2 — per-branch number series), the merged M08 Reception & Phlebotomist worklists, payment capture with discounts/refunds and the Cashier & Day Close Z-report (P17.1/P17.2); M09 — results entry workbench, technical/medical validation with e-signature, critical-values console; M10 — reporting worklist with interim/final/amended rendering, delivery, and public hash verification; M23 — live executive dashboard; the FR-SYS-001 audit-trail explorer with hash-chain integrity verification; users & roles with lock/unlock/deactivate, password reset, and self-service password change (§4.3); all live pages refresh in real time over SignalR (FR-SYS-010) |
 
 ```bash
 cd frontend

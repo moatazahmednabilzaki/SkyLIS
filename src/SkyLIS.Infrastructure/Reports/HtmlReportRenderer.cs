@@ -90,6 +90,8 @@ internal sealed class HtmlReportRenderer : IReportRenderer
               {{rows}}
             </table>
             <div class="foot">
+              {{(content.FooterNote is null ? "" : $"<div><b>{WebUtility.HtmlEncode(content.FooterNote)}</b></div>")}}
+              {{(content.FooterNoteAr is null ? "" : $"<div dir=\"rtl\"><b>{WebUtility.HtmlEncode(content.FooterNoteAr)}</b></div>")}}
               Electronically signed results (FR-SYS-002). Verify authenticity without exposing content:
               scan the report QR or open /api/v1/public/reports/&lt;id&gt;/verify — the content hash is printed on issue and never changes.
               Sky LIS · one finalized report per visit is the accession of record.

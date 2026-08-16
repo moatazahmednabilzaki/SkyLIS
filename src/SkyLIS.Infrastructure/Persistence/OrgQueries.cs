@@ -38,6 +38,57 @@ internal sealed class CountryPackQueries : ICountryPackQueries
     }
 }
 
+internal sealed class TenantSettingRepository : ITenantSettingRepository
+{
+    private readonly SkyLisDbContext _db;
+    public TenantSettingRepository(SkyLisDbContext db) => _db = db;
+
+    public Task<Domain.Org.TenantSetting?> GetByKeyAsync(string key, CancellationToken ct = default) =>
+        _db.TenantSettings.FirstOrDefaultAsync(s => s.Key == key, ct);
+
+    public void Add(Domain.Org.TenantSetting setting) => _db.TenantSettings.Add(setting);
+}
+
+internal sealed class TenantSettingQueries : ITenantSettingQueries
+{
+    private readonly SkyLisDbContext _db;
+    public TenantSettingQueries(SkyLisDbContext db) => _db = db;
+
+    public async Task<IReadOnlyList<TenantSettingDto>> ListAsync(CancellationToken ct = default) =>
+        await _db.TenantSettings.AsNoTracking()
+            .OrderBy(s => s.Key)
+            .Select(s => new TenantSettingDto(s.Key, s.Value, s.UpdatedAtUtc))
+            .ToListAsync(ct);
+
+    public Task<string?> GetValueAsync(string key, CancellationToken ct = default) =>
+        _db.TenantSettings.AsNoTracking()
+            .Where(s => s.Key == key)
+            .Select(s => (string?)s.Value)
+            .FirstOrDefaultAsync(ct);
+}
+
+internal sealed class SetupStatusQueries : ISetupStatusQueries
+{
+    private readonly SkyLisDbContext _db;
+    public SetupStatusQueries(SkyLisDbContext db) => _db = db;
+
+    public async Task<SetupStatusDto> StatusAsync(CancellationToken ct = default)
+    {
+        var branches = await _db.Branches.CountAsync(b => b.IsActive, ct);
+        var departments = await _db.Branches.SelectMany(b => b.Departments).CountAsync(ct);
+        var sampleTypes = await _db.SampleTypes.CountAsync(ct);
+        var activeTests = await _db.LabTests.CountAsync(t => t.Status == Domain.Catalog.TestStatus.Active, ct);
+        var panels = await _db.Panels.CountAsync(p => p.IsActive, ct);
+        var users = await _db.Users.CountAsync(u => u.Status != Domain.Users.UserStatus.Deactivated, ct);
+        var settings = await _db.TenantSettings.CountAsync(ct);
+
+        return new SetupStatusDto(
+            branches, departments, sampleTypes, activeTests, panels, users, settings,
+            CatalogReady: sampleTypes > 0 && activeTests > 0,
+            TeamReady: users > 1);
+    }
+}
+
 internal sealed class PanelQueries : IPanelQueries
 {
     private readonly SkyLisDbContext _db;

@@ -75,6 +75,10 @@ export const appRoutes: Routes = [
         path: 'cashier',
         loadComponent: () => import('./features/billing/cashier.component').then(m => m.CashierComponent),
       },
+      {
+        path: 'setup',
+        loadComponent: () => import('./features/org/setup.component').then(m => m.SetupComponent),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

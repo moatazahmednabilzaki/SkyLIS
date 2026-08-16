@@ -41,6 +41,7 @@ public static class DependencyInjection
         services.AddScoped<IMasterTestRepository, MasterTestRepository>();
         services.AddScoped<IAttachmentRepository, AttachmentRepository>();
         services.AddScoped<IBranchRepository, BranchRepository>();
+        services.AddScoped<Application.Org.ITenantSettingRepository, TenantSettingRepository>();
         services.AddScoped<IPatientRepository, PatientRepository>();
         services.AddScoped<Application.Patients.IDataSubjectRequestRepository, DataSubjectRequestRepository>();
         services.AddScoped<Application.Patients.IPatientMergeStore, PatientMergeStore>();
@@ -57,6 +58,8 @@ public static class DependencyInjection
         // Read side
         services.AddScoped<ITenantQueries, TenantQueries>();
         services.AddScoped<Application.Org.IBranchQueries, BranchQueries>();
+        services.AddScoped<Application.Org.ITenantSettingQueries, TenantSettingQueries>();
+        services.AddScoped<Application.Org.ISetupStatusQueries, SetupStatusQueries>();
         services.AddScoped<Application.Platform.ICountryPackQueries, CountryPackQueries>();
         services.AddScoped<Application.Catalog.ICatalogQueries, CatalogQueries>();
         services.AddScoped<Application.Catalog.IPanelQueries, PanelQueries>();

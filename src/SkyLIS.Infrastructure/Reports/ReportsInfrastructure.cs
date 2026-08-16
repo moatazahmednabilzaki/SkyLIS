@@ -94,6 +94,14 @@ internal sealed class ReportQueries : IReportQueries
             .Select(t => t.LegalName)
             .FirstOrDefaultAsync(ct) ?? "Sky LIS Laboratory";
 
+        // FR-SYS-004: report branding settings (header override + footer notes).
+        var settings = await _db.Set<Domain.Org.TenantSetting>().AsNoTracking()
+            .Where(s => s.Key == "report.headernameoverride"
+                        || s.Key == "report.footernote" || s.Key == "report.footernotear")
+            .ToDictionaryAsync(s => s.Key, s => s.Value, ct);
+        if (settings.TryGetValue("report.headernameoverride", out var headerOverride))
+            tenantName = headerOverride;
+
         var results = await _db.TestResults.AsNoTracking()
             .Where(r => r.VisitId == visitId && r.Status == ResultStatus.MedicallyValid)
             .OrderBy(r => r.TestCode)
@@ -135,7 +143,9 @@ internal sealed class ReportQueries : IReportQueries
                     r.TestCode, r.Value, r.Unit, r.Flag.ToString(),
                     range.Low, range.High, r.InterpretiveComment, r.SignatureHash ?? "",
                     r.IsAmended, r.ValueBeforeAmendment, r.AmendmentReason);
-            }).ToList());
+            }).ToList(),
+            settings.GetValueOrDefault("report.footernote"),
+            settings.GetValueOrDefault("report.footernotear"));
     }
 
     public Task<bool> HasOpenCriticalAsync(Guid visitId, CancellationToken ct = default) =>

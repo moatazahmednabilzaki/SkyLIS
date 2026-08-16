@@ -16,7 +16,8 @@ public sealed record RenderedReportDto(
 public sealed record ReportContent(
     string TenantLegalName, string PatientFullName, string PatientNumber, string Gender, int Age,
     string VisitNumber, DateTimeOffset VisitRegisteredAtUtc,
-    IReadOnlyList<ReportResultLine> Results);
+    IReadOnlyList<ReportResultLine> Results,
+    string? FooterNote = null, string? FooterNoteAr = null);
 
 public sealed record ReportResultLine(
     string TestCode, decimal Value, string Unit, string Flag,

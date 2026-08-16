@@ -44,6 +44,7 @@ public sealed class SkyLisDbContext : DbContext, IUnitOfWork
     public DbSet<MasterTest> MasterTests => Set<MasterTest>();
     public DbSet<Domain.Files.Attachment> Attachments => Set<Domain.Files.Attachment>();
     public DbSet<Branch> Branches => Set<Branch>();
+    public DbSet<TenantSetting> TenantSettings => Set<TenantSetting>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Patient> Patients => Set<Patient>();
     public DbSet<DataSubjectRequest> DataSubjectRequests => Set<DataSubjectRequest>();
@@ -79,6 +80,7 @@ public sealed class SkyLisDbContext : DbContext, IUnitOfWork
 
         // Defense-in-depth tenant filter on every tenant-owned aggregate root.
         modelBuilder.Entity<Branch>().HasQueryFilter(b => b.TenantId == _tenantContext.TenantId);
+        modelBuilder.Entity<TenantSetting>().HasQueryFilter(s => s.TenantId == _tenantContext.TenantId);
         modelBuilder.Entity<Domain.Files.Attachment>().HasQueryFilter(a => a.TenantId == _tenantContext.TenantId);
         modelBuilder.Entity<User>().HasQueryFilter(u => u.TenantId == _tenantContext.TenantId);
         modelBuilder.Entity<Patient>().HasQueryFilter(p => p.TenantId == _tenantContext.TenantId);

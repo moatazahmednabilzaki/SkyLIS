@@ -940,6 +940,59 @@ Step 'platform monitors tenant B users read-only (P01.5)' {
     if (@($monitored).Count -lt 2) { throw "expected >=2 monitored users, got $(@($monitored).Count)" }
 } | Out-Null
 
+# ---------- FR-SYS-004 settings / P03.1 setup wizard / FR-SYS-009 CSV ----------
+Step 'tenant settings: report footer + rejection vocabulary (FR-SYS-004)' {
+    Invoke-RestMethod -Method Put -Uri "$api/org/settings" -Headers $ha -ContentType 'application/json' `
+        -Body '{"key":"report.footerNote","value":"Accredited by EGAC - Certificate 12345"}' | Out-Null
+    Invoke-RestMethod -Method Put -Uri "$api/org/settings" -Headers $ha -ContentType 'application/json' `
+        -Body '{"key":"rejection.reasons","value":"HEMOLYZED,CLOTTED,QNS"}' | Out-Null
+    $list = Invoke-RestMethod -Uri "$api/org/settings" -Headers $ha
+    if (@($list).Count -lt 2) { throw "expected >=2 settings, got $(@($list).Count)" }
+} | Out-Null
+
+Step 'reports render with the tenant footer note (FR-SYS-004)' {
+    $r = Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit.visitId)/reports" -Headers $ha `
+        -ContentType 'application/json' -Body '{"kind":"Interim"}'
+    $content = Invoke-WebRequest -Uri "$api/reports/$($r.reportId)/content" -Headers $ha -UseBasicParsing
+    if ($content.Content -notmatch 'Accredited by EGAC') { throw 'footer note missing from the artifact' }
+} | Out-Null
+
+$v7sample = $visit7.samples[0].sampleId
+Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit7.visitId)/samples/$v7sample/collect" -Headers $ha | Out-Null
+ExpectError 'rejection outside the tenant vocabulary rejected (P07.3)' 422 {
+    Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit7.visitId)/samples/$v7sample/reject" -Headers $ha `
+        -ContentType 'application/json' -Body '{"reasonCode":"BADCODE"}'
+}
+Step 'rejection with a coded vocabulary reason passes' {
+    Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit7.visitId)/samples/$v7sample/reject" -Headers $ha `
+        -ContentType 'application/json' -Body '{"reasonCode":"CLOTTED"}' | Out-Null
+} | Out-Null
+
+Step 'catalog CSV export contains the catalogue (FR-SYS-009)' {
+    $csv = (Invoke-WebRequest -Uri "$api/catalog/tests/export.csv" -Headers $ha -UseBasicParsing).Content
+    if ($csv -notmatch 'GLU-F') { throw 'export missing GLU-F' }
+    if ($csv -notmatch 'Code,Name,Department') { throw 'export header wrong' }
+} | Out-Null
+
+Step 'catalog CSV import: creates drafts, skips existing codes (FR-SYS-009)' {
+    $csvBody = "Code,Name,Department,SampleTypeName,ConditionName,Price,Currency`nNA,Sodium,Chemistry,Serum,Random,60,EGP`nK,Potassium,Chemistry,Serum,Random,60,EGP`nGLU-F,Duplicate glucose,Chemistry,Serum,Random,10,EGP"
+    $r = Invoke-RestMethod -Method Post -Uri "$api/catalog/tests/import" -Headers $ha `
+        -ContentType 'application/json' -Body (@{ csv = $csvBody } | ConvertTo-Json)
+    if ($r.created -ne 2 -or $r.skipped -ne 1) { throw "expected 2 created / 1 skipped, got $($r.created)/$($r.skipped)" }
+    if (@($r.errors).Count -ne 0) { throw "unexpected errors: $($r.errors -join '; ')" }
+    $drafts = Invoke-RestMethod -Uri "$api/catalog/tests?status=Draft" -Headers $ha
+    if (-not ($drafts | Where-Object code -eq 'NA')) { throw 'imported NA not in drafts' }
+} | Out-Null
+
+Step 'setup wizard checklist is green (P03.1)' {
+    $s = Invoke-RestMethod -Uri "$api/org/setup-status" -Headers $ha
+    if ($s.branches -lt 2) { throw "expected >=2 branches, got $($s.branches)" }
+    if (-not $s.catalogReady) { throw 'catalog not ready' }
+    if (-not $s.teamReady) { throw 'team not ready' }
+    if ($s.settings -lt 2) { throw 'settings missing' }
+    if ($s.panels -lt 1) { throw 'panels missing' }
+} | Out-Null
+
 # ---------- FR-SYS-001: Audit trail & tamper evidence ----------
 Step 'audit trail recorded the flow (who/what/when, before/after)' {
     $events = Invoke-RestMethod -Uri "$api/audit/events?take=500" -Headers $ha

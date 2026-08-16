@@ -171,6 +171,7 @@ public static class OrgEndpoints
     public sealed record CreateBranchRequest(string Code, string Name, string? Address, string? Phone);
     public sealed record AddDepartmentRequest(string Code, string Name);
     public sealed record SetBranchActiveRequest(bool IsActive);
+    public sealed record SetSettingRequest(string Key, string Value);
 
     public static RouteGroupBuilder MapOrgEndpoints(this RouteGroupBuilder group)
     {
@@ -201,6 +202,24 @@ public static class OrgEndpoints
             await sender.Send(new SkyLIS.Application.Org.SetBranchActiveCommand(branchId, request.IsActive), ct);
             return Results.NoContent();
         });
+
+        // FR-SYS-004: tenant configuration (report branding, rejection vocabulary, …)
+        var settings = group.MapGroup("/org/settings").RequireAuthorization()
+            .WithTags("Client Portal — Settings (FR-SYS-004)");
+
+        settings.MapGet("/", (ISender sender, CancellationToken ct) =>
+            sender.Send(new SkyLIS.Application.Org.ListTenantSettingsQuery(), ct));
+
+        settings.MapPut("/", async (ISender sender, SetSettingRequest request, CancellationToken ct) =>
+        {
+            await sender.Send(new SkyLIS.Application.Org.SetTenantSettingCommand(request.Key, request.Value), ct);
+            return Results.NoContent();
+        });
+
+        // P03.1: guided setup checklist
+        group.MapGet("/org/setup-status", (ISender sender, CancellationToken ct) =>
+            sender.Send(new SkyLIS.Application.Org.GetSetupStatusQuery(), ct))
+            .RequireAuthorization().WithTags("Client Portal — Setup Wizard (P03.1)");
 
         return group;
     }
@@ -336,6 +355,7 @@ public static class CatalogEndpoints
     public sealed record ActivatePushedTestRequest(decimal Price, string Currency);
     public sealed record CreatePanelRequest(
         string Code, string Name, decimal Price, string Currency, List<Guid> TestIds);
+    public sealed record ImportTestsRequest(string Csv);
     public sealed record CreateSampleTypeRequest(string Name, string ContainerName, List<ConditionInput> Conditions);
     public sealed record ResultSchemaRequest(
         string Unit, decimal? RefLow, decimal? RefHigh, decimal? CriticalLow, decimal? CriticalHigh,
@@ -372,6 +392,16 @@ public static class CatalogEndpoints
 
         catalog.MapGet("/", (ISender sender, string? status, CancellationToken ct) =>
             sender.Send(new ListTestsQuery(status), ct));
+
+        // FR-SYS-009: CSV round-trip (export header == import header)
+        catalog.MapGet("/export.csv", async (ISender sender, CancellationToken ct) =>
+        {
+            var csv = await sender.Send(new ExportTestsQuery(), ct);
+            return Results.Text(csv, "text/csv", System.Text.Encoding.UTF8);
+        });
+
+        catalog.MapPost("/import", (ISender sender, ImportTestsRequest request, CancellationToken ct) =>
+            sender.Send(new ImportTestsCommand(request.Csv), ct));
 
         catalog.MapPost("/{testId:guid}/submit", async (ISender sender, Guid testId, CancellationToken ct) =>
         {

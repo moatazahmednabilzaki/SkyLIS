@@ -66,6 +66,20 @@ internal sealed class DepartmentConfig : IEntityTypeConfiguration<Department>
     }
 }
 
+internal sealed class TenantSettingConfig : IEntityTypeConfiguration<TenantSetting>
+{
+    public void Configure(EntityTypeBuilder<TenantSetting> b)
+    {
+        b.ToTable("tenant_settings", "org");
+        b.HasKey(s => s.Id);
+        b.Property(s => s.TenantId).IsRequired();
+        b.Property(s => s.Key).HasMaxLength(80).IsRequired();
+        b.HasIndex(s => new { s.TenantId, s.Key }).IsUnique();
+        b.Property(s => s.Value).HasMaxLength(2000).IsRequired();
+        b.Property<uint>("xmin").IsRowVersion();
+    }
+}
+
 internal sealed class CountryPackConfig : IEntityTypeConfiguration<CountryPack>
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.General);

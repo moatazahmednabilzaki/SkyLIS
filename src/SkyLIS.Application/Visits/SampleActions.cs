@@ -75,11 +75,13 @@ internal sealed class RejectSampleValidator : AbstractValidator<RejectSampleComm
 internal sealed class RejectSampleHandler : IRequestHandler<RejectSampleCommand, Guid>
 {
     private readonly IVisitRepository _visits;
+    private readonly Org.ITenantSettingQueries _settings;
     private readonly IClock _clock;
 
-    public RejectSampleHandler(IVisitRepository visits, IClock clock)
+    public RejectSampleHandler(IVisitRepository visits, Org.ITenantSettingQueries settings, IClock clock)
     {
         _visits = visits;
+        _settings = settings;
         _clock = clock;
     }
 
@@ -87,6 +89,16 @@ internal sealed class RejectSampleHandler : IRequestHandler<RejectSampleCommand,
     {
         var visit = await _visits.GetAsync(request.VisitId, ct)
             ?? throw new NotFoundException("Visit", request.VisitId);
+
+        // FR-SYS-004: when the tenant defines a rejection vocabulary, only coded reasons pass.
+        var vocabulary = await _settings.GetValueAsync("rejection.reasons", ct);
+        if (vocabulary is not null)
+        {
+            var allowed = vocabulary.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (!allowed.Contains(request.ReasonCode.Trim(), StringComparer.OrdinalIgnoreCase))
+                throw new Domain.Common.DomainException(
+                    $"Rejection reason '{request.ReasonCode}' is not in the tenant vocabulary: {vocabulary}.");
+        }
 
         var rejected = visit.Samples.First(s => s.Id == request.SampleId);
         var recollection = visit.RejectSample(

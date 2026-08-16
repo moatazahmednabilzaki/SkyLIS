@@ -46,6 +46,7 @@ public sealed class SkyLisDbContext : DbContext, IUnitOfWork
     public DbSet<Branch> Branches => Set<Branch>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Patient> Patients => Set<Patient>();
+    public DbSet<DataSubjectRequest> DataSubjectRequests => Set<DataSubjectRequest>();
     public DbSet<LabTest> LabTests => Set<LabTest>();
     public DbSet<SampleType> SampleTypes => Set<SampleType>();
     public DbSet<Panel> Panels => Set<Panel>();
@@ -81,6 +82,7 @@ public sealed class SkyLisDbContext : DbContext, IUnitOfWork
         modelBuilder.Entity<Domain.Files.Attachment>().HasQueryFilter(a => a.TenantId == _tenantContext.TenantId);
         modelBuilder.Entity<User>().HasQueryFilter(u => u.TenantId == _tenantContext.TenantId);
         modelBuilder.Entity<Patient>().HasQueryFilter(p => p.TenantId == _tenantContext.TenantId);
+        modelBuilder.Entity<DataSubjectRequest>().HasQueryFilter(r => r.TenantId == _tenantContext.TenantId);
         modelBuilder.Entity<LabTest>().HasQueryFilter(t => t.TenantId == _tenantContext.TenantId);
         modelBuilder.Entity<SampleType>().HasQueryFilter(s => s.TenantId == _tenantContext.TenantId);
         modelBuilder.Entity<Panel>().HasQueryFilter(p => p.TenantId == _tenantContext.TenantId);

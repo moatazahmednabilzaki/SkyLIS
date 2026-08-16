@@ -18,6 +18,27 @@ export interface RegisterPatientRequest {
   nationalId: string | null;
 }
 
+export interface DuplicateCandidate {
+  id: string;
+  patientNumber: string;
+  fullName: string;
+  mobile: string;
+  dateOfBirth: string; // yyyy-MM-dd
+  lastVisitAtUtc: string | null;
+  visitCount: number;
+}
+
+export interface DuplicateGroup {
+  matchedOn: string;
+  patients: DuplicateCandidate[];
+}
+
+export interface MergePatientsRequest {
+  survivorId: string;
+  duplicateId: string;
+  reason: string;
+}
+
 export interface RegisterVisitRequest {
   patientId: string;
   branchId: string;

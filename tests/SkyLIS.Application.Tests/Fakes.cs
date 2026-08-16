@@ -61,6 +61,9 @@ internal sealed class FakePatientRepository : IPatientRepository
     public Task<bool> NationalIdExistsAsync(string nationalId, CancellationToken ct = default) =>
         Task.FromResult(Items.Any(p => p.NationalId == nationalId));
 
+    public Task<bool> HasOpenClinicalWorkAsync(Guid patientId, CancellationToken ct = default) =>
+        Task.FromResult(false);
+
     public void Add(Patient patient) => Items.Add(patient);
 }
 

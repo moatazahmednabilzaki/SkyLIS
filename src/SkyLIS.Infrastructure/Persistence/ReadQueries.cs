@@ -50,6 +50,8 @@ internal sealed class PatientQueries : IPatientQueries
         }
 
         var rows = await _db.Patients.AsNoTracking()
+            // Merged duplicates and erased records never surface in search (P04.4/P04.5).
+            .Where(p => p.MergedIntoPatientId == null && !p.IsErased)
             .Where(p =>
                 EF.Functions.ILike(p.FullName, like) ||
                 p.PatientNumber == term ||

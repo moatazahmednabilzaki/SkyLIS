@@ -82,7 +82,50 @@ internal sealed class PatientRepository : IPatientRepository
     public Task<bool> NationalIdExistsAsync(string nationalId, CancellationToken ct = default) =>
         _db.Patients.AnyAsync(p => p.NationalId == nationalId, ct);
 
+    public Task<bool> HasOpenClinicalWorkAsync(Guid patientId, CancellationToken ct = default) =>
+        _db.Visits.AnyAsync(v => v.PatientId == patientId
+                                 && v.Status != Domain.Visits.VisitStatus.Reported
+                                 && v.Status != Domain.Visits.VisitStatus.Cancelled
+                                 && v.Status != Domain.Visits.VisitStatus.Closed, ct);
+
     public void Add(Patient patient) => _db.Patients.Add(patient);
+}
+
+internal sealed class DataSubjectRequestRepository : Application.Patients.IDataSubjectRequestRepository
+{
+    private readonly SkyLisDbContext _db;
+    public DataSubjectRequestRepository(SkyLisDbContext db) => _db = db;
+
+    public Task<DataSubjectRequest?> GetAsync(Guid id, CancellationToken ct = default) =>
+        _db.DataSubjectRequests.FirstOrDefaultAsync(r => r.Id == id, ct);
+
+    public void Add(DataSubjectRequest request) => _db.DataSubjectRequests.Add(request);
+}
+
+/// <summary>
+/// P04.4 merge: set-based re-pointing (RLS still applies — the tenant is stamped on the
+/// connection). Audit granularity for the moved rows is the merge record itself; the
+/// patient rows carry the before/after trail.
+/// </summary>
+internal sealed class PatientMergeStore : Application.Patients.IPatientMergeStore
+{
+    private readonly SkyLisDbContext _db;
+    public PatientMergeStore(SkyLisDbContext db) => _db = db;
+
+    public async Task<int> RepointAsync(Guid duplicatePatientId, Guid survivorPatientId, CancellationToken ct = default)
+    {
+        var moved = 0;
+        moved += await _db.Visits
+            .Where(v => v.PatientId == duplicatePatientId)
+            .ExecuteUpdateAsync(s => s.SetProperty(v => v.PatientId, survivorPatientId), ct);
+        moved += await _db.TestResults
+            .Where(r => r.PatientId == duplicatePatientId)
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.PatientId, survivorPatientId), ct);
+        moved += await _db.LabReports
+            .Where(r => r.PatientId == duplicatePatientId)
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.PatientId, survivorPatientId), ct);
+        return moved;
+    }
 }
 
 internal sealed class LabTestRepository : ILabTestRepository

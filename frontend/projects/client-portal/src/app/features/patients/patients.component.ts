@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { DuplicateCandidate, DuplicateGroup } from '../../core/api.types';
 import { PatientsFacade } from './patients.facade';
 
 @Component({
@@ -52,6 +53,36 @@ import { PatientsFacade } from './patients.facade';
     </div>
 
     <div class="card">
+      <div style="display:flex; align-items:center; gap:10px">
+        <h3 style="margin:0">Duplicate merge console (P04.4)</h3>
+        <span style="flex:1"></span>
+        <button class="btn ghost sm" (click)="scanDuplicates()">Scan for duplicates</button>
+      </div>
+      @if (scanned()) {
+        @if (duplicates().length === 0) {
+          <p class="hint" style="margin-top:8px">No duplicate candidates 🎉</p>
+        } @else {
+          @for (g of duplicates(); track g.matchedOn) {
+            <p class="hint" style="margin:10px 0 4px">Matched on <b>{{ g.matchedOn }}</b></p>
+            <table class="t">
+              <tr><th>Patient No.</th><th>Name</th><th>Mobile</th><th>DOB</th><th>Visits</th><th></th></tr>
+              @for (p of g.patients; track p.id) {
+                <tr>
+                  <td class="mono">{{ p.patientNumber }}</td>
+                  <td><b>{{ p.fullName }}</b></td>
+                  <td class="mono">{{ p.mobile }}</td>
+                  <td>{{ p.dateOfBirth }}</td>
+                  <td class="mono">{{ p.visitCount }}</td>
+                  <td><button class="btn sm" (click)="keep(g, p)">Keep this record — merge the rest</button></td>
+                </tr>
+              }
+            </table>
+          }
+        }
+      }
+    </div>
+
+    <div class="card">
       <h3>＋ Register new patient (P04.2)</h3>
       @if (registered()) { <div class="note">Patient registered ✓ — id {{ registered() }}</div> }
       <form [formGroup]="form" (ngSubmit)="register()">
@@ -97,6 +128,9 @@ export class PatientsComponent {
   readonly facade = inject(PatientsFacade);
   private readonly fb = inject(FormBuilder);
 
+  readonly duplicates = this.facade.duplicates;
+  readonly scanned = this.facade.scanned;
+
   readonly term = this.fb.nonNullable.control('', [Validators.required, Validators.minLength(2)]);
   readonly form = this.fb.nonNullable.group({
     fullName: ['', [Validators.required, Validators.minLength(3)]],
@@ -110,6 +144,17 @@ export class PatientsComponent {
 
   search(): void {
     if (this.term.valid) void this.facade.search(this.term.value);
+  }
+
+  scanDuplicates(): void {
+    void this.facade.scanDuplicates();
+  }
+
+  keep(group: DuplicateGroup, survivor: DuplicateCandidate): void {
+    const reason = window.prompt(
+      `Merge ${group.patients.length - 1} duplicate(s) into ${survivor.patientNumber}? Reason (mandatory, audited):`);
+    if (!reason) return;
+    void this.facade.mergeGroupInto(group, survivor, reason);
   }
 
   async register(): Promise<void> {

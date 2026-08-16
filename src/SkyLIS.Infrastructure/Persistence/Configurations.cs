@@ -162,6 +162,21 @@ internal sealed class PatientConfig : IEntityTypeConfiguration<Patient>
     }
 }
 
+internal sealed class DataSubjectRequestConfig : IEntityTypeConfiguration<DataSubjectRequest>
+{
+    public void Configure(EntityTypeBuilder<DataSubjectRequest> b)
+    {
+        b.ToTable("data_subject_requests", "patients");
+        b.HasKey(r => r.Id);
+        b.Property(r => r.TenantId).IsRequired();
+        b.HasIndex(r => new { r.TenantId, r.PatientId });
+        b.Property(r => r.Kind).HasConversion<string>().HasMaxLength(10);
+        b.Property(r => r.Status).HasConversion<string>().HasMaxLength(20);
+        b.Property(r => r.Reason).HasMaxLength(300).IsRequired();
+        b.Property<uint>("xmin").IsRowVersion();
+    }
+}
+
 internal sealed class LabTestConfig : IEntityTypeConfiguration<LabTest>
 {
     public void Configure(EntityTypeBuilder<LabTest> b)

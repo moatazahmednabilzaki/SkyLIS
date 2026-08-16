@@ -2,7 +2,9 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_BASE_URL } from '../../core/config';
-import { PatientSearchResult, RegisterPatientRequest } from '../../core/api.types';
+import {
+  DuplicateGroup, MergePatientsRequest, PatientSearchResult, RegisterPatientRequest,
+} from '../../core/api.types';
 
 /** Centralized API access for the patients feature (EAA: no HTTP in components). */
 @Injectable({ providedIn: 'root' })
@@ -16,5 +18,13 @@ export class PatientsApi {
 
   register(request: RegisterPatientRequest): Observable<{ id: string }> {
     return this.http.post<{ id: string }>(`${API_BASE_URL}/patients`, request);
+  }
+
+  duplicates(): Observable<DuplicateGroup[]> {
+    return this.http.get<DuplicateGroup[]>(`${API_BASE_URL}/patients/duplicates`);
+  }
+
+  merge(request: MergePatientsRequest): Observable<unknown> {
+    return this.http.post(`${API_BASE_URL}/patients/merge`, request);
   }
 }

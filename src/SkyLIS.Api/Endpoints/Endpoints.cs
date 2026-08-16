@@ -210,6 +210,8 @@ public static class PatientEndpoints
 {
     public sealed record RegisterPatientRequest(
         string FullName, SkyLIS.Domain.Patients.Sex Sex, DateOnly DateOfBirth, string Mobile, string? NationalId);
+    public sealed record MergePatientsRequest(Guid SurvivorId, Guid DuplicateId, string Reason);
+    public sealed record DataSubjectReasonRequest(string Reason);
 
     public static RouteGroupBuilder MapPatientEndpoints(this RouteGroupBuilder group)
     {
@@ -226,6 +228,39 @@ public static class PatientEndpoints
         patients.MapGet("/{patientId:guid}/results/cumulative", (
             ISender sender, Guid patientId, string testCode, CancellationToken ct) =>
             sender.Send(new SkyLIS.Application.Results.GetCumulativeQuery(patientId, testCode), ct));
+
+        // P04.4 duplicate merge console
+        patients.MapGet("/duplicates", (ISender sender, CancellationToken ct) =>
+            sender.Send(new FindDuplicatesQuery(), ct));
+
+        patients.MapPost("/merge", async (ISender sender, MergePatientsRequest request, CancellationToken ct) =>
+        {
+            var moved = await sender.Send(new MergePatientsCommand(
+                request.SurvivorId, request.DuplicateId, request.Reason), ct);
+            return Results.Ok(new { movedArtifacts = moved });
+        });
+
+        // P04.5 data-subject requests
+        patients.MapGet("/data-subject-requests", (ISender sender, CancellationToken ct) =>
+            sender.Send(new ListDataSubjectRequestsQuery(), ct));
+
+        patients.MapPost("/{patientId:guid}/export", (
+            ISender sender, Guid patientId, DataSubjectReasonRequest request, CancellationToken ct) =>
+            sender.Send(new ExportPatientDataCommand(patientId, request.Reason), ct));
+
+        patients.MapPost("/{patientId:guid}/erasure-requests", async (
+            ISender sender, Guid patientId, DataSubjectReasonRequest request, CancellationToken ct) =>
+        {
+            var id = await sender.Send(new RequestErasureCommand(patientId, request.Reason), ct);
+            return Results.Created($"/api/v1/patients/data-subject-requests/{id}", new { id });
+        });
+
+        patients.MapPost("/erasure-requests/{requestId:guid}/approve", async (
+            ISender sender, Guid requestId, CancellationToken ct) =>
+        {
+            await sender.Send(new ApproveErasureCommand(requestId), ct);
+            return Results.NoContent();
+        });
 
         patients.MapPost("/", async (ISender sender, RegisterPatientRequest request, CancellationToken ct) =>
         {

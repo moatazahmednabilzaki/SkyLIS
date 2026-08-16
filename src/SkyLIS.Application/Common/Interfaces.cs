@@ -89,6 +89,8 @@ public interface IPatientRepository
 {
     Task<Patient?> GetAsync(Guid id, CancellationToken ct = default);
     Task<bool> NationalIdExistsAsync(string nationalId, CancellationToken ct = default);
+    /// <summary>True while any visit of the patient is not Reported/Cancelled/Closed (erasure gate).</summary>
+    Task<bool> HasOpenClinicalWorkAsync(Guid patientId, CancellationToken ct = default);
     void Add(Patient patient);
 }
 

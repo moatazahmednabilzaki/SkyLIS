@@ -70,8 +70,12 @@ interface CumulativePoint {
   template: `
     @if (error()) { <div class="err">{{ error() }}</div> }
     @if (data(); as p) {
-      <h1 class="pt">{{ p.fullName }} <span class="chip c-blue mono">{{ p.patientNumber }}</span></h1>
+      <h1 class="pt">{{ p.fullName }} <span class="chip c-blue mono">{{ p.patientNumber }}</span>
+        <button class="btn sm ghost" style="margin-left:10px" (click)="exportData()">Export data (P04.5)</button>
+        <button class="btn sm danger" (click)="requestErasure()">Request erasure…</button>
+      </h1>
       <p class="sub">M04 · P04.3 Patient 360 — the complete story of one patient.</p>
+      @if (info()) { <div class="note">{{ info() }}</div> }
 
       <div class="kpis">
         <div class="kpi"><div class="v">{{ p.gender }} · {{ p.age }}y</div><div class="l">Born {{ p.dateOfBirth }}</div></div>
@@ -173,6 +177,7 @@ export class Patient360Component implements OnInit {
   readonly data = signal<Patient360 | null>(null);
   readonly trend = signal<CumulativePoint[]>([]);
   readonly error = signal<string | null>(null);
+  readonly info = signal<string | null>(null);
   readonly testCode = this.fb.nonNullable.control('');
 
   ngOnInit(): void {
@@ -204,6 +209,37 @@ export class Patient360Component implements OnInit {
       const params = new HttpParams().set('testCode', this.testCode.value);
       this.trend.set(await firstValueFrom(this.http.get<CumulativePoint[]>(
         `${API_BASE_URL}/patients/${this.patientId()}/results/cumulative`, { params })));
+    } catch (e) {
+      this.error.set(problemMessage(e));
+    }
+  }
+
+  async exportData(): Promise<void> {
+    const reason = window.prompt('Export reason (mandatory, audited — P04.5):', 'Patient requested a copy');
+    if (!reason) return;
+    try {
+      const bundle = await firstValueFrom(this.http.post(
+        `${API_BASE_URL}/patients/${this.patientId()}/export`, { reason }));
+      const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `patient-export-${this.data()?.patientNumber ?? this.patientId()}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      this.info.set('Export downloaded — the request is logged in the data-subject register.');
+    } catch (e) {
+      this.error.set(problemMessage(e));
+    }
+  }
+
+  async requestErasure(): Promise<void> {
+    const reason = window.prompt('Erasure request reason (P04.5 — approval required, clinical records are retained):');
+    if (!reason) return;
+    try {
+      await firstValueFrom(this.http.post(
+        `${API_BASE_URL}/patients/${this.patientId()}/erasure-requests`, { reason }));
+      this.info.set('Erasure request logged — pending approval by an authorized user.');
     } catch (e) {
       this.error.set(problemMessage(e));
     }

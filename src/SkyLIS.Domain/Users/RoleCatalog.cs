@@ -21,6 +21,7 @@ public static class RoleCatalog
         [
             "users.user.create", "users.user.read",
             "org.branch.read", "org.branch.manage",
+            "patients.patient.merge", "patients.patient.erase",
             "catalog.catalog.read",
             "catalog.sampletype.create", "catalog.test.create", "catalog.test.update", "catalog.test.approve",
             "patients.patient.create", "patients.patient.read",

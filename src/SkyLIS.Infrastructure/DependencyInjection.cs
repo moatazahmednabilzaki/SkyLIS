@@ -42,6 +42,8 @@ public static class DependencyInjection
         services.AddScoped<IAttachmentRepository, AttachmentRepository>();
         services.AddScoped<IBranchRepository, BranchRepository>();
         services.AddScoped<IPatientRepository, PatientRepository>();
+        services.AddScoped<Application.Patients.IDataSubjectRequestRepository, DataSubjectRequestRepository>();
+        services.AddScoped<Application.Patients.IPatientMergeStore, PatientMergeStore>();
         services.AddScoped<ILabTestRepository, LabTestRepository>();
         services.AddScoped<ISampleTypeRepository, SampleTypeRepository>();
         services.AddScoped<IPanelRepository, PanelRepository>();
@@ -66,6 +68,7 @@ public static class DependencyInjection
         services.AddScoped<Application.Search.ISearchQueries, SearchQueries>();
         services.AddScoped<IPatientQueries, PatientQueries>();
         services.AddScoped<Application.Patients.IPatient360Queries, Patient360Queries>();
+        services.AddScoped<Application.Patients.IPatientPrivacyQueries, PatientPrivacyQueries>();
         services.AddScoped<IVisitQueries, VisitQueries>();
         services.AddScoped<IResultQueries, ResultQueries>();
         services.AddScoped<Application.Worklists.IWorklistQueries, WorklistQueries>();

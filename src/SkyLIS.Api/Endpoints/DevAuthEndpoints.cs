@@ -20,6 +20,7 @@ public static class DevAuthEndpoints
         "org.branch.read", "org.branch.manage",
         "catalog.catalog.read",
         "patients.patient.create", "patients.patient.read",
+        "patients.patient.merge", "patients.patient.erase",
         "orders.visit.create", "orders.visit.read",
         "samples.sample.collect", "samples.sample.receive", "samples.sample.reject",
         "samples.sample.informPatient",

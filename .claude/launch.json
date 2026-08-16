@@ -8,6 +8,12 @@
       "port": 8734
     },
     {
+      "name": "api",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "cd /d D:\\SAAS\\SkyLIS\\src\\SkyLIS.Api && dotnet run --urls http://localhost:5178"],
+      "port": 5178
+    },
+    {
       "name": "client-portal",
       "runtimeExecutable": "cmd",
       "runtimeArgs": ["/c", "cd /d D:\\SAAS\\SkyLIS\\frontend && npx ng serve client-portal --port 4300"],

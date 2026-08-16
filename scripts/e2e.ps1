@@ -664,6 +664,61 @@ Step 'cancelling the add-on visit credits BOTH invoices (M17)' {
     if ($inv.balance -ne 0 -or $inv.status -ne 'Adjusted') { throw 'original invoice not fully credited' }
 } | Out-Null
 
+# ---------- P04.4 duplicate merge / P04.5 data-subject requests ----------
+$dup = (Step 'register a duplicate Mona (same mobile) (P04.4)' {
+    Invoke-RestMethod -Method Post -Uri "$api/patients" -Headers $ha -ContentType 'application/json' -Body (@{
+        fullName = 'Mona El Sayed'; sex = 'Female'; dateOfBirth = '1992-03-10'
+        mobile = '+201002345678'; nationalId = $null } | ConvertTo-Json)
+}).id
+$visit7 = Step 'the duplicate accumulates a visit before anyone notices' {
+    Invoke-RestMethod -Method Post -Uri "$api/visits" -Headers $ha -ContentType 'application/json' -Body (@{
+        patientId = $dup; branchId = $branch.id; testIds = @($gluF); isStat = $false; statReason = $null } | ConvertTo-Json)
+}
+Step 'duplicate console flags the pair by mobile (P04.4)' {
+    $groups = Invoke-RestMethod -Uri "$api/patients/duplicates" -Headers $ha
+    $group = $groups | Where-Object { $_.matchedOn -match 'mobile' }
+    if (-not $group) { throw 'no mobile duplicate group' }
+    if (@($group.patients).Count -lt 2) { throw "expected 2 candidates, got $(@($group.patients).Count)" }
+} | Out-Null
+Step 'merge re-points clinical artifacts; duplicate vanishes from search' {
+    $m = Invoke-RestMethod -Method Post -Uri "$api/patients/merge" -Headers $ha -ContentType 'application/json' -Body (@{
+        survivorId = $patient; duplicateId = $dup; reason = 'Same person, double registration' } | ConvertTo-Json)
+    if ($m.movedArtifacts -lt 1) { throw 'expected re-pointed artifacts' }
+    $hits = Invoke-RestMethod -Uri "$api/patients/search?term=Mona" -Headers $ha
+    if (@($hits).Count -ne 1) { throw "expected 1 search hit after merge, got $(@($hits).Count)" }
+    $d = Invoke-RestMethod -Uri "$api/visits/$($visit7.visitId)" -Headers $ha
+    if ($d.patientName -ne 'Mona El-Sayed') { throw "visit not re-pointed: $($d.patientName)" }
+} | Out-Null
+ExpectError 'merging a patient into itself rejected' 400 {
+    Invoke-RestMethod -Method Post -Uri "$api/patients/merge" -Headers $ha -ContentType 'application/json' -Body (@{
+        survivorId = $patient; duplicateId = $patient; reason = 'nope' } | ConvertTo-Json)
+}
+
+$dsrSurvivor = (Invoke-RestMethod -Method Post -Uri "$api/patients/$patient/erasure-requests" -Headers $ha `
+    -ContentType 'application/json' -Body '{"reason":"Patient request"}').id
+ExpectError 'erasure blocked while clinical work is open (P04.5)' 422 {
+    Invoke-RestMethod -Method Post -Uri "$api/patients/erasure-requests/$dsrSurvivor/approve" -Headers $ha
+}
+Step 'erasure of the merged (empty) record: approve -> anonymized (P04.5)' {
+    $dsrDup = (Invoke-RestMethod -Method Post -Uri "$api/patients/$dup/erasure-requests" -Headers $ha `
+        -ContentType 'application/json' -Body '{"reason":"Data-subject request after merge"}').id
+    Invoke-RestMethod -Method Post -Uri "$api/patients/erasure-requests/$dsrDup/approve" -Headers $ha | Out-Null
+    $p360 = Invoke-RestMethod -Uri "$api/patients/$dup/summary" -Headers $ha
+    if ($p360.fullName -notmatch '^ERASED') { throw "identity not anonymized: $($p360.fullName)" }
+    $requests = Invoke-RestMethod -Uri "$api/patients/data-subject-requests" -Headers $ha
+    if (-not ($requests | Where-Object { $_.id -eq $dsrDup -and $_.status -eq 'Approved' })) { throw 'request not Approved' }
+    if (-not ($requests | Where-Object { $_.id -eq $dsrSurvivor -and $_.status -eq 'PendingApproval' })) { throw 'survivor request state wrong' }
+} | Out-Null
+Step 'data export returns the bundle and leaves an audited request (P04.5)' {
+    $export = Invoke-RestMethod -Method Post -Uri "$api/patients/$patient/export" -Headers $ha `
+        -ContentType 'application/json' -Body '{"reason":"Patient asked for a copy"}'
+    if (-not $export.patient.patientNumber) { throw 'bundle missing demographics' }
+    if (@($export.visits).Count -lt 5) { throw "bundle missing visits: $(@($export.visits).Count)" }
+    if (@($export.results).Count -lt 3) { throw 'bundle missing results' }
+    $requests = Invoke-RestMethod -Uri "$api/patients/data-subject-requests" -Headers $ha
+    if (-not ($requests | Where-Object { $_.kind -eq 'Export' -and $_.status -eq 'Completed' })) { throw 'export not logged' }
+} | Out-Null
+
 # ---------- P01.7 master data push / FR-SYS-007 attachments / FR-SYS-008 search ----------
 $masterTest = Step 'platform: add CBC to the master catalogue (P01.7)' {
     Invoke-RestMethod -Method Post -Uri "$api/platform/master-tests" -Headers $ph -ContentType 'application/json' -Body (@{

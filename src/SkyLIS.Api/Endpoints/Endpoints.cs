@@ -16,6 +16,7 @@ public static class TenantEndpoints
     public sealed record ProvisionTenantRequest(
         string LegalName, string Subdomain, string CountryCode, string PlanCode, IsolationTier IsolationTier,
         string AdminUserName, string AdminFullName, string AdminPassword);
+    public sealed record SuspendTenantRequest(string Reason);
 
     public static RouteGroupBuilder MapTenantEndpoints(this RouteGroupBuilder group)
     {
@@ -36,6 +37,24 @@ public static class TenantEndpoints
         // P01.3 metering explorer: monthly finalized-report counters (FR-SYS-011)
         tenants.MapGet("/{tenantId:guid}/usage", (ISender sender, Guid tenantId, CancellationToken ct) =>
             sender.Send(new SkyLIS.Application.Platform.GetTenantUsageQuery(tenantId), ct));
+
+        // P01.1 tenant lifecycle (guarded state machine; suspended tenants cannot sign in)
+        tenants.MapPost("/{tenantId:guid}/activate", async (ISender sender, Guid tenantId, CancellationToken ct) =>
+        {
+            await sender.Send(new ActivateTenantCommand(tenantId), ct);
+            return Results.NoContent();
+        });
+        tenants.MapPost("/{tenantId:guid}/suspend", async (
+            ISender sender, Guid tenantId, SuspendTenantRequest request, CancellationToken ct) =>
+        {
+            await sender.Send(new SuspendTenantCommand(tenantId, request.Reason), ct);
+            return Results.NoContent();
+        });
+        tenants.MapPost("/{tenantId:guid}/offboard", async (ISender sender, Guid tenantId, CancellationToken ct) =>
+        {
+            await sender.Send(new OffboardTenantCommand(tenantId), ct);
+            return Results.NoContent();
+        });
 
         // P01.6 platform health: outbox dispatch status
         group.MapGet("/platform/outbox/status", (ISender sender, CancellationToken ct) =>
@@ -195,6 +214,9 @@ public static class PatientEndpoints
 public static class UserEndpoints
 {
     public sealed record CreateUserRequest(string UserName, string FullName, string Password, List<string> Roles);
+    public sealed record SetUserStatusRequest(string Action);
+    public sealed record ResetPasswordRequest(string NewPassword);
+    public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
 
     public static RouteGroupBuilder MapUserEndpoints(this RouteGroupBuilder group)
     {
@@ -202,6 +224,31 @@ public static class UserEndpoints
 
         users.MapGet("/", (ISender sender, CancellationToken ct) =>
             sender.Send(new SkyLIS.Application.Users.ListUsersQuery(), ct));
+
+        // P02.1: lock / unlock / deactivate (admins cannot act on themselves)
+        users.MapPost("/{userId:guid}/set-status", async (
+            ISender sender, Guid userId, SetUserStatusRequest request, CancellationToken ct) =>
+        {
+            await sender.Send(new SkyLIS.Application.Users.SetUserStatusCommand(userId, request.Action), ct);
+            return Results.NoContent();
+        });
+
+        // Support flow: admin resets a user's password
+        users.MapPost("/{userId:guid}/reset-password", async (
+            ISender sender, Guid userId, ResetPasswordRequest request, CancellationToken ct) =>
+        {
+            await sender.Send(new SkyLIS.Application.Users.ResetPasswordCommand(userId, request.NewPassword), ct);
+            return Results.NoContent();
+        });
+
+        // §4.3: self-service password change (current password re-verified)
+        users.MapPost("/me/change-password", async (
+            ISender sender, ChangePasswordRequest request, CancellationToken ct) =>
+        {
+            await sender.Send(new SkyLIS.Application.Users.ChangePasswordCommand(
+                request.CurrentPassword, request.NewPassword), ct);
+            return Results.NoContent();
+        });
 
         users.MapPost("/", async (ISender sender, CreateUserRequest request, CancellationToken ct) =>
         {

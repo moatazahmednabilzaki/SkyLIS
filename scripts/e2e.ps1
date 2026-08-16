@@ -708,6 +708,76 @@ ExpectError "tenant B admin cannot log into tenant A" 403 {
         tenantId = $tenantA; userName = 'delta.admin'; password = 'DeltaLab#Dev2026!' } | ConvertTo-Json)
 }
 
+# ---------- M02 hardening: lock/unlock, passwords; P01.1 tenant lifecycle ----------
+$allUsers = Invoke-RestMethod -Uri "$api/users" -Headers $hAdmin
+$mostafa = $allUsers | Where-Object userName -eq 'mostafa.kamal'
+$sara = $allUsers | Where-Object userName -eq 'sara.hassan'
+
+Step 'admin locks the technologist -> sign-in blocked (P02.1)' {
+    Invoke-RestMethod -Method Post -Uri "$api/users/$($mostafa.id)/set-status" -Headers $hAdmin `
+        -ContentType 'application/json' -Body '{"action":"lock"}' | Out-Null
+    try {
+        Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
+            tenantId = $tenantA; userName = 'mostafa.kamal'; password = 'Technolog#2026!x' } | ConvertTo-Json) | Out-Null
+        throw 'locked user could still sign in!'
+    } catch {
+        if ($_.Exception.Response.StatusCode.value__ -ne 403) { throw }
+    }
+} | Out-Null
+Step 'unlock restores sign-in' {
+    Invoke-RestMethod -Method Post -Uri "$api/users/$($mostafa.id)/set-status" -Headers $hAdmin `
+        -ContentType 'application/json' -Body '{"action":"unlock"}' | Out-Null
+    Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
+        tenantId = $tenantA; userName = 'mostafa.kamal'; password = 'Technolog#2026!x' } | ConvertTo-Json) | Out-Null
+} | Out-Null
+ExpectError 'admins cannot lock their own account' 422 {
+    Invoke-RestMethod -Method Post -Uri "$api/users/$($sara.id)/set-status" -Headers $hAdmin `
+        -ContentType 'application/json' -Body '{"action":"lock"}'
+}
+
+ExpectError 'password change with wrong current password rejected (§4.3)' 403 {
+    Invoke-RestMethod -Method Post -Uri "$api/users/me/change-password" -Headers $hTech `
+        -ContentType 'application/json' -Body '{"currentPassword":"wrong-guess-123","newPassword":"BrandNew#2026!pass"}'
+}
+Step 'self-service password change works; old password dies (§4.3)' {
+    Invoke-RestMethod -Method Post -Uri "$api/users/me/change-password" -Headers $hTech `
+        -ContentType 'application/json' -Body '{"currentPassword":"Technolog#2026!x","newPassword":"BrandNew#2026!pass"}' | Out-Null
+    try {
+        Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
+            tenantId = $tenantA; userName = 'mostafa.kamal'; password = 'Technolog#2026!x' } | ConvertTo-Json) | Out-Null
+        throw 'old password still valid!'
+    } catch {
+        if ($_.Exception.Response.StatusCode.value__ -ne 403) { throw }
+    }
+    Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
+        tenantId = $tenantA; userName = 'mostafa.kamal'; password = 'BrandNew#2026!pass' } | ConvertTo-Json) | Out-Null
+} | Out-Null
+
+Step 'tenant B lifecycle: Trial -> Active (P01.1)' {
+    Invoke-RestMethod -Method Post -Uri "$api/platform/tenants/$tenantB/activate" -Headers $ph | Out-Null
+    $list = Invoke-RestMethod -Uri "$api/platform/tenants" -Headers $ph
+    if (($list | Where-Object id -eq $tenantB).status -ne 'Active') { throw 'tenant B not Active' }
+} | Out-Null
+ExpectError 'activating an Active tenant is a state conflict' 409 {
+    Invoke-RestMethod -Method Post -Uri "$api/platform/tenants/$tenantB/activate" -Headers $ph
+}
+Step 'suspending tenant B blocks its sign-ins (P01.1)' {
+    Invoke-RestMethod -Method Post -Uri "$api/platform/tenants/$tenantB/suspend" -Headers $ph `
+        -ContentType 'application/json' -Body '{"reason":"Unpaid invoices"}' | Out-Null
+    try {
+        Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
+            tenantId = $tenantB; userName = 'delta.admin'; password = 'DeltaLab#Dev2026!' } | ConvertTo-Json) | Out-Null
+        throw 'suspended tenant could still sign in!'
+    } catch {
+        if ($_.Exception.Response.StatusCode.value__ -ne 403) { throw }
+    }
+} | Out-Null
+Step 'resuming tenant B restores sign-in' {
+    Invoke-RestMethod -Method Post -Uri "$api/platform/tenants/$tenantB/activate" -Headers $ph | Out-Null
+    Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
+        tenantId = $tenantB; userName = 'delta.admin'; password = 'DeltaLab#Dev2026!' } | ConvertTo-Json) | Out-Null
+} | Out-Null
+
 # ---------- FR-SYS-001: Audit trail & tamper evidence ----------
 Step 'audit trail recorded the flow (who/what/when, before/after)' {
     $events = Invoke-RestMethod -Uri "$api/audit/events?take=500" -Headers $ha

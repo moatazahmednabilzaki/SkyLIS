@@ -37,7 +37,7 @@ public static class DevAuthEndpoints
 
     private static readonly string[] PlatformPermissions =
     [
-        "platform.tenant.provision", "platform.tenant.read", "platform.outbox.read",
+        "platform.tenant.provision", "platform.tenant.read", "platform.tenant.manage", "platform.outbox.read",
         "platform.masterdata.read", "platform.masterdata.manage",
     ];
 

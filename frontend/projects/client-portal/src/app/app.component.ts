@@ -69,6 +69,7 @@ interface GlobalSearch {
         </div>
         <span class="ctx">{{ auth.user()?.fullName ?? 'signed in' }} · {{ auth.user()?.roles?.join(', ') }}</span>
         <span class="spacer"></span>
+        <button class="btn ghost sm" (click)="changePassword()" title="Change my password (§4.3)">🔑</button>
         <button class="btn ghost sm" (click)="logout()">Sign out</button>
       </div>
       <nav class="sidebar">
@@ -183,6 +184,21 @@ export class AppComponent {
   go(path: string): void {
     this.clearSearch();
     void this.router.navigateByUrl(path);
+  }
+
+  async changePassword(): Promise<void> {
+    const current = window.prompt('Current password:');
+    if (!current) return;
+    const next = window.prompt('New password (≥ 12 characters):');
+    if (!next) return;
+    try {
+      await firstValueFrom(this.http.post(`${API_BASE_URL}/users/me/change-password`, {
+        currentPassword: current, newPassword: next,
+      }));
+      window.alert('Password changed ✓');
+    } catch {
+      window.alert('Password change failed — check the current password and the 12-character policy.');
+    }
   }
 
   logout(): void {

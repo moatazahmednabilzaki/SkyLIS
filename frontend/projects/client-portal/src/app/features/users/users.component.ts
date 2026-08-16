@@ -31,7 +31,7 @@ interface RoleInfo { role: string; permissions: string[]; }
     <div class="card">
       <h3>Users</h3>
       <table class="t">
-        <tr><th>Username</th><th>Full name</th><th>Roles</th><th>Status</th><th>Last login</th></tr>
+        <tr><th>Username</th><th>Full name</th><th>Roles</th><th>Status</th><th>Last login</th><th>Actions</th></tr>
         @for (u of users(); track u.id) {
           <tr>
             <td class="mono">{{ u.userName }}</td>
@@ -40,6 +40,18 @@ interface RoleInfo { role: string; permissions: string[]; }
             <td><span class="chip" [class.c-green]="u.status === 'Active'"
                   [class.c-red]="u.status !== 'Active'">{{ u.status }}</span></td>
             <td>{{ u.lastLoginAtUtc ? (u.lastLoginAtUtc | date: 'MM-dd HH:mm') : '—' }}</td>
+            <td>
+              @if (u.status === 'Active') {
+                <button class="btn sm ghost" [disabled]="busy()" (click)="setStatus(u, 'lock')">Lock</button>
+              }
+              @if (u.status === 'Locked') {
+                <button class="btn sm" [disabled]="busy()" (click)="setStatus(u, 'unlock')">Unlock</button>
+              }
+              @if (u.status !== 'Deactivated') {
+                <button class="btn sm danger" [disabled]="busy()" (click)="setStatus(u, 'deactivate')">Deactivate</button>
+                <button class="btn sm ghost" [disabled]="busy()" (click)="resetPassword(u)">Reset password…</button>
+              }
+            </td>
           </tr>
         }
       </table>
@@ -110,6 +122,38 @@ export class UsersComponent implements OnInit {
       this.roles.set(roles);
     } catch (e) {
       this.error.set(problemMessage(e));
+    }
+  }
+
+  async setStatus(user: UserRow, action: 'lock' | 'unlock' | 'deactivate'): Promise<void> {
+    if (action === 'deactivate' && !window.confirm(`Deactivate ${user.userName}? This blocks sign-in permanently.`)) return;
+    this.busy.set(true);
+    this.error.set(null);
+    this.info.set(null);
+    try {
+      await firstValueFrom(this.http.post(`${API_BASE_URL}/users/${user.id}/set-status`, { action }));
+      this.info.set(`${user.userName}: ${action} ✓`);
+      await this.load();
+    } catch (e) {
+      this.error.set(problemMessage(e));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  async resetPassword(user: UserRow): Promise<void> {
+    const newPassword = window.prompt(`New temporary password for ${user.userName} (≥ 12 chars):`);
+    if (!newPassword) return;
+    this.busy.set(true);
+    this.error.set(null);
+    this.info.set(null);
+    try {
+      await firstValueFrom(this.http.post(`${API_BASE_URL}/users/${user.id}/reset-password`, { newPassword }));
+      this.info.set(`Password for ${user.userName} reset ✓ — hand it over securely.`);
+    } catch (e) {
+      this.error.set(problemMessage(e));
+    } finally {
+      this.busy.set(false);
     }
   }
 

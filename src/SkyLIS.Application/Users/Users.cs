@@ -118,12 +118,14 @@ internal sealed class LoginValidator : AbstractValidator<LoginCommand>
 internal sealed class LoginHandler : IRequestHandler<LoginCommand, AuthenticatedUserDto>
 {
     private readonly IUserRepository _users;
+    private readonly ITenantRepository _tenants;
     private readonly IPasswordHasher _hasher;
     private readonly IClock _clock;
 
-    public LoginHandler(IUserRepository users, IPasswordHasher hasher, IClock clock)
+    public LoginHandler(IUserRepository users, ITenantRepository tenants, IPasswordHasher hasher, IClock clock)
     {
         _users = users;
+        _tenants = tenants;
         _hasher = hasher;
         _clock = clock;
     }
@@ -137,6 +139,15 @@ internal sealed class LoginHandler : IRequestHandler<LoginCommand, Authenticated
             || user.Status != Domain.Users.UserStatus.Active)
         {
             throw new ForbiddenAccessException("Invalid credentials.");
+        }
+
+        // P01.1 lifecycle enforcement: suspended/offboarded tenants cannot sign in.
+        var tenant = await _tenants.GetAsync(user.TenantId, ct);
+        if (tenant is null
+            || tenant.Status is Domain.Tenants.TenantStatus.Suspended or Domain.Tenants.TenantStatus.Offboarded)
+        {
+            throw new ForbiddenAccessException(
+                "This laboratory's subscription is suspended. Contact your Sky LIS account manager.");
         }
 
         user.RecordLogin(_clock.UtcNow);

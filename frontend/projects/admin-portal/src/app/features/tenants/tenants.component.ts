@@ -61,8 +61,20 @@ interface ProblemDetails {
                     [class.c-red]="t.status === 'Suspended' || t.status === 'Offboarded'">{{ t.status }}</span></td>
               <td>{{ t.createdAtUtc | date: 'yyyy-MM-dd' }}</td>
               <td class="mono" style="font-size:10px">{{ t.id }}</td>
-              <td><button class="btn ghost sm" (click)="toggleUsage(t.id)">
-                {{ usageFor() === t.id ? 'Hide usage' : 'Usage' }}</button></td>
+              <td style="white-space:nowrap">
+                <button class="btn ghost sm" (click)="toggleUsage(t.id)">
+                  {{ usageFor() === t.id ? 'Hide usage' : 'Usage' }}</button>
+                @if (t.status === 'Trial' || t.status === 'Suspended' || t.status === 'PastDue') {
+                  <button class="btn sm" (click)="lifecycle(t, 'activate')">
+                    {{ t.status === 'Suspended' ? 'Resume' : 'Activate' }}</button>
+                }
+                @if (t.status === 'Active' || t.status === 'PastDue') {
+                  <button class="btn sm danger" (click)="suspend(t)">Suspend…</button>
+                }
+                @if (t.status === 'Trial' || t.status === 'Suspended') {
+                  <button class="btn sm ghost" (click)="offboard(t)">Offboard…</button>
+                }
+              </td>
             </tr>
             @if (usageFor() === t.id) {
               <tr><td colspan="8" style="background:#0e1c2e">
@@ -205,6 +217,33 @@ export class TenantsComponent implements OnInit {
     } catch (e) {
       this.error.set(this.message(e));
     }
+  }
+
+  async lifecycle(tenant: TenantDto, action: 'activate' | 'offboard', body: unknown = {}): Promise<void> {
+    this.error.set(null);
+    try {
+      await firstValueFrom(this.http.post(`${API_BASE_URL}/platform/tenants/${tenant.id}/${action}`, body));
+      await this.load();
+    } catch (e) {
+      this.error.set(this.message(e));
+    }
+  }
+
+  async suspend(tenant: TenantDto): Promise<void> {
+    const reason = window.prompt(`Suspension reason for ${tenant.legalName} (mandatory — blocks all sign-ins):`);
+    if (!reason) return;
+    this.error.set(null);
+    try {
+      await firstValueFrom(this.http.post(`${API_BASE_URL}/platform/tenants/${tenant.id}/suspend`, { reason }));
+      await this.load();
+    } catch (e) {
+      this.error.set(this.message(e));
+    }
+  }
+
+  async offboard(tenant: TenantDto): Promise<void> {
+    if (!window.confirm(`Offboard ${tenant.legalName}? This is terminal — the tenant can never sign in again.`)) return;
+    await this.lifecycle(tenant, 'offboard');
   }
 
   async provision(): Promise<void> {

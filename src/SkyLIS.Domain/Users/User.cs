@@ -65,6 +65,15 @@ public sealed class User : AggregateRoot, ITenantOwned
         LastLoginAtUtc = nowUtc;
     }
 
+    /// <summary>Password change/reset — only ever receives a HASH (§4.3).</summary>
+    public void SetPasswordHash(string newPasswordHash)
+    {
+        if (string.IsNullOrWhiteSpace(newPasswordHash)) throw new DomainException("Password hash is required.");
+        if (Status == UserStatus.Deactivated)
+            throw new DomainException($"User {UserName} is deactivated; reactivate before resetting the password.");
+        PasswordHash = newPasswordHash;
+    }
+
     public void Lock() => Status = Status == UserStatus.Deactivated
         ? throw new InvalidStateTransitionException(nameof(User), Status.ToString(), UserStatus.Locked.ToString())
         : UserStatus.Locked;

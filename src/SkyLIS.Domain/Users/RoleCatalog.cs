@@ -31,6 +31,7 @@ public static class RoleCatalog
             "results.result.amend",
             "reports.report.render", "reports.report.deliver", "reports.report.read",
             "billing.payment.capture", "billing.invoice.adjust", "billing.refund.approve", "billing.shift.manage",
+            "attachments.attachment.manage", "attachments.attachment.read",
             "analytics.dashboard.read", "audit.trail.read",
         ],
         [LabDirector] =
@@ -39,6 +40,7 @@ public static class RoleCatalog
             "org.branch.read", "catalog.catalog.read",
             "results.result.validateTechnical", "results.result.validateMedical",
             "results.result.amend",
+            "attachments.attachment.manage", "attachments.attachment.read",
             "catalog.test.approve",
             "reports.report.render", "reports.report.deliver", "reports.report.read",
             "analytics.dashboard.read", "audit.trail.read",
@@ -49,6 +51,7 @@ public static class RoleCatalog
             "org.branch.read", "catalog.catalog.read",
             "samples.sample.receive", "samples.sample.reject",
             "results.result.enter", "results.result.validateTechnical",
+            "attachments.attachment.manage", "attachments.attachment.read",
             "reports.report.read", "analytics.dashboard.read",
         ],
         [Technologist] =
@@ -57,6 +60,7 @@ public static class RoleCatalog
             "org.branch.read", "catalog.catalog.read",
             "samples.sample.receive", "samples.sample.reject",
             "results.result.enter",
+            "attachments.attachment.manage", "attachments.attachment.read",
         ],
         [Receptionist] =
         [
@@ -65,6 +69,7 @@ public static class RoleCatalog
             "orders.visit.create", "orders.visit.read", "orders.visit.cancel",
             "samples.sample.collect", "samples.sample.informPatient",
             "billing.payment.capture", "billing.invoice.adjust",
+            "attachments.attachment.manage", "attachments.attachment.read",
             "reports.report.read", "reports.report.deliver",
         ],
         [Cashier] =
@@ -76,6 +81,7 @@ public static class RoleCatalog
         [
             "patients.patient.read", "orders.visit.read",
             "org.branch.read", "catalog.catalog.read",
+            "attachments.attachment.read",
             "reports.report.read", "analytics.dashboard.read", "audit.trail.read",
         ],
     };

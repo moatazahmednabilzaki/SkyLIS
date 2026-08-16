@@ -37,6 +37,8 @@ public static class DependencyInjection
         // Write side
         services.AddScoped<ITenantRepository, TenantRepository>();
         services.AddScoped<ICountryPackRepository, CountryPackRepository>();
+        services.AddScoped<IMasterTestRepository, MasterTestRepository>();
+        services.AddScoped<IAttachmentRepository, AttachmentRepository>();
         services.AddScoped<IBranchRepository, BranchRepository>();
         services.AddScoped<IPatientRepository, PatientRepository>();
         services.AddScoped<ILabTestRepository, LabTestRepository>();
@@ -54,6 +56,9 @@ public static class DependencyInjection
         services.AddScoped<Application.Platform.ICountryPackQueries, CountryPackQueries>();
         services.AddScoped<Application.Catalog.ICatalogQueries, CatalogQueries>();
         services.AddScoped<Application.Billing.IBillingQueries, BillingQueries>();
+        services.AddScoped<Application.Platform.IMasterTestQueries, MasterTestQueries>();
+        services.AddScoped<Application.Files.IAttachmentQueries, AttachmentQueries>();
+        services.AddScoped<Application.Search.ISearchQueries, SearchQueries>();
         services.AddScoped<IPatientQueries, PatientQueries>();
         services.AddScoped<Application.Patients.IPatient360Queries, Patient360Queries>();
         services.AddScoped<IVisitQueries, VisitQueries>();

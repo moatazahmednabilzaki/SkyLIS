@@ -1,19 +1,32 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Component, inject, input, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { VisitsApi } from './visits.api';
+import { API_BASE_URL } from '../../core/config';
 import { PaymentResult, VisitDetails, problemMessage } from '../../core/api.types';
+
+interface AttachmentRow {
+  id: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedAtUtc: string;
+}
 
 /** P05.3 Order Details + sample actions (collect / receive / reject) + payment capture. */
 @Component({
   selector: 'app-visit-details',
-  imports: [ReactiveFormsModule, DatePipe],
+  imports: [ReactiveFormsModule, DatePipe, DecimalPipe],
   template: `
     @if (visit(); as v) {
       <h1 class="pt">Visit {{ v.visitNumber }}
         <span class="chip c-blue">{{ v.status }}</span>
         @if (v.isStat) { <span class="chip c-red">STAT</span> }
+        @if (v.status !== 'Cancelled' && v.status !== 'Reported') {
+          <button class="btn sm danger" style="margin-left:10px" [disabled]="busy()" (click)="cancelVisit()">Cancel visit…</button>
+        }
       </h1>
       <p class="sub">{{ v.patientName }} · registered {{ v.registeredAtUtc | date: 'yyyy-MM-dd HH:mm' }}</p>
 
@@ -100,6 +113,26 @@ import { PaymentResult, VisitDetails, problemMessage } from '../../core/api.type
           </div>
         </form>
       </div>
+      <div class="card">
+        <h3>Attachments (FR-SYS-007)</h3>
+        <table class="t">
+          <tr><th>File</th><th>Type</th><th>Size</th><th>Uploaded</th><th></th></tr>
+          @for (a of attachments(); track a.id) {
+            <tr>
+              <td><b>{{ a.fileName }}</b></td>
+              <td class="mono">{{ a.contentType }}</td>
+              <td class="mono">{{ a.sizeBytes / 1024 | number: '1.0-1' }} KB</td>
+              <td>{{ a.uploadedAtUtc | date: 'yyyy-MM-dd HH:mm' }}</td>
+              <td><button class="btn sm ghost" (click)="download(a)">Download</button></td>
+            </tr>
+          }
+          @if (attachments().length === 0) { <tr><td colspan="5" class="hint">No attachments.</td></tr> }
+        </table>
+        <div style="margin-top:8px">
+          <input type="file" #filePicker (change)="upload(filePicker)">
+        </div>
+        <p class="hint">Requisition scans, instrument exports, consent forms — capped at 5 MB per file in Phase 1.</p>
+      </div>
     } @else {
       <p class="sub">Loading visit…</p>
       @if (error()) { <div class="err">{{ error() }}</div> }
@@ -112,6 +145,7 @@ import { PaymentResult, VisitDetails, problemMessage } from '../../core/api.type
 })
 export class VisitDetailsComponent implements OnInit {
   private readonly api = inject(VisitsApi);
+  private readonly http = inject(HttpClient);
   private readonly fb = inject(FormBuilder);
 
   /** Route param bound via withComponentInputBinding (app.config). */
@@ -122,6 +156,7 @@ export class VisitDetailsComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly info = signal<string | null>(null);
   readonly payment = signal<PaymentResult | null>(null);
+  readonly attachments = signal<AttachmentRow[]>([]);
 
   readonly paymentForm = this.fb.nonNullable.group({
     invoiceId: ['', Validators.required],
@@ -136,9 +171,58 @@ export class VisitDetailsComponent implements OnInit {
   async reload(): Promise<void> {
     try {
       this.visit.set(await firstValueFrom(this.api.get(this.id())));
+      const params = new HttpParams().set('entityType', 'visit').set('entityId', this.id());
+      this.attachments.set(await firstValueFrom(
+        this.http.get<AttachmentRow[]>(`${API_BASE_URL}/attachments`, { params })));
     } catch (e) {
       this.error.set(problemMessage(e));
     }
+  }
+
+  async cancelVisit(): Promise<void> {
+    const reason = window.prompt('Cancellation reason (mandatory — the unpaid balance is waived by an automatic credit note):');
+    if (!reason) return;
+    await this.act(async () => {
+      const result = await firstValueFrom(this.http.post<{ invoiceStatus: string; autoCreditNote: { creditNoteNumber: string } | null }>(
+        `${API_BASE_URL}/visits/${this.id()}/cancel`, { reason }));
+      this.info.set(result.autoCreditNote
+        ? `Visit cancelled — credit note ${result.autoCreditNote.creditNoteNumber} waived the open balance (invoice ${result.invoiceStatus}).`
+        : `Visit cancelled (invoice ${result.invoiceStatus}).`);
+    });
+  }
+
+  async upload(picker: HTMLInputElement): Promise<void> {
+    const file = picker.files?.[0];
+    if (!file) return;
+    const buffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 32768) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + 32768));
+    }
+    await this.act(async () => {
+      await firstValueFrom(this.http.post(`${API_BASE_URL}/attachments`, {
+        entityType: 'visit',
+        entityId: this.id(),
+        fileName: file.name,
+        contentType: file.type || 'application/octet-stream',
+        contentBase64: btoa(binary),
+      }));
+      picker.value = '';
+      this.info.set(`Attached ${file.name} ✓`);
+    });
+  }
+
+  download(attachment: AttachmentRow): void {
+    void firstValueFrom(this.http.get(`${API_BASE_URL}/attachments/${attachment.id}/content`, { responseType: 'blob' }))
+      .then(blob => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = attachment.fileName;
+        link.click();
+        URL.revokeObjectURL(url);
+      });
   }
 
   sampleBarcode(visit: VisitDetails, sampleId: string): string {

@@ -24,7 +24,40 @@ internal sealed class TenantRepository : ITenantRepository
     public Task<bool> SubdomainExistsAsync(string subdomain, CancellationToken ct = default) =>
         _db.Tenants.AnyAsync(t => t.Subdomain == subdomain, ct);
 
+    public async Task<IReadOnlyList<Guid>> GetPushTargetTenantIdsAsync(CancellationToken ct = default) =>
+        await _db.Tenants
+            .Where(t => t.Status == TenantStatus.Trial
+                        || t.Status == TenantStatus.Active
+                        || t.Status == TenantStatus.PastDue)
+            .Select(t => t.Id)
+            .ToListAsync(ct);
+
     public void Add(Tenant tenant) => _db.Tenants.Add(tenant);
+}
+
+internal sealed class MasterTestRepository : IMasterTestRepository
+{
+    private readonly SkyLisDbContext _db;
+    public MasterTestRepository(SkyLisDbContext db) => _db = db;
+
+    public Task<MasterTest?> GetAsync(Guid id, CancellationToken ct = default) =>
+        _db.MasterTests.FirstOrDefaultAsync(m => m.Id == id, ct);
+
+    public Task<bool> CodeExistsAsync(string code, CancellationToken ct = default) =>
+        _db.MasterTests.AnyAsync(m => m.Code == code, ct);
+
+    public void Add(MasterTest masterTest) => _db.MasterTests.Add(masterTest);
+}
+
+internal sealed class AttachmentRepository : IAttachmentRepository
+{
+    private readonly SkyLisDbContext _db;
+    public AttachmentRepository(SkyLisDbContext db) => _db = db;
+
+    public Task<Domain.Files.Attachment?> GetAsync(Guid id, CancellationToken ct = default) =>
+        _db.Attachments.FirstOrDefaultAsync(a => a.Id == id, ct);
+
+    public void Add(Domain.Files.Attachment attachment) => _db.Attachments.Add(attachment);
 }
 
 internal sealed class PatientRepository : IPatientRepository
@@ -65,6 +98,9 @@ internal sealed class SampleTypeRepository : ISampleTypeRepository
 
     public Task<SampleType?> GetAsync(Guid id, CancellationToken ct = default) =>
         _db.SampleTypes.Include(s => s.Conditions).FirstOrDefaultAsync(s => s.Id == id, ct);
+
+    public Task<SampleType?> GetByNameAsync(string name, CancellationToken ct = default) =>
+        _db.SampleTypes.Include(s => s.Conditions).FirstOrDefaultAsync(s => s.Name == name, ct);
 
     public async Task<IReadOnlyList<SampleCondition>> GetConditionsAsync(
         IReadOnlyCollection<Guid> conditionIds, CancellationToken ct = default) =>

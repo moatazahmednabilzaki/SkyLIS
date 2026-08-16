@@ -1,10 +1,30 @@
-import { Component, inject } from '@angular/core';
+import { Component, HostListener, inject, signal, viewChild, ElementRef } from '@angular/core';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { firstValueFrom } from 'rxjs';
 import { AuthService } from './core/auth.service';
+import { API_BASE_URL } from './core/config';
+
+interface SearchHit {
+  kind: string;
+  id: string;
+  title: string;
+  subtitle: string;
+  navigateId: string | null;
+}
+
+interface GlobalSearch {
+  patients: SearchHit[];
+  visits: SearchHit[];
+  samples: SearchHit[];
+  invoices: SearchHit[];
+  tests: SearchHit[];
+}
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, ReactiveFormsModule],
   template: `
     @if (auth.isAuthenticated()) {
       <div class="topbar">
@@ -20,6 +40,32 @@ import { AuthService } from './core/auth.service';
             <path d="M19 45 h13" stroke="#74bce2" stroke-width="3" stroke-linecap="round"/>
           </svg>
           <span class="wm">Sky</span><span class="lis">LIS</span>
+        </div>
+        <div class="gsearch">
+          <input #searchBox [formControl]="searchTerm" placeholder="Search patients · visits · samples · invoices (Ctrl+K)"
+                 (keyup.enter)="runSearch()" (keyup.escape)="clearSearch()">
+          @if (searchResult(); as r) {
+            <div class="gresults">
+              @for (hit of r.patients; track hit.id) {
+                <a (click)="go('/patients/' + hit.navigateId)">👤 <b>{{ hit.title }}</b> <span class="ghint">{{ hit.subtitle }}</span></a>
+              }
+              @for (hit of r.visits; track hit.id) {
+                <a (click)="go('/visits/' + hit.navigateId)">📝 <b class="mono">{{ hit.title }}</b> <span class="ghint">{{ hit.subtitle }}</span></a>
+              }
+              @for (hit of r.samples; track hit.id) {
+                <a (click)="go('/visits/' + hit.navigateId)">🧪 <b class="mono">{{ hit.title }}</b> <span class="ghint">{{ hit.subtitle }}</span></a>
+              }
+              @for (hit of r.invoices; track hit.id) {
+                <a (click)="go('/visits/' + hit.navigateId)">💳 <b class="mono">{{ hit.title }}</b> <span class="ghint">{{ hit.subtitle }}</span></a>
+              }
+              @for (hit of r.tests; track hit.id) {
+                <a><b class="mono">{{ hit.title }}</b> <span class="ghint">{{ hit.subtitle }}</span></a>
+              }
+              @if (r.patients.length + r.visits.length + r.samples.length + r.invoices.length + r.tests.length === 0) {
+                <a><span class="ghint">No matches.</span></a>
+              }
+            </div>
+          }
         </div>
         <span class="ctx">{{ auth.user()?.fullName ?? 'signed in' }} · {{ auth.user()?.roles?.join(', ') }}</span>
         <span class="spacer"></span>
@@ -64,6 +110,22 @@ import { AuthService } from './core/auth.service';
     }
     .ctx { font-size: 11px; color: var(--slate); background: #eef3f9; border-radius: 6px; padding: 5px 11px; }
     .spacer { flex: 1; }
+    .gsearch { position: relative; flex: 0 1 420px; margin-left: 14px; }
+    .gsearch input {
+      width: 100%; font-size: 12px; border: 1px solid var(--line); border-radius: 8px;
+      padding: 7px 11px; background: #f6f9fc;
+    }
+    .gresults {
+      position: absolute; top: 36px; left: 0; right: 0; background: #fff; z-index: 50;
+      border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 30px rgba(16,29,44,.14);
+      max-height: 380px; overflow: auto; padding: 4px;
+    }
+    .gresults a {
+      display: block; padding: 7px 10px; font-size: 12px; color: var(--navy);
+      border-radius: 6px; cursor: pointer; text-decoration: none;
+    }
+    .gresults a:hover { background: #eef7fd; }
+    .ghint { color: var(--slate); font-size: 11px; margin-left: 6px; }
     .sidebar {
       position: fixed; top: 56px; left: 0; bottom: 0; width: 208px;
       background: var(--navy); padding: 14px 0; display: flex; flex-direction: column;
@@ -85,6 +147,43 @@ import { AuthService } from './core/auth.service';
 export class AppComponent {
   readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly http = inject(HttpClient);
+  private readonly fb = inject(FormBuilder);
+
+  readonly searchTerm = this.fb.nonNullable.control('');
+  readonly searchResult = signal<GlobalSearch | null>(null);
+  readonly searchBox = viewChild<ElementRef<HTMLInputElement>>('searchBox');
+
+  /** FR-SYS-008: Ctrl+K focuses the global search from anywhere. */
+  @HostListener('window:keydown', ['$event'])
+  onKeydown(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      this.searchBox()?.nativeElement.focus();
+    }
+  }
+
+  async runSearch(): Promise<void> {
+    const term = this.searchTerm.value.trim();
+    if (term.length < 2) { this.searchResult.set(null); return; }
+    try {
+      const params = new HttpParams().set('term', term);
+      this.searchResult.set(await firstValueFrom(
+        this.http.get<GlobalSearch>(`${API_BASE_URL}/search`, { params })));
+    } catch {
+      this.searchResult.set(null);
+    }
+  }
+
+  clearSearch(): void {
+    this.searchResult.set(null);
+    this.searchTerm.setValue('');
+  }
+
+  go(path: string): void {
+    this.clearSearch();
+    void this.router.navigateByUrl(path);
+  }
 
   logout(): void {
     this.auth.logout();

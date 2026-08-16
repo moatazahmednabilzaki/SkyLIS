@@ -39,6 +39,7 @@ var api = app.MapGroup("/api/v1");
 api.MapAuthEndpoints(app.Configuration);
 api.MapTenantEndpoints();
 api.MapOrgEndpoints();
+api.MapPlatformServiceEndpoints();
 api.MapUserEndpoints();
 api.MapPatientEndpoints();
 api.MapCatalogEndpoints();

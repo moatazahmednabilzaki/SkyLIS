@@ -30,6 +30,7 @@ public static class DevAuthEndpoints
         "results.result.enter", "results.result.validateTechnical", "results.result.validateMedical",
         "results.result.amend",
         "reports.report.render", "reports.report.deliver", "reports.report.read",
+        "attachments.attachment.manage", "attachments.attachment.read",
         "analytics.dashboard.read",
         "audit.trail.read",
     ];

@@ -589,6 +589,77 @@ Step 'cumulative marks the amended point (P10.3)' {
     if (-not $p.isAmended -or $p.value -ne 95) { throw "unexpected: $($p | ConvertTo-Json -Compress)" }
 } | Out-Null
 
+# ---------- P01.7 master data push / FR-SYS-007 attachments / FR-SYS-008 search ----------
+$masterTest = Step 'platform: add CBC to the master catalogue (P01.7)' {
+    Invoke-RestMethod -Method Post -Uri "$api/platform/master-tests" -Headers $ph -ContentType 'application/json' -Body (@{
+        code = "CBC$suffix"; name = 'Complete Blood Count'; department = 'Hematology'
+        sampleTypeName = 'Whole blood (EDTA)'; containerName = 'EDTA (lavender)'; conditionName = 'Random' } | ConvertTo-Json)
+}
+Step 'push to all tenants -> reliable per-tenant fan-out (FR-MDM-071)' {
+    $push = Invoke-RestMethod -Method Post -Uri "$api/platform/master-tests/$($masterTest.id)/push" -Headers $ph
+    if ($push.targetCount -lt 2) { throw "expected >=2 target tenants, got $($push.targetCount)" }
+} | Out-Null
+
+$pushedTest = Step 'tenant A receives CBC as PendingActivation via outbox' {
+    $deadline = (Get-Date).AddSeconds(30)
+    do {
+        Start-Sleep -Seconds 2
+        $catalog = Invoke-RestMethod -Uri "$api/catalog/tests?status=PendingActivation" -Headers $ha
+        $cbc = $catalog | Where-Object code -eq "CBC$suffix"
+    } while (-not $cbc -and (Get-Date) -lt $deadline)
+    if (-not $cbc) { throw 'pushed test did not arrive' }
+    if ($cbc.origin -ne 'PlatformPush') { throw "expected PlatformPush origin, got $($cbc.origin)" }
+    if ($null -ne $cbc.price) { throw 'pushed test must arrive without a price' }
+    $cbc
+}
+Step 'tenant B received it too (isolated copies)' {
+    $tokenB2 = (Invoke-RestMethod -Method Post -Uri "$api/dev/token" -ContentType 'application/json' -Body (@{
+        scope = 'tenant'; tenantId = $tenantB } | ConvertTo-Json)).token
+    $catalogB = Invoke-RestMethod -Uri "$api/catalog/tests?status=PendingActivation" -Headers @{ Authorization = "Bearer $tokenB2" }
+    if (-not ($catalogB | Where-Object code -eq "CBC$suffix")) { throw 'tenant B missing the pushed test' }
+} | Out-Null
+Step 'tenant A activates CBC with a local price (price gate)' {
+    Invoke-RestMethod -Method Post -Uri "$api/catalog/tests/$($pushedTest.id)/activate" -Headers $ha `
+        -ContentType 'application/json' -Body '{"price":150,"currency":"EGP"}' | Out-Null
+    $active = Invoke-RestMethod -Uri "$api/catalog/tests?status=Active" -Headers $ha
+    if (-not ($active | Where-Object code -eq "CBC$suffix")) { throw 'CBC not active after pricing' }
+} | Out-Null
+
+$attachment = Step 'attach a requisition scan to visit1 (FR-SYS-007)' {
+    $content = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("Requisition for $($visit.visitNumber) - Sky LIS"))
+    $a = Invoke-RestMethod -Method Post -Uri "$api/attachments" -Headers $ha -ContentType 'application/json' -Body (@{
+        entityType = 'visit'; entityId = $visit.visitId; fileName = 'requisition.txt'
+        contentType = 'text/plain'; contentBase64 = $content } | ConvertTo-Json)
+    $list = Invoke-RestMethod -Uri "$api/attachments?entityType=visit&entityId=$($visit.visitId)" -Headers $ha
+    if (@($list).Count -ne 1) { throw "expected 1 attachment, got $(@($list).Count)" }
+    $a
+}
+Step 'attachment content round-trips byte-exact' {
+    $response = Invoke-WebRequest -Uri "$api/attachments/$($attachment.id)/content" -Headers $ha -UseBasicParsing
+    $stream = New-Object System.IO.MemoryStream
+    $response.RawContentStream.CopyTo($stream)
+    $text = [Text.Encoding]::UTF8.GetString($stream.ToArray())
+    if ($text -notmatch [regex]::Escape($visit.visitNumber)) { throw 'content mismatch' }
+} | Out-Null
+ExpectError 'oversized attachment rejected' 400 {
+    Invoke-RestMethod -Method Post -Uri "$api/attachments" -Headers $ha -ContentType 'application/json' -Body (@{
+        entityType = 'visit'; entityId = $visit.visitId; fileName = 'huge.bin'
+        contentType = 'application/octet-stream'
+        contentBase64 = [Convert]::ToBase64String((New-Object byte[] (6MB))) } | ConvertTo-Json)
+}
+
+Step 'global search finds visit, patient, sample, invoice (FR-SYS-008)' {
+    $byVisit = Invoke-RestMethod -Uri "$api/search?term=$($visit2.visitNumber)" -Headers $ha
+    if (-not ($byVisit.visits | Where-Object title -eq $visit2.visitNumber)) { throw 'visit not found by number' }
+    $byName = Invoke-RestMethod -Uri "$api/search?term=Mona" -Headers $ha
+    if (-not ($byName.patients | Where-Object title -eq 'Mona El-Sayed')) { throw 'patient not found by name' }
+    $barcode = $visit.samples[0].barcode
+    $bySample = Invoke-RestMethod -Uri "$api/search?term=$barcode" -Headers $ha
+    if (-not ($bySample.samples | Where-Object title -eq $barcode)) { throw 'sample not found by barcode' }
+    $byInvoice = Invoke-RestMethod -Uri "$api/search?term=$($visit.invoiceNumber)" -Headers $ha
+    if (-not ($byInvoice.invoices | Where-Object title -eq $visit.invoiceNumber)) { throw 'invoice not found by number' }
+} | Out-Null
+
 # ---------- M02: Real users, login & role-based permissions ----------
 Step 'initial Tenant Admin created via outbox; real login works' {
     $deadline = (Get-Date).AddSeconds(20)
@@ -671,6 +742,14 @@ ExpectError "tenant B cannot read tenant A's visit (RLS + filters)" 404 {
 Step "tenant B search finds no tenant A patients" {
     $hits = Invoke-RestMethod -Uri "$api/patients/search?term=Mona" -Headers $hb
     if ($hits.Count -ne 0) { throw "isolation breach: $($hits.Count) rows visible" }
+} | Out-Null
+Step "tenant B sees no tenant A attachments (RLS)" {
+    $list = Invoke-RestMethod -Uri "$api/attachments?entityType=visit&entityId=$($visit.visitId)" -Headers $hb
+    if (@($list).Count -ne 0) { throw 'attachment isolation breach' }
+} | Out-Null
+Step "tenant B global search finds nothing of tenant A (FR-SYS-008)" {
+    $hits = Invoke-RestMethod -Uri "$api/search?term=$($visit.visitNumber)" -Headers $hb
+    if (@($hits.visits).Count -ne 0) { throw 'search isolation breach' }
 } | Out-Null
 ExpectError 'tenant token cannot use platform endpoints' 403 {
     Invoke-RestMethod -Uri "$api/platform/tenants" -Headers $ha

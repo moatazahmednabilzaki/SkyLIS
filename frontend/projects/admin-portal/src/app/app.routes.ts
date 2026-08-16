@@ -31,6 +31,11 @@ export const appRoutes: Routes = [
         loadComponent: () =>
           import('./features/country-packs/country-packs.component').then(m => m.CountryPacksComponent),
       },
+      {
+        path: 'master-data',
+        loadComponent: () =>
+          import('./features/master-data/master-data.component').then(m => m.MasterDataComponent),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

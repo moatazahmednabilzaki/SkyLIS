@@ -56,6 +56,66 @@ public static class TenantEndpoints
             return Results.Ok(new { id });
         });
 
+        // P01.7 master data packs: platform test catalogue with push-to-all-tenants
+        var masterTests = group.MapGroup("/platform/master-tests").RequireAuthorization()
+            .WithTags("Admin Portal — Master Data Packs (P01.7)");
+
+        masterTests.MapGet("/", (ISender sender, CancellationToken ct) =>
+            sender.Send(new SkyLIS.Application.Platform.ListMasterTestsQuery(), ct));
+
+        masterTests.MapPost("/", async (
+            ISender sender, SkyLIS.Application.Platform.CreateMasterTestCommand command, CancellationToken ct) =>
+        {
+            var id = await sender.Send(command, ct);
+            return Results.Created($"/api/v1/platform/master-tests/{id}", new { id });
+        });
+
+        masterTests.MapPost("/{masterTestId:guid}/push", async (
+            ISender sender, Guid masterTestId, CancellationToken ct) =>
+        {
+            var targetCount = await sender.Send(
+                new SkyLIS.Application.Platform.PushMasterTestCommand(masterTestId), ct);
+            return Results.Ok(new { targetCount });
+        });
+
+        return group;
+    }
+}
+
+public static class PlatformServiceEndpoints
+{
+    public sealed record UploadAttachmentRequest(
+        string EntityType, Guid EntityId, string FileName, string ContentType, string ContentBase64);
+
+    public static RouteGroupBuilder MapPlatformServiceEndpoints(this RouteGroupBuilder group)
+    {
+        // FR-SYS-008 global search (Ctrl+K)
+        group.MapGet("/search", (ISender sender, string term, CancellationToken ct) =>
+            sender.Send(new SkyLIS.Application.Search.GlobalSearchQuery(term), ct))
+            .RequireAuthorization().WithTags("Client Portal — Global Search (FR-SYS-008)");
+
+        // FR-SYS-007 attachments
+        var attachments = group.MapGroup("/attachments").RequireAuthorization()
+            .WithTags("Client Portal — Attachments (FR-SYS-007)");
+
+        attachments.MapGet("/", (ISender sender, string entityType, Guid entityId, CancellationToken ct) =>
+            sender.Send(new SkyLIS.Application.Files.ListAttachmentsQuery(entityType, entityId), ct));
+
+        attachments.MapPost("/", async (ISender sender, UploadAttachmentRequest request, CancellationToken ct) =>
+        {
+            var dto = await sender.Send(new SkyLIS.Application.Files.UploadAttachmentCommand(
+                request.EntityType, request.EntityId, request.FileName, request.ContentType, request.ContentBase64), ct);
+            return Results.Created($"/api/v1/attachments/{dto.Id}", dto);
+        });
+
+        attachments.MapGet("/{attachmentId:guid}/content", async (
+            ISender sender, Guid attachmentId, CancellationToken ct) =>
+        {
+            var content = await sender.Send(
+                new SkyLIS.Application.Files.GetAttachmentContentQuery(attachmentId), ct);
+            return Results.File(content.Content, content.ContentType, content.FileName);
+        });
+
         return group;
     }
 }

@@ -94,6 +94,39 @@ internal sealed class CountryPackConfig : IEntityTypeConfiguration<CountryPack>
     }
 }
 
+internal sealed class MasterTestConfig : IEntityTypeConfiguration<SkyLIS.Domain.Platform.MasterTest>
+{
+    public void Configure(EntityTypeBuilder<SkyLIS.Domain.Platform.MasterTest> b)
+    {
+        b.ToTable("master_tests", "platform");
+        b.HasKey(m => m.Id);
+        b.Property(m => m.Code).HasMaxLength(20).IsRequired();
+        b.HasIndex(m => m.Code).IsUnique();
+        b.Property(m => m.Name).HasMaxLength(200).IsRequired();
+        b.Property(m => m.Department).HasMaxLength(80).IsRequired();
+        b.Property(m => m.SampleTypeName).HasMaxLength(80).IsRequired();
+        b.Property(m => m.ContainerName).HasMaxLength(80).IsRequired();
+        b.Property(m => m.ConditionName).HasMaxLength(80);
+        b.Property<uint>("xmin").IsRowVersion();
+    }
+}
+
+internal sealed class AttachmentConfig : IEntityTypeConfiguration<SkyLIS.Domain.Files.Attachment>
+{
+    public void Configure(EntityTypeBuilder<SkyLIS.Domain.Files.Attachment> b)
+    {
+        b.ToTable("attachments", "files");
+        b.HasKey(a => a.Id);
+        b.Property(a => a.TenantId).IsRequired();
+        b.Property(a => a.EntityType).HasMaxLength(20).IsRequired();
+        b.HasIndex(a => new { a.TenantId, a.EntityType, a.EntityId });
+        b.Property(a => a.FileName).HasMaxLength(200).IsRequired();
+        b.Property(a => a.ContentType).HasMaxLength(100).IsRequired();
+        b.Property(a => a.Content).IsRequired();
+        b.Property<uint>("xmin").IsRowVersion();
+    }
+}
+
 internal sealed class PatientConfig : IEntityTypeConfiguration<Patient>
 {
     public void Configure(EntityTypeBuilder<Patient> b)

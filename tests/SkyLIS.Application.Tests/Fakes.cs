@@ -84,6 +84,9 @@ internal sealed class FakeSampleTypeRepository : ISampleTypeRepository
     public Task<SampleType?> GetAsync(Guid id, CancellationToken ct = default) =>
         Task.FromResult(Items.FirstOrDefault(s => s.Id == id));
 
+    public Task<SampleType?> GetByNameAsync(string name, CancellationToken ct = default) =>
+        Task.FromResult(Items.FirstOrDefault(s => s.Name == name));
+
     public Task<IReadOnlyList<SampleCondition>> GetConditionsAsync(
         IReadOnlyCollection<Guid> conditionIds, CancellationToken ct = default) =>
         Task.FromResult<IReadOnlyList<SampleCondition>>(

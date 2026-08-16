@@ -61,7 +61,22 @@ public interface ITenantRepository
 {
     Task<Tenant?> GetAsync(Guid id, CancellationToken ct = default);
     Task<bool> SubdomainExistsAsync(string subdomain, CancellationToken ct = default);
+    /// <summary>Tenants eligible for platform pushes: Trial, Active, and PastDue.</summary>
+    Task<IReadOnlyList<Guid>> GetPushTargetTenantIdsAsync(CancellationToken ct = default);
     void Add(Tenant tenant);
+}
+
+public interface IMasterTestRepository
+{
+    Task<Domain.Platform.MasterTest?> GetAsync(Guid id, CancellationToken ct = default);
+    Task<bool> CodeExistsAsync(string code, CancellationToken ct = default);
+    void Add(Domain.Platform.MasterTest masterTest);
+}
+
+public interface IAttachmentRepository
+{
+    Task<Domain.Files.Attachment?> GetAsync(Guid id, CancellationToken ct = default);
+    void Add(Domain.Files.Attachment attachment);
 }
 
 public interface IPatientRepository
@@ -82,6 +97,7 @@ public interface ILabTestRepository
 public interface ISampleTypeRepository
 {
     Task<SampleType?> GetAsync(Guid id, CancellationToken ct = default);
+    Task<SampleType?> GetByNameAsync(string name, CancellationToken ct = default);
     Task<IReadOnlyList<SampleCondition>> GetConditionsAsync(IReadOnlyCollection<Guid> conditionIds, CancellationToken ct = default);
     Task<bool> NameExistsAsync(string name, CancellationToken ct = default);
     void Add(SampleType sampleType);

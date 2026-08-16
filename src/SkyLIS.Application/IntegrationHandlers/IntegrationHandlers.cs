@@ -4,6 +4,7 @@ using SkyLIS.Application.Reports;
 using SkyLIS.Application.Users;
 using SkyLIS.Domain.Catalog;
 using SkyLIS.Domain.Org;
+using SkyLIS.Domain.Platform;
 using SkyLIS.Domain.Reports;
 using SkyLIS.Domain.Results;
 using SkyLIS.Domain.Tenants;
@@ -96,6 +97,49 @@ internal sealed class SeedCountryDefaultsHandler : IIntegrationEventHandler<Tena
                     Guid.CreateVersion7(), condition.Name, condition.DelayMinutes, condition.CompatibilityGroup);
             _sampleTypes.Add(sampleType);
         }
+    }
+}
+
+/// <summary>
+/// FR-MDM-071 (P01.7): a pushed master test lands in this tenant's catalogue as
+/// PendingActivation. The tenant's sample taxonomy is resolved BY NAME (country packs
+/// seed canonical names); a missing sample type is created on the fly so the push never
+/// fails a tenant. Activation stays local — a price must be set first.
+/// </summary>
+internal sealed class CreatePushedTestHandler : IIntegrationEventHandler<MasterTestPushed>
+{
+    private readonly ILabTestRepository _tests;
+    private readonly ISampleTypeRepository _sampleTypes;
+
+    public CreatePushedTestHandler(ILabTestRepository tests, ISampleTypeRepository sampleTypes)
+    {
+        _tests = tests;
+        _sampleTypes = sampleTypes;
+    }
+
+    public async Task HandleAsync(MasterTestPushed domainEvent, CancellationToken ct = default)
+    {
+        if (await _tests.CodeExistsAsync(domainEvent.Code, ct))
+            return; // the tenant already carries this code (redelivery or local definition)
+
+        var sampleType = await _sampleTypes.GetByNameAsync(domainEvent.SampleTypeName, ct);
+        if (sampleType is null)
+        {
+            sampleType = SampleType.Create(
+                Guid.CreateVersion7(), domainEvent.TenantId, domainEvent.SampleTypeName, domainEvent.ContainerName);
+            if (domainEvent.ConditionName is not null)
+                sampleType.AddCondition(Guid.CreateVersion7(), domainEvent.ConditionName, null, "G1");
+            _sampleTypes.Add(sampleType);
+        }
+
+        var condition = domainEvent.ConditionName is null
+            ? null
+            : sampleType.Conditions.FirstOrDefault(c =>
+                c.Name.Equals(domainEvent.ConditionName, StringComparison.OrdinalIgnoreCase));
+
+        _tests.Add(LabTest.CreateFromPlatformPush(
+            Guid.CreateVersion7(), domainEvent.TenantId, domainEvent.Code, domainEvent.Name,
+            domainEvent.Department, sampleType.Id, condition?.Id));
     }
 }
 

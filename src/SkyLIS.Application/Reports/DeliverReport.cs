@@ -83,7 +83,9 @@ internal sealed class GetReportingWorklistHandler
         _queries.WorklistAsync(ct);
 }
 
-public sealed record ReportArtifactDto(Guid ReportId, string ReportNumber, int Version, string Kind, string ContentHtml, string ContentHash);
+public sealed record ReportArtifactDto(
+    Guid ReportId, string ReportNumber, int Version, string Kind,
+    string ContentHtml, byte[] ContentPdf, string ContentHash);
 
 /// <summary>P10.2: faithful artifact retrieval for authorized viewing/printing.</summary>
 public sealed record GetReportArtifactQuery(Guid ReportId) : IQuery<ReportArtifactDto>, IRequirePermission
@@ -102,6 +104,6 @@ internal sealed class GetReportArtifactHandler : IRequestHandler<GetReportArtifa
             ?? throw new NotFoundException("LabReport", request.ReportId);
         return new ReportArtifactDto(
             report.Id, report.ReportNumber, report.Version, report.Kind.ToString(),
-            report.ContentHtml, report.ContentHash);
+            report.ContentHtml, report.ContentPdf, report.ContentHash);
     }
 }

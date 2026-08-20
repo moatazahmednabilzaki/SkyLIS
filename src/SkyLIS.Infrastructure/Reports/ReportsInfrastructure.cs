@@ -24,6 +24,7 @@ internal sealed class LabReportConfig : IEntityTypeConfiguration<LabReport>
         b.Property(r => r.Status).HasConversion<string>().HasMaxLength(20);
         b.Property(r => r.ContentHash).HasMaxLength(64).IsRequired();
         b.Property(r => r.ContentHtml).IsRequired();
+        b.Property(r => r.ContentPdf).IsRequired();
         b.HasMany(r => r.Deliveries).WithOne().HasForeignKey(d => d.ReportId).OnDelete(DeleteBehavior.Cascade);
         b.Navigation(r => r.Deliveries).UsePropertyAccessMode(PropertyAccessMode.Field);
         b.Property<uint>("xmin").IsRowVersion();

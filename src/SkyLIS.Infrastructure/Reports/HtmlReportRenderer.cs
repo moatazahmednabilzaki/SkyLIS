@@ -1,17 +1,161 @@
 using System.Net;
 using System.Text;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 using SkyLIS.Application.Reports;
 using SkyLIS.Domain.Reports;
 
 namespace SkyLIS.Infrastructure.Reports;
 
 /// <summary>
-/// Renders the immutable report artifact as a self-contained bilingual (EN/AR) HTML
-/// document in the Sky LIS brand. A PDF converter implements the same IReportRenderer
-/// port in a later slice; the hash-and-store contract is unchanged.
+/// Renders both faces of one report: the PDF (QuestPDF, Community license) is the
+/// immutable hash-stamped artifact of record delivered to patients; the self-contained
+/// bilingual (EN/AR) HTML is the portal preview of the same content. Arabic strings
+/// render in the HTML preview; the PDF uses Latin labels until an Arabic-capable font
+/// ships with the binary.
 /// </summary>
 internal sealed class HtmlReportRenderer : IReportRenderer
 {
+    static HtmlReportRenderer() => QuestPDF.Settings.License = LicenseType.Community;
+
+    private const string Navy = "#101d2c";
+    private const string Blue = "#0284c7";
+    private const string Slate = "#5a6472";
+    private const string Line = "#e7f4fd";
+
+    public byte[] RenderPdf(ReportContent content, ReportKind kind, string reportNumber, int version, DateTimeOffset nowUtc)
+    {
+        return Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.Margin(36);
+                page.DefaultTextStyle(style => style.FontSize(9.5f).FontColor("#26303b"));
+
+                if (kind != ReportKind.Final)
+                {
+                    page.Foreground().AlignCenter().AlignMiddle()
+                        .Text(kind == ReportKind.Interim ? "INTERIM — NOT FINAL" : "AMENDED")
+                        .FontSize(46).Bold()
+                        .FontColor(kind == ReportKind.Interim ? "#b26a0022" : "#b91c1c22");
+                }
+
+                page.Header().Column(column =>
+                {
+                    column.Item().Row(row =>
+                    {
+                        row.RelativeItem().Column(left =>
+                        {
+                            left.Item().Text(content.TenantLegalName).FontSize(16).Bold().FontColor(Navy);
+                            left.Item().Text("LABORATORY REPORT").FontSize(8).Bold().FontColor(Blue).LetterSpacing(0.15f);
+                        });
+                        row.ConstantItem(220).Column(right =>
+                        {
+                            right.Item().AlignRight().Text($"{reportNumber} · v{version} · {kind.ToString().ToUpperInvariant()}")
+                                .FontFamily(Fonts.Consolas).FontSize(10).Bold();
+                            right.Item().AlignRight().Text($"Issued {nowUtc:yyyy-MM-dd HH:mm} UTC").FontColor(Slate);
+                        });
+                    });
+                    column.Item().PaddingTop(6).BorderBottom(2).BorderColor(Blue);
+                });
+
+                page.Content().PaddingVertical(10).Column(column =>
+                {
+                    column.Item().Row(row =>
+                    {
+                        row.RelativeItem().Text(text =>
+                        {
+                            text.Span("Patient: ").SemiBold();
+                            text.Span($"{content.PatientFullName} ({content.PatientNumber})");
+                        });
+                        row.ConstantItem(160).AlignRight().Text($"{content.Gender} · {content.Age} y");
+                    });
+                    column.Item().PaddingBottom(8).Row(row =>
+                    {
+                        row.RelativeItem().Text(text =>
+                        {
+                            text.Span("Visit: ").SemiBold();
+                            text.Span(content.VisitNumber).FontFamily(Fonts.Consolas);
+                        });
+                        row.ConstantItem(220).AlignRight()
+                            .Text($"Registered {content.VisitRegisteredAtUtc:yyyy-MM-dd HH:mm} UTC").FontColor(Slate);
+                    });
+
+                    column.Item().Table(table =>
+                    {
+                        table.ColumnsDefinition(columns =>
+                        {
+                            columns.ConstantColumn(64);
+                            columns.RelativeColumn(1.1f);
+                            columns.ConstantColumn(52);
+                            columns.RelativeColumn(0.9f);
+                            columns.ConstantColumn(64);
+                            columns.RelativeColumn(1.6f);
+                        });
+
+                        table.Header(header =>
+                        {
+                            foreach (var title in new[] { "Test", "Result", "Unit", "Reference", "Flag", "Interpretation" })
+                                header.Cell().Background(Navy).Padding(5)
+                                    .Text(title).FontColor("#ffffff").FontSize(8.5f).Bold();
+                        });
+
+                        foreach (var line in content.Results)
+                        {
+                            var flagColor = line.Flag switch
+                            {
+                                "Normal" => "#177245",
+                                "Low" or "High" => "#b26a00",
+                                _ => "#b91c1c",
+                            };
+                            table.Cell().BorderBottom(0.5f).BorderColor(Line).Padding(5)
+                                .Text(line.TestCode).FontFamily(Fonts.Consolas).Bold();
+                            table.Cell().BorderBottom(0.5f).BorderColor(Line).Padding(5).Column(cell =>
+                            {
+                                cell.Item().AlignRight().Text($"{line.Value}").FontFamily(Fonts.Consolas);
+                                if (line.IsAmended)
+                                {
+                                    cell.Item().AlignRight()
+                                        .Text($"AMENDED — was {line.ValueBeforeAmendment}: {line.AmendmentReason}")
+                                        .FontSize(7).Bold().FontColor("#b91c1c");
+                                }
+                            });
+                            table.Cell().BorderBottom(0.5f).BorderColor(Line).Padding(5).Text(line.Unit);
+                            table.Cell().BorderBottom(0.5f).BorderColor(Line).Padding(5)
+                                .Text($"{(line.RefLow?.ToString() ?? "·")}–{(line.RefHigh?.ToString() ?? "·")}")
+                                .FontFamily(Fonts.Consolas);
+                            table.Cell().BorderBottom(0.5f).BorderColor(Line).Padding(5)
+                                .Text(line.Flag).Bold().FontColor(flagColor);
+                            table.Cell().BorderBottom(0.5f).BorderColor(Line).Padding(5)
+                                .Text(line.InterpretiveComment ?? "");
+                        }
+                    });
+                });
+
+                page.Footer().PaddingTop(8).BorderTop(0.5f).BorderColor("#dbe6f0").Column(column =>
+                {
+                    if (content.FooterNote is not null)
+                        column.Item().Text(content.FooterNote).FontSize(8).SemiBold();
+                    column.Item().Text(
+                        "Electronically signed results (FR-SYS-002). Verify authenticity without exposing content: "
+                        + "scan the report QR or open /api/v1/public/reports/<id>/verify — the content hash is "
+                        + "printed on issue and never changes. Sky LIS · one finalized report per visit is the "
+                        + "accession of record.").FontSize(7).FontColor(Slate);
+                    column.Item().AlignRight().Text(text =>
+                    {
+                        text.DefaultTextStyle(s => s.FontSize(7).FontColor(Slate));
+                        text.Span("Page ");
+                        text.CurrentPageNumber();
+                        text.Span(" of ");
+                        text.TotalPages();
+                    });
+                });
+            });
+        }).GeneratePdf();
+    }
+
     public string RenderHtml(ReportContent content, ReportKind kind, string reportNumber, int version, DateTimeOffset nowUtc)
     {
         var rows = new StringBuilder();

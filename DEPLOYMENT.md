@@ -113,4 +113,7 @@ the dump and starting the previous image.
 - Single-node semantics: `MigrateOnStartup` and the in-process outbox dispatcher assume
   one API instance. Scale-out requires the RabbitMQ transport swap (Phase 2) and running
   migrations as a dedicated job.
-- Report artifacts are self-contained HTML (PDF renderer is a pending port swap).
+- Report artifacts are hash-stamped PDFs (QuestPDF, Community license — free tier for
+  organizations under USD 1M annual revenue; upgrade the license if that changes). The
+  bilingual HTML preview serves portal viewing; the PDF itself uses Latin labels until
+  an Arabic-capable font ships with the binary.

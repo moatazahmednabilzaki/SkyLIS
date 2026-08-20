@@ -25,8 +25,11 @@ public sealed class LabReport : AggregateRoot, ITenantOwned
     public int Version { get; private set; }
     public ReportKind Kind { get; private set; }
     public ReportStatus Status { get; private set; }
+    /// <summary>SHA-256 over the PDF — the artifact of record printed on the document (P10.2).</summary>
     public string ContentHash { get; private set; } = null!;
+    /// <summary>Bilingual HTML preview (portal viewing); the PDF is the delivered artifact.</summary>
     public string ContentHtml { get; private set; } = null!;
+    public byte[] ContentPdf { get; private set; } = null!;
     public DateTimeOffset RenderedAtUtc { get; private set; }
 
     public IReadOnlyCollection<ReportDelivery> Deliveries => _deliveries.AsReadOnly();
@@ -35,7 +38,7 @@ public sealed class LabReport : AggregateRoot, ITenantOwned
 
     public static LabReport Render(
         Guid id, Guid tenantId, Guid visitId, Guid patientId, string reportNumber, int version,
-        ReportKind kind, string contentHtml, string contentHash,
+        ReportKind kind, string contentHtml, byte[] contentPdf, string contentHash,
         bool visitFullyValidated, bool hasOpenCriticalValue, int medicallyValidResultCount,
         DateTimeOffset nowUtc)
     {
@@ -44,6 +47,8 @@ public sealed class LabReport : AggregateRoot, ITenantOwned
         if (version < 1) throw new DomainException("Report version starts at 1.");
         if (string.IsNullOrWhiteSpace(contentHtml) || string.IsNullOrWhiteSpace(contentHash))
             throw new DomainException("Rendered content and its hash are required.");
+        if (contentPdf is null || contentPdf.Length == 0)
+            throw new DomainException("The PDF artifact is required (it carries the content hash of record).");
         if (medicallyValidResultCount == 0)
             throw new DomainException("A report requires at least one medically valid result.");
         if (kind is ReportKind.Final or ReportKind.Amended && hasOpenCriticalValue)
@@ -64,6 +69,7 @@ public sealed class LabReport : AggregateRoot, ITenantOwned
             Kind = kind,
             Status = ReportStatus.Rendered,
             ContentHtml = contentHtml,
+            ContentPdf = contentPdf,
             ContentHash = contentHash,
             RenderedAtUtc = nowUtc,
         };

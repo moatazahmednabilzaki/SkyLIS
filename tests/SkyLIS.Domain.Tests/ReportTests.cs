@@ -14,7 +14,7 @@ public class LabReportTests
         ReportKind kind = ReportKind.Final, bool fullyValidated = true,
         bool openCritical = false, int resultCount = 2, int version = 1) =>
         LabReport.Render(Guid.NewGuid(), TenantId, Guid.NewGuid(), Guid.NewGuid(),
-            "R-260815-0001", version, kind, "<html>report</html>", "ABC123HASH",
+            "R-260815-0001", version, kind, "<html>report</html>", [0x25, 0x50, 0x44, 0x46], "ABC123HASH",
             fullyValidated, openCritical, resultCount, Now);
 
     [Fact]

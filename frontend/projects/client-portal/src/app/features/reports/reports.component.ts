@@ -146,13 +146,14 @@ export class ReportsComponent implements OnInit {
   }
 
   open(reportId: string): void {
-    // The artifact endpoint requires the bearer token; fetch and open as a blob.
+    // The artifact of record is the PDF; the endpoint requires the bearer token,
+    // so fetch and open as a blob.
     void fetch(`${API_BASE_URL}/reports/${reportId}/content`, {
       headers: { Authorization: `Bearer ${this.auth.token}` },
     })
-      .then(r => r.text())
-      .then(html => {
-        const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+      .then(r => r.blob())
+      .then(pdf => {
+        const url = URL.createObjectURL(new Blob([pdf], { type: 'application/pdf' }));
         window.open(url, '_blank');
       });
   }

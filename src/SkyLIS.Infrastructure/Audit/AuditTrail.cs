@@ -45,7 +45,7 @@ internal static class AuditCollector
             typeof(Auth.RefreshToken),
         ];
 
-    private static readonly HashSet<string> OmittedProperties = ["ContentHtml"];
+    private static readonly HashSet<string> OmittedProperties = ["ContentHtml", "ContentPdf"];
 
     public static List<AuditEvent> Collect(
         ChangeTracker changeTracker, Guid? tenantId, Guid? userId, string? ipAddress, DateTimeOffset nowUtc)

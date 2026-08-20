@@ -425,11 +425,14 @@ ExpectError 'second FINAL for the same visit rejected' 409 {
         -ContentType 'application/json' -Body '{"kind":"Final"}'
 }
 
-Step 'report artifact is retrievable and hash-stable' {
-    # Hash over the RAW bytes (the artifact contains UTF-8 Arabic text).
+Step 'report artifact is a hash-stable PDF (QuestPDF, P10.1)' {
+    # Hash over the RAW bytes of the PDF — the artifact of record.
     $response = Invoke-WebRequest -Uri "$api/reports/$($final.reportId)/content" -Headers $ha -UseBasicParsing
+    if ($response.Headers['Content-Type'] -notmatch 'application/pdf') { throw "expected PDF, got $($response.Headers['Content-Type'])" }
     $stream = New-Object System.IO.MemoryStream
     $response.RawContentStream.CopyTo($stream)
+    $magic = [Text.Encoding]::ASCII.GetString($stream.ToArray()[0..4])
+    if ($magic -ne '%PDF-') { throw "artifact is not a PDF (starts with '$magic')" }
     $sha = [System.Security.Cryptography.SHA256]::Create()
     $hash = [BitConverter]::ToString($sha.ComputeHash($stream.ToArray())).Replace('-','')
     if ($hash -ne $final.contentHash) { throw "artifact hash mismatch: $hash vs $($final.contentHash)" }
@@ -643,9 +646,11 @@ Step 'AMENDED report renders as a new version with the marking (P09.5/P10)' {
     $r = Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit2.visitId)/reports" -Headers $ha `
         -ContentType 'application/json' -Body '{"kind":"Amended"}'
     if ($r.kind -ne 'Amended' -or $r.version -lt 2) { throw "unexpected $($r.kind) v$($r.version)" }
-    $content = Invoke-WebRequest -Uri "$api/reports/$($r.reportId)/content" -Headers $ha -UseBasicParsing
+    $content = Invoke-WebRequest -Uri "$api/reports/$($r.reportId)/content/html" -Headers $ha -UseBasicParsing
     if ($content.Content -notmatch 'AMENDED') { throw 'artifact lacks the AMENDED marking' }
     if ($content.Content -notmatch 'was 88') { throw 'artifact lacks the superseded value' }
+    $pdf = Invoke-WebRequest -Uri "$api/reports/$($r.reportId)/content" -Headers $ha -UseBasicParsing
+    if ($pdf.Headers['Content-Type'] -notmatch 'application/pdf') { throw 'amended artifact of record is not a PDF' }
 } | Out-Null
 Step 'cumulative marks the amended point (P10.3)' {
     $t = Invoke-RestMethod -Uri "$api/patients/$patient/results/cumulative?testCode=GLU-F" -Headers $ha
@@ -1086,7 +1091,7 @@ Step 'tenant settings: report footer + rejection vocabulary (FR-SYS-004)' {
 Step 'reports render with the tenant footer note (FR-SYS-004)' {
     $r = Invoke-RestMethod -Method Post -Uri "$api/visits/$($visit.visitId)/reports" -Headers $ha `
         -ContentType 'application/json' -Body '{"kind":"Interim"}'
-    $content = Invoke-WebRequest -Uri "$api/reports/$($r.reportId)/content" -Headers $ha -UseBasicParsing
+    $content = Invoke-WebRequest -Uri "$api/reports/$($r.reportId)/content/html" -Headers $ha -UseBasicParsing
     if ($content.Content -notmatch 'Accredited by EGAC') { throw 'footer note missing from the artifact' }
 } | Out-Null
 

@@ -24,10 +24,14 @@ public sealed record ReportResultLine(
     decimal? RefLow, decimal? RefHigh, string? InterpretiveComment, string SignatureHash,
     bool IsAmended = false, decimal? ValueBeforeAmendment = null, string? AmendmentReason = null);
 
-/// <summary>Rendering port: produces the immutable report artifact (HTML now; PDF converter later).</summary>
+/// <summary>
+/// Rendering port. The PDF is the immutable, hash-stamped artifact of record; the HTML
+/// is the bilingual portal preview of the same content.
+/// </summary>
 public interface IReportRenderer
 {
     string RenderHtml(ReportContent content, ReportKind kind, string reportNumber, int version, DateTimeOffset nowUtc);
+    byte[] RenderPdf(ReportContent content, ReportKind kind, string reportNumber, int version, DateTimeOffset nowUtc);
 }
 
 /// <summary>Read port for report assembly and worklists.</summary>
@@ -111,13 +115,15 @@ internal sealed class RenderReportHandler : IRequestHandler<RenderReportCommand,
         var now = _clock.UtcNow;
 
         var html = _renderer.RenderHtml(content, request.Kind, reportNumber, version, now);
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(html)));
+        var pdf = _renderer.RenderPdf(content, request.Kind, reportNumber, version, now);
+        // The hash of record covers the PDF — the artifact that leaves the lab.
+        var hash = Convert.ToHexString(SHA256.HashData(pdf));
 
         // Amended reports render on a visit that already reached Reported (P09.5).
         var fullyValidated = visit.Status is VisitStatus.Validated or VisitStatus.Reported;
         var report = LabReport.Render(
             Guid.CreateVersion7(), _tenant.TenantId, visit.Id, visit.PatientId,
-            reportNumber, version, request.Kind, html, hash,
+            reportNumber, version, request.Kind, html, pdf, hash,
             fullyValidated, hasOpenCritical, content.Results.Count, now);
         _reports.Add(report);
         _reports.AddVerification(ReportVerification.For(

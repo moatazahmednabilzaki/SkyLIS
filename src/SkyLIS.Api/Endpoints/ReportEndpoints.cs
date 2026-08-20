@@ -16,7 +16,16 @@ public static class ReportEndpoints
         reports.MapGet("/worklist", (ISender sender, CancellationToken ct) =>
             sender.Send(new GetReportingWorklistQuery(), ct));
 
+        // The artifact of record: the hash-stamped PDF (P10.1/P10.2).
         reports.MapGet("/{reportId:guid}/content", async (ISender sender, Guid reportId, CancellationToken ct) =>
+        {
+            var artifact = await sender.Send(new GetReportArtifactQuery(reportId), ct);
+            return Results.File(artifact.ContentPdf, "application/pdf",
+                $"{artifact.ReportNumber}-v{artifact.Version}.pdf");
+        });
+
+        // Bilingual portal preview of the same content.
+        reports.MapGet("/{reportId:guid}/content/html", async (ISender sender, Guid reportId, CancellationToken ct) =>
         {
             var artifact = await sender.Send(new GetReportArtifactQuery(reportId), ct);
             return Results.Content(artifact.ContentHtml, "text/html; charset=utf-8");

@@ -1,13 +1,13 @@
 import { DatePipe } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { DuplicateCandidate, DuplicateGroup } from '../../core/api.types';
 import { PatientsFacade } from './patients.facade';
 
 @Component({
   selector: 'app-patients',
-  imports: [ReactiveFormsModule, DatePipe, RouterLink],
+  imports: [ReactiveFormsModule, FormsModule, DatePipe, RouterLink],
   template: `
     <h1 class="pt">Patients</h1>
     <p class="sub">M04 · P04.1 — search by mobile number, part of name, national ID, or patient number.</p>

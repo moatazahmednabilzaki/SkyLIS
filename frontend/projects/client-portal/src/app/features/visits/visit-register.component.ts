@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { PatientsApi } from '../patients/patients.api';
@@ -15,7 +15,7 @@ import { Branch, CatalogPanel, CatalogTest, PatientSearchResult, RegisteredVisit
  */
 @Component({
   selector: 'app-visit-register',
-  imports: [ReactiveFormsModule, DatePipe, RouterLink],
+  imports: [ReactiveFormsModule, FormsModule, DatePipe, RouterLink],
   template: `
     <h1 class="pt">Visit Registration</h1>
     <p class="sub">M05 · P05.2 — registration = the patient's new visit (SRS Rev 2.0 §M04).</p>

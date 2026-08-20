@@ -1,5 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { OrgApi } from './org.api';
 import { Branch, problemMessage } from '../../core/api.types';
@@ -10,7 +10,7 @@ import { Branch, problemMessage } from '../../core/api.types';
  */
 @Component({
   selector: 'app-branches',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, FormsModule],
   template: `
     <h1 class="pt">Branches &amp; Departments</h1>
     <p class="sub">M03 · P03.2 — visits, invoices, and number series run per branch.</p>

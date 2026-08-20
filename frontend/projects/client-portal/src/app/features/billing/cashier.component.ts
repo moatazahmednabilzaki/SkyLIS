@@ -1,7 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../../core/config';
 import { OrgApi } from '../org/org.api';
@@ -43,7 +43,7 @@ interface ZReport {
  */
 @Component({
   selector: 'app-cashier',
-  imports: [ReactiveFormsModule, DatePipe],
+  imports: [ReactiveFormsModule, FormsModule, DatePipe],
   template: `
     <h1 class="pt">Cashier &amp; Day Close</h1>
     <p class="sub">M17 · P17.2 — shift reconciliation (Z-report) per branch.</p>

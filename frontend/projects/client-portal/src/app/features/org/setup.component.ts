@@ -1,7 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../../core/config';
@@ -21,7 +21,7 @@ interface ImportResult { created: number; skipped: number; errors: string[]; }
  */
 @Component({
   selector: 'app-setup',
-  imports: [ReactiveFormsModule, DatePipe, RouterLink],
+  imports: [ReactiveFormsModule, FormsModule, DatePipe, RouterLink],
   template: `
     <h1 class="pt">Lab Setup</h1>
     <p class="sub">M03 · P03.1 — the guided path from a fresh tenant to a working laboratory.</p>

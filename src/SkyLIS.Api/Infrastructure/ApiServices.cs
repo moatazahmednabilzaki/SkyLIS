@@ -20,7 +20,9 @@ public static class ApiServices
             options.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
         services.AddProblemDetails();
         services.AddExceptionHandler<ApiExceptionHandler>();
-        services.AddHealthChecks();
+        // Liveness = process up; readiness = database reachable (tagged for /health/ready).
+        services.AddHealthChecks()
+            .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"]);
 
         // Signing key resolution is centralized in TokenService: production requires
         // Auth:SigningKey from the environment and fails fast without it; the checked-in
@@ -61,6 +63,19 @@ public static class ApiServices
 
         return services;
     }
+}
+
+/// <summary>Readiness: one cheap connectivity probe against PostgreSQL.</summary>
+internal sealed class DatabaseHealthCheck : Microsoft.Extensions.Diagnostics.HealthChecks.IHealthCheck
+{
+    private readonly SkyLIS.Infrastructure.Persistence.SkyLisDbContext _db;
+    public DatabaseHealthCheck(SkyLIS.Infrastructure.Persistence.SkyLisDbContext db) => _db = db;
+
+    public async Task<Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult> CheckHealthAsync(
+        Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckContext context, CancellationToken ct = default) =>
+        await _db.Database.CanConnectAsync(ct)
+            ? Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy("database reachable")
+            : Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Unhealthy("database unreachable");
 }
 
 /// <summary>Client IP for the audit trail's "where" dimension (FR-SYS-001).</summary>

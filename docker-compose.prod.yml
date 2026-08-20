@@ -37,6 +37,8 @@ services:
       Platform__BootstrapOperator__UserName: ${PLATFORM_ADMIN_USERNAME:-}
       Platform__BootstrapOperator__FullName: ${PLATFORM_ADMIN_FULLNAME:-Platform Administrator}
       Platform__BootstrapOperator__Password: ${PLATFORM_ADMIN_PASSWORD:-}
+    volumes:
+      - skylis-api-logs:/app/logs
     depends_on:
       postgres:
         condition: service_healthy
@@ -67,3 +69,4 @@ services:
 
 volumes:
   skylis-pgdata:
+  skylis-api-logs:

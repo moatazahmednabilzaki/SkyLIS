@@ -20,7 +20,8 @@ public static class AuthEndpoints
 
     public static RouteGroupBuilder MapAuthEndpoints(this RouteGroupBuilder group, IConfiguration configuration)
     {
-        var auth = group.MapGroup("/auth").AllowAnonymous().WithTags("Authentication");
+        var auth = group.MapGroup("/auth").AllowAnonymous()
+            .RequireRateLimiting("auth").WithTags("Authentication");
 
         auth.MapPost("/login", async (
             ISender sender, TokenService tokens, TenantContext tenantContext, LoginRequest request, CancellationToken ct) =>

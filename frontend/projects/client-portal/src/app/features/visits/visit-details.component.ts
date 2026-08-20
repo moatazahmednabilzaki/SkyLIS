@@ -1,11 +1,11 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Component, inject, input, OnInit, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { VisitsApi } from './visits.api';
 import { API_BASE_URL } from '../../core/config';
-import { PaymentResult, VisitDetails, problemMessage } from '../../core/api.types';
+import { InvoiceDetails, VisitDetails, problemMessage } from '../../core/api.types';
 
 interface AttachmentRow {
   id: string;
@@ -18,7 +18,7 @@ interface AttachmentRow {
 /** P05.3 Order Details + sample actions (collect / receive / reject) + payment capture. */
 @Component({
   selector: 'app-visit-details',
-  imports: [ReactiveFormsModule, DatePipe, DecimalPipe],
+  imports: [FormsModule, DatePipe, DecimalPipe],
   template: `
     @if (visit(); as v) {
       <h1 class="pt">Visit {{ v.visitNumber }}
@@ -84,34 +84,63 @@ interface AttachmentRow {
       </div>
 
       <div class="card">
-        <h3>Capture payment (M17 — simplified)</h3>
-        @if (payment(); as p) {
-          <div class="note">Payment captured ✓ — invoice {{ p.status }},
-            paid {{ p.paid }} / balance {{ p.balance }} {{ p.currency }}</div>
-        }
-        <form [formGroup]="paymentForm" (ngSubmit)="pay()">
+        <h3>Billing (M17)</h3>
+        @if (invoice(); as inv) {
+          <table class="t" style="max-width:460px">
+            <tr><td>Invoice</td><td class="mono"><b>{{ inv.invoiceNumber }}</b>
+              <span class="chip" [class.c-green]="inv.status === 'Paid'"
+                    [class.c-amber]="inv.status === 'PartiallyPaid'"
+                    [class.c-navy]="inv.status === 'Adjusted'">{{ inv.status }}</span></td></tr>
+            <tr><td>Total</td><td class="mono">{{ inv.total }} {{ inv.currency }}</td></tr>
+            @if (inv.discountAmount > 0) {
+              <tr><td>Discount</td><td class="mono">−{{ inv.discountAmount }} <span class="hint">{{ inv.discountReason }}</span></td></tr>
+            }
+            @if (inv.creditedAmount > 0) {
+              <tr><td>Credited</td><td class="mono">−{{ inv.creditedAmount }}</td></tr>
+            }
+            <tr><td>Paid</td><td class="mono">{{ inv.paid }}@if (inv.refunded > 0) { <span class="hint"> (refunded {{ inv.refunded }})</span> }</td></tr>
+            <tr><td><b>Balance</b></td><td class="mono"><b [style.color]="inv.balance > 0 ? 'var(--red)' : 'var(--green)'">{{ inv.balance }} {{ inv.currency }}</b></td></tr>
+          </table>
+
+          <label class="lbl">Capture payment (P17.1)</label>
           <div class="f-row">
-            <div class="f">
-              <label for="invoiceId">INVOICE ID</label>
-              <input id="invoiceId" class="mono" formControlName="invoiceId">
-            </div>
-            <div class="f">
-              <label for="amount">AMOUNT</label>
-              <input id="amount" type="number" class="mono" formControlName="amount">
-            </div>
-            <div class="f">
-              <label for="method">METHOD</label>
-              <select id="method" formControlName="method">
-                <option value="cash">Cash</option>
-                <option value="card">Card</option>
-                <option value="wallet">Wallet</option>
-              </select>
-            </div>
-            <div class="f" style="flex:0 0 auto; align-self:flex-end">
-              <button class="btn green" type="submit" [disabled]="paymentForm.invalid || busy()">Capture</button>
-            </div>
+            <div class="f" style="flex:0 0 130px"><label for="bill-pay">AMOUNT</label><input id="bill-pay" type="number" class="mono" [(ngModel)]="payAmount"></div>
+            <div class="f" style="flex:0 0 auto"><label for="bill-method">METHOD</label>
+              <select id="bill-method" [(ngModel)]="payMethod"><option value="cash">Cash</option><option value="card">Card</option><option value="wallet">Wallet</option></select></div>
+            <div class="f" style="flex:0 0 auto; align-self:flex-end"><button class="btn green" [disabled]="busy()" (click)="capture(inv)">Capture</button></div>
           </div>
-        </form>
+
+          <label class="lbl">Discount (before payment)</label>
+          <div class="f-row">
+            <div class="f" style="flex:0 0 130px"><label for="bill-discount">AMOUNT</label><input id="bill-discount" type="number" class="mono" [(ngModel)]="discountAmount"></div>
+            <div class="f"><label for="bill-discount-reason">REASON (MANDATORY)</label><input id="bill-discount-reason" [(ngModel)]="discountReason"></div>
+            <div class="f" style="flex:0 0 auto; align-self:flex-end"><button class="btn" [disabled]="busy()" (click)="applyDiscount(inv)">Apply discount</button></div>
+          </div>
+
+          <label class="lbl">Credit note (waive balance)</label>
+          <div class="f-row">
+            <div class="f" style="flex:0 0 130px"><label for="bill-credit">AMOUNT</label><input id="bill-credit" type="number" class="mono" [(ngModel)]="creditAmount"></div>
+            <div class="f"><label for="bill-credit-reason">REASON (MANDATORY)</label><input id="bill-credit-reason" [(ngModel)]="creditReason"></div>
+            <div class="f" style="flex:0 0 auto; align-self:flex-end"><button class="btn" [disabled]="busy()" (click)="issueCredit(inv)">Issue credit note</button></div>
+          </div>
+
+          <label class="lbl">Refund (returns captured money — SoD)</label>
+          <div class="f-row">
+            <div class="f" style="flex:0 0 130px"><label for="bill-refund">AMOUNT</label><input id="bill-refund" type="number" class="mono" [(ngModel)]="refundAmount"></div>
+            <div class="f"><label for="bill-refund-reason">REASON (MANDATORY)</label><input id="bill-refund-reason" [(ngModel)]="refundReason"></div>
+            <div class="f" style="flex:0 0 auto; align-self:flex-end"><button class="btn danger" [disabled]="busy()" (click)="refund(inv)">Refund</button></div>
+          </div>
+
+          @if (inv.creditNotes.length > 0) {
+            <label class="lbl">Credit notes</label>
+            <table class="t" style="max-width:520px">
+              <tr><th>Number</th><th>Amount</th><th>Reason</th></tr>
+              @for (c of inv.creditNotes; track c.id) {
+                <tr><td class="mono">{{ c.creditNoteNumber }}</td><td class="mono">{{ c.amount }} {{ c.currency }}</td><td>{{ c.reason }}</td></tr>
+              }
+            </table>
+          }
+        } @else { <p class="hint">No invoice for this visit.</p> }
       </div>
       <div class="card">
         <h3>Attachments (FR-SYS-007)</h3>
@@ -141,12 +170,12 @@ interface AttachmentRow {
   styles: `
     .pt { font-size: 22px; font-weight: 700; color: var(--navy); margin-bottom: 4px; }
     .sub { font-size: 12px; color: var(--slate); margin-bottom: 16px; }
+    .lbl { display:block; font-size: 10px; font-weight: 700; letter-spacing: .1em; color: var(--slate); margin: 14px 0 6px; }
   `,
 })
 export class VisitDetailsComponent implements OnInit {
   private readonly api = inject(VisitsApi);
   private readonly http = inject(HttpClient);
-  private readonly fb = inject(FormBuilder);
 
   /** Route param bound via withComponentInputBinding (app.config). */
   readonly id = input.required<string>();
@@ -155,14 +184,18 @@ export class VisitDetailsComponent implements OnInit {
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
   readonly info = signal<string | null>(null);
-  readonly payment = signal<PaymentResult | null>(null);
+  readonly invoice = signal<InvoiceDetails | null>(null);
   readonly attachments = signal<AttachmentRow[]>([]);
 
-  readonly paymentForm = this.fb.nonNullable.group({
-    invoiceId: ['', Validators.required],
-    amount: [0, [Validators.required, Validators.min(0.01)]],
-    method: ['cash', Validators.required],
-  });
+  // Billing panel inputs (M17 edge paths).
+  payAmount = 0;
+  payMethod = 'cash';
+  discountAmount = 0;
+  discountReason = '';
+  creditAmount = 0;
+  creditReason = '';
+  refundAmount = 0;
+  refundReason = '';
 
   ngOnInit(): void {
     void this.reload();
@@ -174,6 +207,8 @@ export class VisitDetailsComponent implements OnInit {
       const params = new HttpParams().set('entityType', 'visit').set('entityId', this.id());
       this.attachments.set(await firstValueFrom(
         this.http.get<AttachmentRow[]>(`${API_BASE_URL}/attachments`, { params })));
+      this.invoice.set(await firstValueFrom(
+        this.http.get<InvoiceDetails>(`${API_BASE_URL}/billing/invoices/by-visit/${this.id()}`)));
     } catch (e) {
       this.error.set(problemMessage(e));
     }
@@ -246,11 +281,38 @@ export class VisitDetailsComponent implements OnInit {
     });
   }
 
-  async pay(): Promise<void> {
-    const { invoiceId, amount, method } = this.paymentForm.getRawValue();
-    const currency = this.visit()?.tests[0]?.currency ?? 'EGP';
+  async capture(inv: InvoiceDetails): Promise<void> {
     await this.act(async () => {
-      this.payment.set(await firstValueFrom(this.api.capturePayment(invoiceId, amount, currency, method)));
+      await firstValueFrom(this.api.capturePayment(inv.id, this.payAmount, inv.currency, this.payMethod));
+      this.payAmount = 0;
+      this.info.set('Payment captured ✓');
+    });
+  }
+
+  async applyDiscount(inv: InvoiceDetails): Promise<void> {
+    await this.act(async () => {
+      await firstValueFrom(this.http.post(`${API_BASE_URL}/billing/invoices/${inv.id}/discount`,
+        { amount: this.discountAmount, reason: this.discountReason }));
+      this.discountAmount = 0; this.discountReason = '';
+      this.info.set('Discount applied ✓');
+    });
+  }
+
+  async issueCredit(inv: InvoiceDetails): Promise<void> {
+    await this.act(async () => {
+      await firstValueFrom(this.http.post(`${API_BASE_URL}/billing/invoices/${inv.id}/credit-notes`,
+        { amount: this.creditAmount, reason: this.creditReason }));
+      this.creditAmount = 0; this.creditReason = '';
+      this.info.set('Credit note issued ✓');
+    });
+  }
+
+  async refund(inv: InvoiceDetails): Promise<void> {
+    await this.act(async () => {
+      await firstValueFrom(this.http.post(`${API_BASE_URL}/billing/invoices/${inv.id}/refunds`,
+        { amount: this.refundAmount, reason: this.refundReason }));
+      this.refundAmount = 0; this.refundReason = '';
+      this.info.set('Refund processed ✓');
     });
   }
 

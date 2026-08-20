@@ -537,6 +537,9 @@ public static class BillingEndpoints
         billing.MapGet("/{invoiceId:guid}", (ISender sender, Guid invoiceId, CancellationToken ct) =>
             sender.Send(new GetInvoiceQuery(invoiceId), ct));
 
+        billing.MapGet("/by-visit/{visitId:guid}", (ISender sender, Guid visitId, CancellationToken ct) =>
+            sender.Send(new GetInvoiceByVisitQuery(visitId), ct));
+
         billing.MapPost("/{invoiceId:guid}/payments", (
             ISender sender, Guid invoiceId, CapturePaymentRequest request, CancellationToken ct) =>
             sender.Send(new CapturePaymentCommand(invoiceId, request.Amount, request.Currency, request.Method), ct));

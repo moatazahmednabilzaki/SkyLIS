@@ -34,6 +34,8 @@ public sealed record ZReportDto(
 public interface IBillingQueries
 {
     Task<InvoiceDetailsDto?> GetInvoiceAsync(Guid invoiceId, CancellationToken ct = default);
+    /// <summary>The primary invoice for a visit — the billing panel's entry point.</summary>
+    Task<InvoiceDetailsDto?> GetInvoiceByVisitAsync(Guid visitId, CancellationToken ct = default);
     /// <summary>Per-method captured/refunded totals for one branch within a time window.</summary>
     Task<IReadOnlyList<MethodTotalDto>> MethodTotalsAsync(
         Guid branchId, DateTimeOffset fromUtc, DateTimeOffset toUtc, CancellationToken ct = default);
@@ -53,6 +55,21 @@ internal sealed class GetInvoiceHandler : IRequestHandler<GetInvoiceQuery, Invoi
     public async Task<InvoiceDetailsDto> Handle(GetInvoiceQuery request, CancellationToken ct) =>
         await _queries.GetInvoiceAsync(request.InvoiceId, ct)
             ?? throw new NotFoundException("Invoice", request.InvoiceId);
+}
+
+public sealed record GetInvoiceByVisitQuery(Guid VisitId) : IQuery<InvoiceDetailsDto>, IRequirePermission
+{
+    public string Permission => "orders.visit.read";
+}
+
+internal sealed class GetInvoiceByVisitHandler : IRequestHandler<GetInvoiceByVisitQuery, InvoiceDetailsDto>
+{
+    private readonly IBillingQueries _queries;
+    public GetInvoiceByVisitHandler(IBillingQueries queries) => _queries = queries;
+
+    public async Task<InvoiceDetailsDto> Handle(GetInvoiceByVisitQuery request, CancellationToken ct) =>
+        await _queries.GetInvoiceByVisitAsync(request.VisitId, ct)
+            ?? throw new NotFoundException("Invoice for visit", request.VisitId);
 }
 
 public sealed record ListShiftsQuery : IQuery<IReadOnlyList<ShiftDto>>, IRequirePermission

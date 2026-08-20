@@ -159,6 +159,44 @@ export interface PaymentResult {
   currency: string;
 }
 
+export interface InvoicePayment {
+  id: string;
+  amount: number;
+  currency: string;
+  method: string;
+  isRefund: boolean;
+  reason: string | null;
+  capturedAtUtc: string;
+}
+
+export interface CreditNoteLine {
+  id: string;
+  creditNoteNumber: string;
+  amount: number;
+  currency: string;
+  reason: string;
+  issuedAtUtc: string;
+}
+
+export interface InvoiceDetails {
+  id: string;
+  invoiceNumber: string;
+  visitId: string;
+  visitNumber: string;
+  branchCode: string;
+  status: string;
+  total: number;
+  discountAmount: number;
+  discountReason: string | null;
+  creditedAmount: number;
+  paid: number;
+  refunded: number;
+  balance: number;
+  currency: string;
+  payments: InvoicePayment[];
+  creditNotes: CreditNoteLine[];
+}
+
 export interface ProblemDetails {
   status?: number;
   title?: string;

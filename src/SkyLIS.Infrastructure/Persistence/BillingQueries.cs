@@ -8,6 +8,16 @@ internal sealed class BillingQueries : IBillingQueries
     private readonly SkyLisDbContext _db;
     public BillingQueries(SkyLisDbContext db) => _db = db;
 
+    public async Task<InvoiceDetailsDto?> GetInvoiceByVisitAsync(Guid visitId, CancellationToken ct = default)
+    {
+        var invoiceId = await _db.Invoices.AsNoTracking()
+            .Where(i => i.VisitId == visitId)
+            .OrderBy(i => i.IssuedAtUtc)
+            .Select(i => (Guid?)i.Id)
+            .FirstOrDefaultAsync(ct);
+        return invoiceId is null ? null : await GetInvoiceAsync(invoiceId.Value, ct);
+    }
+
     public async Task<InvoiceDetailsDto?> GetInvoiceAsync(Guid invoiceId, CancellationToken ct = default)
     {
         var invoice = await _db.Invoices.AsNoTracking()

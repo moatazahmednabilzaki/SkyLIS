@@ -12,6 +12,14 @@ public interface IPasswordHasher
     bool Verify(string password, string hash);
 }
 
+/// <summary>RFC 6238 TOTP port (§4.3 MFA): secret generation and windowed code verification.</summary>
+public interface ITotpService
+{
+    string GenerateSecret();
+    bool Verify(string secret, string code);
+    string BuildOtpAuthUri(string secret, string account, string issuer);
+}
+
 public interface IUserRepository
 {
     Task<User?> GetAsync(Guid id, CancellationToken ct = default);
@@ -114,12 +122,16 @@ internal sealed class ListUsersHandler : IRequestHandler<ListUsersQuery, IReadOn
 /// issues the JWT from the returned identity. Tenant resolution is explicit in dev
 /// (tenant id); subdomain-based resolution arrives with the gateway (§2.4).
 /// </summary>
-public sealed record LoginCommand(string UserName, string Password) : ICommand<AuthenticatedUserDto>;
+public sealed record LoginCommand(string UserName, string Password, string? MfaCode = null)
+    : ICommand<LoginResultDto>;
 
 public sealed record AuthenticatedUserDto(
     Guid UserId, Guid TenantId, string UserName, string FullName,
     IReadOnlyCollection<string> Roles, IReadOnlyCollection<string> Permissions,
     string RefreshToken);
+
+/// <summary>Password accepted + MFA enabled + no code yet → MfaRequired without tokens.</summary>
+public sealed record LoginResultDto(bool MfaRequired, AuthenticatedUserDto? User);
 
 internal sealed class LoginValidator : AbstractValidator<LoginCommand>
 {
@@ -130,28 +142,30 @@ internal sealed class LoginValidator : AbstractValidator<LoginCommand>
     }
 }
 
-internal sealed class LoginHandler : IRequestHandler<LoginCommand, AuthenticatedUserDto>
+internal sealed class LoginHandler : IRequestHandler<LoginCommand, LoginResultDto>
 {
     private readonly IUserRepository _users;
     private readonly ITenantRepository _tenants;
     private readonly IPasswordHasher _hasher;
+    private readonly ITotpService _totp;
     private readonly IRefreshTokenStore _refreshTokens;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
 
     public LoginHandler(
-        IUserRepository users, ITenantRepository tenants, IPasswordHasher hasher,
+        IUserRepository users, ITenantRepository tenants, IPasswordHasher hasher, ITotpService totp,
         IRefreshTokenStore refreshTokens, IUnitOfWork unitOfWork, IClock clock)
     {
         _users = users;
         _tenants = tenants;
         _hasher = hasher;
+        _totp = totp;
         _refreshTokens = refreshTokens;
         _unitOfWork = unitOfWork;
         _clock = clock;
     }
 
-    public async Task<AuthenticatedUserDto> Handle(LoginCommand request, CancellationToken ct)
+    public async Task<LoginResultDto> Handle(LoginCommand request, CancellationToken ct)
     {
         var user = await _users.FindByUserNameAsync(request.UserName.Trim().ToLowerInvariant(), ct);
         // One indistinguishable failure for unknown user / wrong password / inactive account.
@@ -166,6 +180,19 @@ internal sealed class LoginHandler : IRequestHandler<LoginCommand, Authenticated
             throw new ForbiddenAccessException("Invalid credentials.");
         }
 
+        // §4.3 MFA: password alone never completes an MFA-enabled sign-in.
+        if (user.MfaEnabled)
+        {
+            if (string.IsNullOrWhiteSpace(request.MfaCode))
+                return new LoginResultDto(MfaRequired: true, User: null);
+            if (!_totp.Verify(user.MfaSecret!, request.MfaCode))
+            {
+                user.RecordFailedLogin();
+                await _unitOfWork.SaveChangesAsync(ct);
+                throw new ForbiddenAccessException("Invalid credentials.");
+            }
+        }
+
         // P01.1 lifecycle enforcement: suspended/offboarded tenants cannot sign in.
         var tenant = await _tenants.GetAsync(user.TenantId, ct);
         if (tenant is null
@@ -178,7 +205,7 @@ internal sealed class LoginHandler : IRequestHandler<LoginCommand, Authenticated
         user.RecordLogin(_clock.UtcNow);
         var refreshToken = await _refreshTokens.IssueAsync(
             user.Id, IRefreshTokenStore.TenantUser, user.TenantId, ct);
-        return new AuthenticatedUserDto(
-            user.Id, user.TenantId, user.UserName, user.FullName, user.Roles, user.Permissions(), refreshToken);
+        return new LoginResultDto(false, new AuthenticatedUserDto(
+            user.Id, user.TenantId, user.UserName, user.FullName, user.Roles, user.Permissions(), refreshToken));
     }
 }

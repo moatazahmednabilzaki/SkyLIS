@@ -13,6 +13,29 @@ function Step($name, $block) {
     catch { Write-Host ("FAIL  {0}: {1}" -f $name, $_.Exception.Message); throw }
 }
 
+# Independent RFC 6238 implementation: proves the server's TOTP against a second codebase.
+function Get-Totp($secret) {
+    $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
+    $bits = ''
+    foreach ($c in $secret.ToUpper().ToCharArray()) {
+        $bits += [Convert]::ToString($alphabet.IndexOf($c), 2).PadLeft(5, '0')
+    }
+    $keyBytes = New-Object System.Collections.Generic.List[byte]
+    for ($i = 0; $i + 8 -le $bits.Length; $i += 8) {
+        $keyBytes.Add([Convert]::ToByte($bits.Substring($i, 8), 2))
+    }
+    $step = [long][math]::Floor([DateTimeOffset]::UtcNow.ToUnixTimeSeconds() / 30)
+    $counter = [BitConverter]::GetBytes($step)
+    if ([BitConverter]::IsLittleEndian) { [Array]::Reverse($counter) }
+    $hmac = New-Object System.Security.Cryptography.HMACSHA1(, $keyBytes.ToArray())
+    $hash = $hmac.ComputeHash($counter)
+    # [int] casts matter: PowerShell 5.1 keeps [byte] through -shl, silently overflowing to 0.
+    $offset = $hash[$hash.Length - 1] -band 0x0F
+    $binary = (([int]$hash[$offset] -band 0x7F) -shl 24) -bor ([int]$hash[$offset + 1] -shl 16) `
+        -bor ([int]$hash[$offset + 2] -shl 8) -bor [int]$hash[$offset + 3]
+    return ($binary % 1000000).ToString('D6')
+}
+
 function ExpectError($name, $expectedStatus, $block) {
     try { & $block | Out-Null; Write-Host ("FAIL  {0}: expected HTTP {1} but call succeeded" -f $name, $expectedStatus) }
     catch {
@@ -895,6 +918,57 @@ Step 'admin unlock clears the lockout; the correct password works again' {
         -ContentType 'application/json' -Body '{"action":"unlock"}' | Out-Null
     Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
         tenantId = $tenantA; userName = 'lockme.test'; password = 'Correct#2026!pass' } | ConvertTo-Json) | Out-Null
+} | Out-Null
+
+# ---------- §4.3 MFA (TOTP) ----------
+$mfaAuth = Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
+    tenantId = $tenantA; userName = 'lockme.test'; password = 'Correct#2026!pass' } | ConvertTo-Json)
+$hMfa = @{ Authorization = "Bearer $($mfaAuth.token)" }
+
+$enrollment = Step 'MFA enrollment issues secret + otpauth URI; not yet enforced' {
+    $e = Invoke-RestMethod -Method Post -Uri "$api/users/me/mfa/enroll" -Headers $hMfa
+    if (-not $e.secret -or $e.otpAuthUri -notmatch '^otpauth://totp/') { throw 'bad enrollment payload' }
+    $probe = Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
+        tenantId = $tenantA; userName = 'lockme.test'; password = 'Correct#2026!pass' } | ConvertTo-Json)
+    if ($probe.mfaRequired) { throw 'MFA enforced before the first valid code confirmed it' }
+    $e
+}
+
+$totpNow = Get-Totp $enrollment.secret
+$wrongCode = (([int]$totpNow + 1) % 1000000).ToString('D6')
+ExpectError 'confirming enrollment with a wrong code rejected' 403 {
+    Invoke-RestMethod -Method Post -Uri "$api/users/me/mfa/confirm" -Headers $hMfa `
+        -ContentType 'application/json' -Body (@{ code = $wrongCode } | ConvertTo-Json)
+}
+
+Step 'confirm with an independently computed TOTP -> MFA enforced' {
+    Invoke-RestMethod -Method Post -Uri "$api/users/me/mfa/confirm" -Headers $hMfa `
+        -ContentType 'application/json' -Body (@{ code = (Get-Totp $enrollment.secret) } | ConvertTo-Json) | Out-Null
+    $r = Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
+        tenantId = $tenantA; userName = 'lockme.test'; password = 'Correct#2026!pass' } | ConvertTo-Json)
+    if (-not $r.mfaRequired) { throw 'password alone completed an MFA-enabled sign-in!' }
+    if ($r.token) { throw 'tokens issued without the second factor!' }
+} | Out-Null
+
+ExpectError 'login with a wrong MFA code rejected' 403 {
+    $wrong = ((([int](Get-Totp $enrollment.secret)) + 1) % 1000000).ToString('D6')
+    Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
+        tenantId = $tenantA; userName = 'lockme.test'; password = 'Correct#2026!pass'; mfaCode = $wrong } | ConvertTo-Json)
+}
+
+Step 'login with password + TOTP completes (both factors)' {
+    $r = Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
+        tenantId = $tenantA; userName = 'lockme.test'; password = 'Correct#2026!pass'
+        mfaCode = (Get-Totp $enrollment.secret) } | ConvertTo-Json)
+    if (-not $r.token) { throw 'no token with both factors' }
+} | Out-Null
+
+Step 'disabling MFA requires the password; plain login works again' {
+    Invoke-RestMethod -Method Post -Uri "$api/users/me/mfa/disable" -Headers $hMfa `
+        -ContentType 'application/json' -Body '{"password":"Correct#2026!pass"}' | Out-Null
+    $r = Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
+        tenantId = $tenantA; userName = 'lockme.test'; password = 'Correct#2026!pass' } | ConvertTo-Json)
+    if ($r.mfaRequired -or -not $r.token) { throw 'MFA still enforced after disable' }
 } | Out-Null
 
 # ---------- M02 hardening: lock/unlock, passwords; P01.1 tenant lifecycle ----------

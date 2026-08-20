@@ -14,7 +14,7 @@ public static class AuthEndpoints
     /// VERIFICATION only — authorization never trusts it beyond the password check, and
     /// the issued JWT carries the tenant proven by the user record.
     /// </summary>
-    public sealed record LoginRequest(Guid TenantId, string UserName, string Password);
+    public sealed record LoginRequest(Guid TenantId, string UserName, string Password, string? MfaCode);
     public sealed record PlatformLoginRequest(string UserName, string Password);
     public sealed record RefreshRequest(string RefreshToken);
 
@@ -27,9 +27,15 @@ public static class AuthEndpoints
             ISender sender, TokenService tokens, TenantContext tenantContext, LoginRequest request, CancellationToken ct) =>
         {
             tenantContext.Set(request.TenantId); // login realm; see remark above
-            var user = await sender.Send(new LoginCommand(request.UserName, request.Password), ct);
+            var result = await sender.Send(
+                new LoginCommand(request.UserName, request.Password, request.MfaCode), ct);
+            if (result.MfaRequired)
+                return Results.Ok(new { mfaRequired = true });
+
+            var user = result.User!;
             return Results.Ok(new
             {
+                mfaRequired = false,
                 token = tokens.IssueTenantToken(
                     user.UserId, user.UserName, user.TenantId, user.Roles, user.Permissions),
                 refreshToken = user.RefreshToken,

@@ -55,6 +55,40 @@ public class UserLockoutTests
         var act = () => user.RecordLogin(Now);
         act.Should().Throw<DomainException>();
     }
+
+    [Fact]
+    public void Mfa_enforces_only_after_the_first_valid_code_confirms_enrollment()
+    {
+        var user = NewUser();
+        user.StartMfaEnrollment("JBSWY3DPEHPK3PXP");
+        user.MfaEnabled.Should().BeFalse("a typo'd QR scan must never lock the user out");
+
+        user.ConfirmMfa();
+        user.MfaEnabled.Should().BeTrue();
+
+        user.DisableMfa();
+        user.MfaEnabled.Should().BeFalse();
+        user.MfaSecret.Should().BeNull();
+    }
+
+    [Fact]
+    public void Confirming_mfa_without_enrollment_is_rejected()
+    {
+        var user = NewUser();
+        var act = () => user.ConfirmMfa();
+        act.Should().Throw<DomainException>().WithMessage("*enrollment*");
+    }
+
+    [Fact]
+    public void Reenrollment_replaces_the_secret_and_disables_enforcement()
+    {
+        var user = NewUser();
+        user.StartMfaEnrollment("FIRSTSECRET2345A");
+        user.ConfirmMfa();
+        user.StartMfaEnrollment("SECONDSECRET345A");
+        user.MfaEnabled.Should().BeFalse("the new authenticator must prove itself first");
+        user.MfaSecret.Should().Be("SECONDSECRET345A");
+    }
 }
 
 public class PlatformOperatorTests

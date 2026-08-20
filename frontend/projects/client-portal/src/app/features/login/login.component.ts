@@ -34,8 +34,17 @@ import { problemMessage } from '../../core/api.types';
               <input id="password" type="password" formControlName="password" autocomplete="current-password">
             </div>
           </div>
+          @if (mfaStep()) {
+            <div class="f-row">
+              <div class="f">
+                <label for="mfa">AUTHENTICATOR CODE (§4.3 MFA)</label>
+                <input id="mfa" class="mono" formControlName="mfaCode" maxlength="6"
+                       placeholder="123456" autocomplete="one-time-code">
+              </div>
+            </div>
+          }
           <button class="btn" type="submit" [disabled]="form.invalid || busy()">
-            {{ busy() ? 'Signing in…' : 'Sign in' }}
+            {{ busy() ? 'Signing in…' : (mfaStep() ? 'Verify code' : 'Sign in') }}
           </button>
         </form>
         <p class="hint" style="margin-top:10px">
@@ -60,17 +69,24 @@ export class LoginComponent {
       Validators.pattern(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/)]],
     userName: ['', [Validators.required, Validators.minLength(3)]],
     password: ['', Validators.required],
+    mfaCode: [''],
   });
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
+  readonly mfaStep = signal(false);
 
   async signIn(): Promise<void> {
     if (this.form.invalid) return;
     this.busy.set(true);
     this.error.set(null);
     try {
-      const { tenantId, userName, password } = this.form.getRawValue();
-      await this.auth.login(tenantId, userName, password);
+      const { tenantId, userName, password, mfaCode } = this.form.getRawValue();
+      const outcome = await this.auth.login(tenantId, userName, password, mfaCode || undefined);
+      if (outcome === 'mfa') {
+        this.mfaStep.set(true);
+        this.error.set('This account requires an authenticator code.');
+        return;
+      }
       await this.router.navigateByUrl('/dashboard');
     } catch (e) {
       this.error.set(problemMessage(e));

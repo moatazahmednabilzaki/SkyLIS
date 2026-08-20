@@ -342,6 +342,24 @@ public static class UserEndpoints
             SkyLIS.Domain.Users.RoleCatalog.AllRoles
                 .Select(r => new { role = r, permissions = SkyLIS.Domain.Users.RoleCatalog.PermissionsOf(r) })));
 
+        // §4.3 MFA self-service (TOTP): enroll -> confirm with a first valid code -> enforced.
+        users.MapPost("/me/mfa/enroll", (ISender sender, CancellationToken ct) =>
+            sender.Send(new SkyLIS.Application.Users.EnrollMfaCommand(), ct));
+
+        users.MapPost("/me/mfa/confirm", async (
+            ISender sender, SkyLIS.Application.Users.ConfirmMfaCommand command, CancellationToken ct) =>
+        {
+            await sender.Send(command, ct);
+            return Results.NoContent();
+        });
+
+        users.MapPost("/me/mfa/disable", async (
+            ISender sender, SkyLIS.Application.Users.DisableMfaCommand command, CancellationToken ct) =>
+        {
+            await sender.Send(command, ct);
+            return Results.NoContent();
+        });
+
         return group;
     }
 }

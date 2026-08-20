@@ -23,6 +23,11 @@ public sealed class User : AggregateRoot, ITenantOwned
     /// <summary>Consecutive failed sign-ins; the account locks at <see cref="MaxFailedLogins"/> (§4.3).</summary>
     public int FailedLoginCount { get; private set; }
 
+    // TOTP MFA (§4.3, optional per user): the secret exists from enrollment; MFA is
+    // ENFORCED only after the user proves possession with a first valid code.
+    public string? MfaSecret { get; private set; }
+    public bool MfaEnabled { get; private set; }
+
     public const int MaxFailedLogins = 5;
 
     public IReadOnlyCollection<string> Roles => _roles.AsReadOnly();
@@ -101,6 +106,29 @@ public sealed class User : AggregateRoot, ITenantOwned
     }
 
     public void Deactivate() => Status = UserStatus.Deactivated;
+
+    /// <summary>Begins TOTP enrollment; re-enrolling replaces the secret and re-disables MFA.</summary>
+    public void StartMfaEnrollment(string secret)
+    {
+        if (string.IsNullOrWhiteSpace(secret)) throw new DomainException("An MFA secret is required.");
+        if (Status == UserStatus.Deactivated)
+            throw new DomainException($"User {UserName} is deactivated.");
+        MfaSecret = secret;
+        MfaEnabled = false;
+    }
+
+    /// <summary>Called after the FIRST valid code proves the authenticator works — never before.</summary>
+    public void ConfirmMfa()
+    {
+        if (MfaSecret is null) throw new DomainException("MFA enrollment has not been started.");
+        MfaEnabled = true;
+    }
+
+    public void DisableMfa()
+    {
+        MfaSecret = null;
+        MfaEnabled = false;
+    }
 }
 
 public sealed record UserCreated(Guid UserId, Guid TenantId, string UserName) : DomainEvent, ITenantEvent;

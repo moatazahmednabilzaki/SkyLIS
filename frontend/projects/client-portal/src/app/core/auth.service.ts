@@ -35,10 +35,13 @@ export class AuthService {
     return this.tokenSignal();
   }
 
-  async login(tenantId: string, userName: string, password: string): Promise<void> {
+  /** Returns 'ok' on a full sign-in, 'mfa' when the account requires an authenticator code. */
+  async login(tenantId: string, userName: string, password: string, mfaCode?: string): Promise<'ok' | 'mfa'> {
     const response = await firstValueFrom(this.http.post<{
+      mfaRequired: boolean;
       token: string; refreshToken: string; userName: string; fullName: string; roles: string[];
-    }>(`${API_BASE_URL}/auth/login`, { tenantId, userName, password }));
+    }>(`${API_BASE_URL}/auth/login`, { tenantId, userName, password, mfaCode: mfaCode ?? null }));
+    if (response.mfaRequired) return 'mfa';
     const sessionUser: SessionUser = {
       userName: response.userName, fullName: response.fullName, roles: response.roles,
     };
@@ -49,6 +52,7 @@ export class AuthService {
     this.tokenSignal.set(response.token);
     this.tenantId.set(tenantId);
     this.user.set(sessionUser);
+    return 'ok';
   }
 
   /** One shared refresh attempt; concurrent 401s wait on the same rotation. */

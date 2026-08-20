@@ -101,6 +101,7 @@ public static class DependencyInjection
         // Users & auth (M02) + production sessions
         services.AddSingleton<Application.Users.IPasswordHasher, Users.Pbkdf2PasswordHasher>();
         services.AddScoped<IRefreshTokenStore, Auth.RefreshTokenStore>();
+        services.AddSingleton<Application.Users.ITotpService, Auth.TotpService>();
         services.AddScoped<IPlatformOperatorRepository, Platform.PlatformOperatorRepository>();
         services.AddHostedService<Platform.PlatformOperatorSeeder>();
         services.AddScoped<Application.Users.IUserRepository, Users.UserRepository>();

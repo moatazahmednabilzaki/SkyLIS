@@ -21,6 +21,10 @@ public sealed record CumulativePointDto(
     Guid ResultId, string VisitNumber, decimal Value, string Unit, string Flag, bool IsAmended,
     DateTimeOffset ValidatedAtUtc, decimal? RefLow, decimal? RefHigh);
 
+public sealed record VisitResultDto(
+    Guid ResultId, Guid VisitTestId, string TestCode, decimal Value, string Unit, string Flag,
+    string Status, bool IsAmended, decimal? ValueBeforeAmendment, string? AmendmentReason);
+
 /// <summary>Read ports for the M09 worklists — DTO projections only.</summary>
 public interface IResultQueries
 {
@@ -31,6 +35,8 @@ public interface IResultQueries
     Task<IReadOnlyList<CriticalQueueItemDto>> CriticalQueueAsync(CancellationToken ct = default);
     /// <summary>P10.3: the patient's validated time series for one test (cumulative view).</summary>
     Task<IReadOnlyList<CumulativePointDto>> CumulativeAsync(Guid patientId, string testCode, CancellationToken ct = default);
+    /// <summary>Active (non-voided) results for one visit — drives the amendment panel (P09.5).</summary>
+    Task<IReadOnlyList<VisitResultDto>> ForVisitAsync(Guid visitId, CancellationToken ct = default);
 }
 
 /// <summary>P09.1: test lines awaiting a result (samples received, no active result).</summary>
@@ -87,6 +93,20 @@ internal sealed class GetCriticalQueueHandler : IRequestHandler<GetCriticalQueue
     public GetCriticalQueueHandler(IResultQueries queries) => _queries = queries;
     public Task<IReadOnlyList<CriticalQueueItemDto>> Handle(GetCriticalQueueQuery request, CancellationToken ct) =>
         _queries.CriticalQueueAsync(ct);
+}
+
+/// <summary>Active results for a visit (order details / amendment panel).</summary>
+public sealed record GetVisitResultsQuery(Guid VisitId) : IQuery<IReadOnlyList<VisitResultDto>>, IRequirePermission
+{
+    public string Permission => "orders.visit.read";
+}
+
+internal sealed class GetVisitResultsHandler : IRequestHandler<GetVisitResultsQuery, IReadOnlyList<VisitResultDto>>
+{
+    private readonly IResultQueries _queries;
+    public GetVisitResultsHandler(IResultQueries queries) => _queries = queries;
+    public Task<IReadOnlyList<VisitResultDto>> Handle(GetVisitResultsQuery request, CancellationToken ct) =>
+        _queries.ForVisitAsync(request.VisitId, ct);
 }
 
 /// <summary>P10.3: cumulative trend for one patient + test (validated results only).</summary>

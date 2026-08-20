@@ -159,6 +159,19 @@ export interface PaymentResult {
   currency: string;
 }
 
+export interface VisitResult {
+  resultId: string;
+  visitTestId: string;
+  testCode: string;
+  value: number;
+  unit: string;
+  flag: string;
+  status: string;
+  isAmended: boolean;
+  valueBeforeAmendment: number | null;
+  amendmentReason: string | null;
+}
+
 export interface InvoicePayment {
   id: string;
   amount: number;

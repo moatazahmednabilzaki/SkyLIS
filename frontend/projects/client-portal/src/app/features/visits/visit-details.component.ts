@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { VisitsApi } from './visits.api';
 import { API_BASE_URL } from '../../core/config';
-import { InvoiceDetails, VisitDetails, problemMessage } from '../../core/api.types';
+import { InvoiceDetails, VisitDetails, VisitResult, problemMessage } from '../../core/api.types';
 
 interface AttachmentRow {
   id: string;
@@ -81,6 +81,45 @@ interface AttachmentRow {
             </tr>
           }
         </table>
+      </div>
+
+      <div class="card">
+        <h3>Results</h3>
+        @if (results().length === 0) { <p class="hint">No results entered yet.</p> }
+        @else {
+          <table class="t">
+            <tr><th>Test</th><th>Value</th><th>Flag</th><th>Status</th><th></th></tr>
+            @for (r of results(); track r.resultId) {
+              <tr>
+                <td class="mono"><b>{{ r.testCode }}</b></td>
+                <td class="mono">{{ r.value }} {{ r.unit }}
+                  @if (r.isAmended) { <span class="hint">(was {{ r.valueBeforeAmendment }})</span> }</td>
+                <td>{{ r.flag }}</td>
+                <td><span class="chip" [class.c-green]="r.status === 'MedicallyValid'">{{ r.status }}</span>
+                  @if (r.isAmended) { <span class="chip c-red">Amended</span> }</td>
+                <td>
+                  @if (r.status === 'MedicallyValid') {
+                    <button class="btn sm ghost" (click)="amendFor.set(r.resultId)">Amend…</button>
+                  }
+                </td>
+              </tr>
+              @if (amendFor() === r.resultId) {
+                <tr><td colspan="5">
+                  <div class="f-row">
+                    <div class="f" style="flex:0 0 120px"><label for="amend-value">NEW VALUE</label>
+                      <input id="amend-value" type="number" class="mono" [(ngModel)]="amendValue"></div>
+                    <div class="f"><label for="amend-reason">AMENDMENT REASON (MANDATORY)</label>
+                      <input id="amend-reason" [(ngModel)]="amendReason"></div>
+                    <div class="f" style="flex:0 0 auto; align-self:flex-end">
+                      <button class="btn green" [disabled]="busy()" (click)="amend(r)">Apply amendment</button>
+                      <button class="btn ghost" type="button" style="margin-left:6px" (click)="amendFor.set(null)">Cancel</button></div>
+                  </div>
+                  <p class="hint">SoD: a result can't be amended by the person who entered it. Reports rendered after this carry the AMENDED marking (P09.5).</p>
+                </td></tr>
+              }
+            }
+          </table>
+        }
       </div>
 
       <div class="card">
@@ -186,6 +225,10 @@ export class VisitDetailsComponent implements OnInit {
   readonly info = signal<string | null>(null);
   readonly invoice = signal<InvoiceDetails | null>(null);
   readonly attachments = signal<AttachmentRow[]>([]);
+  readonly results = signal<VisitResult[]>([]);
+  readonly amendFor = signal<string | null>(null);
+  amendValue = 0;
+  amendReason = '';
 
   // Billing panel inputs (M17 edge paths).
   payAmount = 0;
@@ -209,9 +252,25 @@ export class VisitDetailsComponent implements OnInit {
         this.http.get<AttachmentRow[]>(`${API_BASE_URL}/attachments`, { params })));
       this.invoice.set(await firstValueFrom(
         this.http.get<InvoiceDetails>(`${API_BASE_URL}/billing/invoices/by-visit/${this.id()}`)));
+      this.results.set(await firstValueFrom(
+        this.http.get<VisitResult[]>(`${API_BASE_URL}/results/for-visit/${this.id()}`)));
     } catch (e) {
       this.error.set(problemMessage(e));
     }
+  }
+
+  async amend(r: VisitResult): Promise<void> {
+    await this.act(async () => {
+      await firstValueFrom(this.http.post(`${API_BASE_URL}/results/${r.resultId}/amend`, {
+        newValue: this.amendValue,
+        reason: this.amendReason,
+        signatureIntent: `I amend ${r.testCode} from ${r.value} to ${this.amendValue} ${r.unit}`,
+      }));
+      this.amendFor.set(null);
+      this.amendValue = 0;
+      this.amendReason = '';
+      this.info.set(`${r.testCode} amended — render an AMENDED report to release the correction.`);
+    });
   }
 
   async cancelVisit(): Promise<void> {

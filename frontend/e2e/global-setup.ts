@@ -69,27 +69,37 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   if (!serum) throw new Error('country-pack sample types were not seeded in time');
   const condition = serum.conditions.find(c => /Fasting/.test(c.name)) ?? serum.conditions[0];
 
-  const seedTestCode = 'SEED' + Date.now().toString().slice(-5);
-  const made = await ctx.post(`${API}/catalog/tests`, {
-    headers: ah,
-    data: {
-      code: seedTestCode, name: 'Seed Glucose', department: 'Chemistry',
-      sampleTypeId: serum.id, requiredConditionId: condition.id, price: 80, currency: 'EGP',
-    },
-  });
-  if (!made.ok()) throw new Error(`seed test create failed: ${made.status()} ${await made.text()}`);
-  const testId = (await made.json()).id as string;
-  await ctx.post(`${API}/catalog/tests/${testId}/submit`, { headers: ah });
-  await ctx.post(`${API}/catalog/tests/${testId}/approve`, { headers: ah });
-  await ctx.put(`${API}/catalog/tests/${testId}/result-schema`, {
-    headers: ah,
-    data: {
-      unit: 'mg/dL', refLow: 70, refHigh: 100, criticalLow: 40, criticalHigh: 400,
-      absurdLow: 5, absurdHigh: 1500, autoVerify: false, deltaThresholdPercent: null,
-    },
-  });
+  async function seedActiveTest(code: string, name: string): Promise<void> {
+    const made = await ctx.post(`${API}/catalog/tests`, {
+      headers: ah,
+      data: {
+        code, name, department: 'Chemistry',
+        sampleTypeId: serum!.id, requiredConditionId: condition.id, price: 80, currency: 'EGP',
+      },
+    });
+    if (!made.ok()) throw new Error(`seed test ${code} create failed: ${made.status()} ${await made.text()}`);
+    const testId = (await made.json()).id as string;
+    await ctx.post(`${API}/catalog/tests/${testId}/submit`, { headers: ah });
+    await ctx.post(`${API}/catalog/tests/${testId}/approve`, { headers: ah });
+    await ctx.put(`${API}/catalog/tests/${testId}/result-schema`, {
+      headers: ah,
+      data: {
+        unit: 'mg/dL', refLow: 70, refHigh: 100, criticalLow: 40, criticalHigh: 400,
+        absurdLow: 5, absurdHigh: 1500, autoVerify: false, deltaThresholdPercent: null,
+      },
+    });
+  }
+
+  // Two Active tests: one is enough for most specs; the interim-report spec needs a visit
+  // with two so it can validate one and leave the other pending.
+  const suffix = Date.now().toString().slice(-5);
+  const seedTestCode = 'SEED' + suffix;
+  const seedTestCode2 = 'SEEB' + suffix;
+  await seedActiveTest(seedTestCode, 'Seed Glucose');
+  await seedActiveTest(seedTestCode2, 'Seed Potassium');
 
   mkdirSync(join(__dirname, '.auth'), { recursive: true });
-  writeFileSync(join(__dirname, '.auth', 'tenant.json'), JSON.stringify({ tenantId, admin, doctor, seedTestCode }));
+  writeFileSync(join(__dirname, '.auth', 'tenant.json'),
+    JSON.stringify({ tenantId, admin, doctor, seedTestCode, seedTestCode2 }));
   await ctx.dispose();
 }

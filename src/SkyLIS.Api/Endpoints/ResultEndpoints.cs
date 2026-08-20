@@ -46,6 +46,9 @@ public static class ResultEndpoints
         }).RequireAuthorization().WithTags("Client Portal — Worklists (M08)");
 
         // Worklists
+        results.MapGet("/for-visit/{visitId:guid}", (ISender sender, Guid visitId, CancellationToken ct) =>
+            sender.Send(new GetVisitResultsQuery(visitId), ct));
+
         results.MapGet("/pending-entry", (ISender sender, CancellationToken ct) =>
             sender.Send(new GetPendingEntryQuery(), ct));
         results.MapGet("/technical-queue", (ISender sender, CancellationToken ct) =>

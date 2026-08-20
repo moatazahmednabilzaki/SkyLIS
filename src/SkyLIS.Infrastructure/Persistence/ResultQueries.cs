@@ -69,6 +69,15 @@ internal sealed class ResultQueries : IResultQueries
             r.IsAmended, r.MedicallyValidatedAtUtc ?? default, range?.RefLow, range?.RefHigh)).ToList();
     }
 
+    public async Task<IReadOnlyList<VisitResultDto>> ForVisitAsync(Guid visitId, CancellationToken ct = default) =>
+        await _db.TestResults.AsNoTracking()
+            .Where(r => r.VisitId == visitId && r.Status != ResultStatus.RerunOrdered)
+            .OrderBy(r => r.TestCode)
+            .Select(r => new VisitResultDto(
+                r.Id, r.VisitTestId, r.TestCode, r.Value, r.Unit, r.Flag.ToString(),
+                r.Status.ToString(), r.IsAmended, r.ValueBeforeAmendment, r.AmendmentReason))
+            .ToListAsync(ct);
+
     public async Task<IReadOnlyList<PendingEntryDto>> PendingEntryAsync(CancellationToken ct = default)
     {
         var rows = await _db.Visits.AsNoTracking()

@@ -80,6 +80,9 @@ interface RenderedReport {
                 @if (r.visitStatus !== 'Validated' && r.visitStatus !== 'Reported') {
                   <button class="btn sm" [disabled]="busy()" (click)="render(r, 'Interim')">Render interim</button>
                 }
+                @if (r.visitStatus === 'Reported') {
+                  <button class="btn sm" [disabled]="busy()" (click)="render(r, 'Amended')">Render amended</button>
+                }
                 @if (r.reportId) {
                   <button class="btn sm ghost" (click)="open(r.reportId!)">Open</button>
                   <button class="btn sm ghost" [disabled]="busy()" (click)="deliver(r)">Deliver…</button>
@@ -127,7 +130,7 @@ export class ReportsComponent implements OnInit {
     }
   }
 
-  async render(row: WorklistRow, kind: 'Interim' | 'Final'): Promise<void> {
+  async render(row: WorklistRow, kind: 'Interim' | 'Final' | 'Amended'): Promise<void> {
     this.busy.set(true);
     this.error.set(null);
     this.info.set(null);

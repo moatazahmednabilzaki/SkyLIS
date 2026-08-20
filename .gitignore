@@ -9,3 +9,9 @@ TestResults/
 
 # On-prem secrets
 .env
+
+# Playwright
+frontend/e2e/.auth/
+frontend/test-results/
+frontend/playwright-report/
+frontend/.playwright/

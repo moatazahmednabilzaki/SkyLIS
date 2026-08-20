@@ -60,7 +60,11 @@ export async function registerVisit(
   await expect(page.getByText(/Visit .* registered/)).toBeVisible();
 
   await page.getByRole('button', { name: /Open visit details/ }).click();
-  await expect(page).toHaveURL(/\/visits\//);
+  // Wait for the details route (a visit GUID) — NOT the loose /visits/ prefix, which also
+  // matches the /visits/new register page we're navigating away from. On a slow stack the
+  // router hadn't committed yet and page.url() captured /visits/new, so a later goto landed
+  // back on the register page instead of the visit.
+  await expect(page).toHaveURL(/\/visits\/[0-9a-f]{8}-[0-9a-f]{4}-/i);
   return { patientName, visitUrl: page.url() };
 }
 

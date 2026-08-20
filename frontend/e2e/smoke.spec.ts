@@ -80,7 +80,9 @@ test('full clinical chain through the real UI', async ({ page }) => {
   await page.getByRole('button', { name: /Open visit details/ }).click();
   await expect(page).toHaveURL(/\/visits\//);
   await page.getByRole('button', { name: /Collect/ }).click();
+  await expect(page.getByRole('button', { name: 'Receive' })).toBeVisible();
   await page.getByRole('button', { name: 'Receive' }).click();
+  await expect(page.getByRole('button', { name: 'Receive' })).toHaveCount(0);
 
   // --- Enter the result ---
   await page.goto('/results');

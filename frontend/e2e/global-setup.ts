@@ -48,13 +48,48 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   // person who enters a result can never medically validate it. LabDirector can sign out
   // results and render reports.
   const doctor = { userName: 'pwdoctor', password: 'Playwright#Doc2026!' };
+  const ah = { Authorization: `Bearer ${adminToken}` };
   const createDoc = await ctx.post(`${API}/users`, {
-    headers: { Authorization: `Bearer ${adminToken}` },
+    headers: ah,
     data: { userName: doctor.userName, fullName: 'PW Director', password: doctor.password, roles: ['LabDirector'] },
   });
   if (!createDoc.ok()) throw new Error(`create doctor failed: ${createDoc.status()} ${await createDoc.text()}`);
 
+  // Seed one ready-to-order test (Active, with a critical-capable result schema) so the
+  // rejection and critical-value specs don't each have to re-drive the catalogue UI —
+  // that path is already covered by the clinical-chain spec. Sample types arrive via the
+  // same outbox event as the admin, so poll until the country-pack taxonomy is present.
+  let serum: { id: string; conditions: { id: string; name: string }[] } | undefined;
+  for (let i = 0; i < 20; i++) {
+    const types = await (await ctx.get(`${API}/catalog/sample-types`, { headers: ah })).json();
+    serum = (types as typeof serum[]).find(s => (s as { name: string }).name === 'Serum') as typeof serum;
+    if (serum) break;
+    await new Promise(r => setTimeout(r, 1500));
+  }
+  if (!serum) throw new Error('country-pack sample types were not seeded in time');
+  const condition = serum.conditions.find(c => /Fasting/.test(c.name)) ?? serum.conditions[0];
+
+  const seedTestCode = 'SEED' + Date.now().toString().slice(-5);
+  const made = await ctx.post(`${API}/catalog/tests`, {
+    headers: ah,
+    data: {
+      code: seedTestCode, name: 'Seed Glucose', department: 'Chemistry',
+      sampleTypeId: serum.id, requiredConditionId: condition.id, price: 80, currency: 'EGP',
+    },
+  });
+  if (!made.ok()) throw new Error(`seed test create failed: ${made.status()} ${await made.text()}`);
+  const testId = (await made.json()).id as string;
+  await ctx.post(`${API}/catalog/tests/${testId}/submit`, { headers: ah });
+  await ctx.post(`${API}/catalog/tests/${testId}/approve`, { headers: ah });
+  await ctx.put(`${API}/catalog/tests/${testId}/result-schema`, {
+    headers: ah,
+    data: {
+      unit: 'mg/dL', refLow: 70, refHigh: 100, criticalLow: 40, criticalHigh: 400,
+      absurdLow: 5, absurdHigh: 1500, autoVerify: false, deltaThresholdPercent: null,
+    },
+  });
+
   mkdirSync(join(__dirname, '.auth'), { recursive: true });
-  writeFileSync(join(__dirname, '.auth', 'tenant.json'), JSON.stringify({ tenantId, admin, doctor }));
+  writeFileSync(join(__dirname, '.auth', 'tenant.json'), JSON.stringify({ tenantId, admin, doctor, seedTestCode }));
   await ctx.dispose();
 }

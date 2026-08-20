@@ -98,6 +98,15 @@ internal sealed class RefreshTokenStore : IRefreshTokenStore
             token.RevokedAtUtc = _clock.UtcNow;
     }
 
+    public async Task RevokeAllForPrincipalAsync(Guid principalId, CancellationToken ct = default)
+    {
+        var live = await _db.RefreshTokens
+            .Where(t => t.PrincipalId == principalId && t.RevokedAtUtc == null)
+            .ToListAsync(ct);
+        foreach (var token in live)
+            token.RevokedAtUtc = _clock.UtcNow;
+    }
+
     private static string Hash(string raw) =>
         Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw)));
 }

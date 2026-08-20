@@ -80,14 +80,22 @@ public class UserLockoutTests
     }
 
     [Fact]
-    public void Reenrollment_replaces_the_secret_and_disables_enforcement()
+    public void Reenrollment_keeps_the_active_factor_until_a_new_code_confirms()
     {
         var user = NewUser();
         user.StartMfaEnrollment("FIRSTSECRET2345A");
         user.ConfirmMfa();
+
+        // Re-enrolling must NOT disable the currently-active factor — a session-only
+        // attacker cannot strip MFA by calling enroll (Finding 2).
         user.StartMfaEnrollment("SECONDSECRET345A");
-        user.MfaEnabled.Should().BeFalse("the new authenticator must prove itself first");
-        user.MfaSecret.Should().Be("SECONDSECRET345A");
+        user.MfaEnabled.Should().BeTrue("the active factor keeps enforcing during re-enrollment");
+        user.MfaSecret.Should().Be("FIRSTSECRET2345A", "the old secret still validates logins until confirmation");
+        user.PendingMfaSecret.Should().Be("SECONDSECRET345A");
+
+        user.ConfirmMfa();
+        user.MfaSecret.Should().Be("SECONDSECRET345A", "confirmation promotes the pending secret");
+        user.PendingMfaSecret.Should().BeNull();
     }
 }
 

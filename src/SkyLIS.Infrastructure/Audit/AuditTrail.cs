@@ -45,7 +45,11 @@ internal static class AuditCollector
             typeof(Auth.RefreshToken),
         ];
 
-    private static readonly HashSet<string> OmittedProperties = ["ContentHtml", "ContentPdf"];
+    // Secrets and oversized artifacts never enter the audit rows (which are readable by
+    // any holder of audit.trail.read). The state change is still recorded — the value is
+    // redacted to a placeholder, so the who/what/when evidence survives without the secret.
+    private static readonly HashSet<string> OmittedProperties =
+        ["ContentHtml", "ContentPdf", "PasswordHash", "MfaSecret", "PendingMfaSecret"];
 
     public static List<AuditEvent> Collect(
         ChangeTracker changeTracker, Guid? tenantId, Guid? userId, string? ipAddress, DateTimeOffset nowUtc)

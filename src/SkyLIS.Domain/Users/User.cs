@@ -23,9 +23,12 @@ public sealed class User : AggregateRoot, ITenantOwned
     /// <summary>Consecutive failed sign-ins; the account locks at <see cref="MaxFailedLogins"/> (§4.3).</summary>
     public int FailedLoginCount { get; private set; }
 
-    // TOTP MFA (§4.3, optional per user): the secret exists from enrollment; MFA is
-    // ENFORCED only after the user proves possession with a first valid code.
+    // TOTP MFA (§4.3, optional per user). MfaSecret is the ACTIVE factor; PendingMfaSecret
+    // is a staged enrollment awaiting its first valid code. Re-enrolling while MFA is
+    // already active only stages the new secret — the existing factor keeps enforcing
+    // until confirmation, so a session-only attacker cannot silently disable MFA.
     public string? MfaSecret { get; private set; }
+    public string? PendingMfaSecret { get; private set; }
     public bool MfaEnabled { get; private set; }
 
     public const int MaxFailedLogins = 5;
@@ -107,26 +110,32 @@ public sealed class User : AggregateRoot, ITenantOwned
 
     public void Deactivate() => Status = UserStatus.Deactivated;
 
-    /// <summary>Begins TOTP enrollment; re-enrolling replaces the secret and re-disables MFA.</summary>
+    /// <summary>
+    /// Stages a TOTP enrollment. It does NOT touch the active factor or the enabled flag:
+    /// an already-active MFA keeps enforcing (with the existing secret) until a new code
+    /// confirms, so enrolling never weakens the account.
+    /// </summary>
     public void StartMfaEnrollment(string secret)
     {
         if (string.IsNullOrWhiteSpace(secret)) throw new DomainException("An MFA secret is required.");
         if (Status == UserStatus.Deactivated)
             throw new DomainException($"User {UserName} is deactivated.");
-        MfaSecret = secret;
-        MfaEnabled = false;
+        PendingMfaSecret = secret;
     }
 
-    /// <summary>Called after the FIRST valid code proves the authenticator works — never before.</summary>
+    /// <summary>Promotes the pending secret after its FIRST valid code proves the authenticator works.</summary>
     public void ConfirmMfa()
     {
-        if (MfaSecret is null) throw new DomainException("MFA enrollment has not been started.");
+        if (PendingMfaSecret is null) throw new DomainException("MFA enrollment has not been started.");
+        MfaSecret = PendingMfaSecret;
+        PendingMfaSecret = null;
         MfaEnabled = true;
     }
 
     public void DisableMfa()
     {
         MfaSecret = null;
+        PendingMfaSecret = null;
         MfaEnabled = false;
     }
 }

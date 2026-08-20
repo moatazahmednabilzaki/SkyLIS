@@ -63,9 +63,9 @@ internal sealed class ConfirmMfaHandler : IRequestHandler<ConfirmMfaCommand, Uni
     {
         var user = await _users.GetAsync(_currentUser.UserId ?? Guid.Empty, ct)
             ?? throw new ForbiddenAccessException("No signed-in user.");
-        if (user.MfaSecret is null)
+        if (user.PendingMfaSecret is null)
             throw new Domain.Common.DomainException("MFA enrollment has not been started.");
-        if (!_totp.Verify(user.MfaSecret, request.Code))
+        if (!_totp.Verify(user.PendingMfaSecret, request.Code))
             throw new ForbiddenAccessException("The code does not match — check the authenticator and try again.");
         user.ConfirmMfa();
         return Unit.Value;

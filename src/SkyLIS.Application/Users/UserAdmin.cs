@@ -25,12 +25,15 @@ internal sealed class ChangePasswordHandler : IRequestHandler<ChangePasswordComm
 {
     private readonly IUserRepository _users;
     private readonly IPasswordHasher _hasher;
+    private readonly IRefreshTokenStore _refreshTokens;
     private readonly ICurrentUser _currentUser;
 
-    public ChangePasswordHandler(IUserRepository users, IPasswordHasher hasher, ICurrentUser currentUser)
+    public ChangePasswordHandler(
+        IUserRepository users, IPasswordHasher hasher, IRefreshTokenStore refreshTokens, ICurrentUser currentUser)
     {
         _users = users;
         _hasher = hasher;
+        _refreshTokens = refreshTokens;
         _currentUser = currentUser;
     }
 
@@ -41,6 +44,8 @@ internal sealed class ChangePasswordHandler : IRequestHandler<ChangePasswordComm
         if (!_hasher.Verify(request.CurrentPassword, user.PasswordHash))
             throw new ForbiddenAccessException("The current password is incorrect.");
         user.SetPasswordHash(_hasher.Hash(request.NewPassword));
+        // A password change ends every existing session (a stolen refresh token dies here).
+        await _refreshTokens.RevokeAllForPrincipalAsync(user.Id, ct);
         return Unit.Value;
     }
 }
@@ -65,11 +70,13 @@ internal sealed class ResetPasswordHandler : IRequestHandler<ResetPasswordComman
 {
     private readonly IUserRepository _users;
     private readonly IPasswordHasher _hasher;
+    private readonly IRefreshTokenStore _refreshTokens;
 
-    public ResetPasswordHandler(IUserRepository users, IPasswordHasher hasher)
+    public ResetPasswordHandler(IUserRepository users, IPasswordHasher hasher, IRefreshTokenStore refreshTokens)
     {
         _users = users;
         _hasher = hasher;
+        _refreshTokens = refreshTokens;
     }
 
     public async Task<Unit> Handle(ResetPasswordCommand request, CancellationToken ct)
@@ -77,6 +84,8 @@ internal sealed class ResetPasswordHandler : IRequestHandler<ResetPasswordComman
         var user = await _users.GetAsync(request.UserId, ct)
             ?? throw new NotFoundException("User", request.UserId);
         user.SetPasswordHash(_hasher.Hash(request.NewPassword));
+        // Remediation must terminate the compromised sessions it is meant to cut off.
+        await _refreshTokens.RevokeAllForPrincipalAsync(user.Id, ct);
         return Unit.Value;
     }
 }

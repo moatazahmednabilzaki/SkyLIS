@@ -54,6 +54,8 @@ public interface IRefreshTokenStore
     /// <summary>Revokes the current token and issues its replacement (rotation).</summary>
     Task<string> RotateAsync(Guid currentTokenId, Guid principalId, string principalType, Guid? tenantId, CancellationToken ct = default);
     Task RevokeAsync(string rawToken, CancellationToken ct = default);
+    /// <summary>Revokes ALL live tokens for a principal (password change/reset kills every session).</summary>
+    Task RevokeAllForPrincipalAsync(Guid principalId, CancellationToken ct = default);
 }
 
 public sealed record RefreshTokenInfo(Guid TokenId, Guid PrincipalId, string PrincipalType, Guid? TenantId);

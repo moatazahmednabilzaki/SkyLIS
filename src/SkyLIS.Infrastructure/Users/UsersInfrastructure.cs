@@ -43,6 +43,8 @@ internal sealed class UserConfig : IEntityTypeConfiguration<User>
         b.HasIndex(u => new { u.TenantId, u.UserName }).IsUnique();
         b.Property(u => u.FullName).HasMaxLength(200).IsRequired();
         b.Property(u => u.PasswordHash).HasMaxLength(200).IsRequired();
+        b.Property(u => u.MfaSecret).HasMaxLength(64);
+        b.Property(u => u.PendingMfaSecret).HasMaxLength(64);
         b.Property(u => u.Status).HasConversion<string>().HasMaxLength(20);
         // Roles persist as a comma-joined string from the private backing field (role
         // codes never contain commas); the read-only wrapper property is not mapped.

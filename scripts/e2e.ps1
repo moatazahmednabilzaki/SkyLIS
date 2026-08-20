@@ -958,6 +958,20 @@ Step 'confirm with an independently computed TOTP -> MFA enforced' {
     if ($r.token) { throw 'tokens issued without the second factor!' }
 } | Out-Null
 
+# SECURITY FIX (Finding 2): re-enrolling must NOT silently disable the active factor.
+Step 'SECURITY: re-enrollment keeps MFA enforced with the existing secret' {
+    $reEnroll = Invoke-RestMethod -Method Post -Uri "$api/users/me/mfa/enroll" -Headers $hMfa
+    if (-not $reEnroll.secret -or $reEnroll.secret -eq $enrollment.secret) { throw 'expected a fresh staged secret' }
+    $probe = Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
+        tenantId = $tenantA; userName = 'lockme.test'; password = 'Correct#2026!pass' } | ConvertTo-Json)
+    if (-not $probe.mfaRequired) { throw 'MFA was silently disabled by re-enrollment (Finding 2 regressed)!' }
+    # The original authenticator still validates - the active factor was never weakened.
+    $r = Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
+        tenantId = $tenantA; userName = 'lockme.test'; password = 'Correct#2026!pass'
+        mfaCode = (Get-Totp $enrollment.secret) } | ConvertTo-Json)
+    if (-not $r.token) { throw 'the original active secret stopped working after re-enrollment' }
+} | Out-Null
+
 ExpectError 'login with a wrong MFA code rejected' 403 {
     $wrong = ((([int](Get-Totp $enrollment.secret)) + 1) % 1000000).ToString('D6')
     Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
@@ -977,6 +991,47 @@ Step 'disabling MFA requires the password; plain login works again' {
     $r = Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
         tenantId = $tenantA; userName = 'lockme.test'; password = 'Correct#2026!pass' } | ConvertTo-Json)
     if ($r.mfaRequired -or -not $r.token) { throw 'MFA still enforced after disable' }
+} | Out-Null
+
+# SECURITY FIX (Finding 1): secrets never reach the audit rows readable via audit.trail.read.
+# Read with the admin token (holds audit.trail.read) - the very permission that exposed the leak.
+Step 'SECURITY: audit trail redacts password hashes and MFA secrets' {
+    $events = Invoke-RestMethod -Uri "$api/audit/events?entityType=User&take=500" -Headers $hAdmin
+    if (-not $events) { throw 'expected User audit events' }
+    $dump = $events | ConvertTo-Json -Depth 6
+    # The MFA secret was written to the user row on confirm; pre-fix it leaked verbatim here.
+    if ($dump -match [regex]::Escape($enrollment.secret)) { throw 'MFA secret leaked into the audit trail (Finding 1 regressed)!' }
+    if ($dump -notmatch 'hash-protected') { throw 'expected the redaction marker on secret fields' }
+} | Out-Null
+
+# SECURITY FIX (Finding 3): password change/reset revokes the principal's live sessions.
+Step 'SECURITY: admin password reset revokes existing refresh tokens' {
+    $sess = Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
+        tenantId = $tenantA; userName = 'lockme.test'; password = 'Correct#2026!pass' } | ConvertTo-Json)
+    $target = (Invoke-RestMethod -Uri "$api/users" -Headers $hAdmin) | Where-Object userName -eq 'lockme.test'
+    Invoke-RestMethod -Method Post -Uri "$api/users/$($target.id)/reset-password" -Headers $hAdmin `
+        -ContentType 'application/json' -Body '{"newPassword":"Reset#2026!pass99"}' | Out-Null
+    try {
+        Invoke-RestMethod -Method Post -Uri "$api/auth/refresh" -ContentType 'application/json' -Body (@{
+            refreshToken = $sess.refreshToken } | ConvertTo-Json) | Out-Null
+        throw 'a stolen refresh token survived the password reset!'
+    } catch {
+        if ($_.Exception.Response.StatusCode.value__ -ne 403) { throw }
+    }
+} | Out-Null
+Step 'SECURITY: self-service password change revokes existing refresh tokens' {
+    $sess = Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
+        tenantId = $tenantA; userName = 'lockme.test'; password = 'Reset#2026!pass99' } | ConvertTo-Json)
+    $h = @{ Authorization = "Bearer $($sess.token)" }
+    Invoke-RestMethod -Method Post -Uri "$api/users/me/change-password" -Headers $h `
+        -ContentType 'application/json' -Body '{"currentPassword":"Reset#2026!pass99","newPassword":"Changed#2026!pass"}' | Out-Null
+    try {
+        Invoke-RestMethod -Method Post -Uri "$api/auth/refresh" -ContentType 'application/json' -Body (@{
+            refreshToken = $sess.refreshToken } | ConvertTo-Json) | Out-Null
+        throw 'a refresh token survived the self-service password change!'
+    } catch {
+        if ($_.Exception.Response.StatusCode.value__ -ne 403) { throw }
+    }
 } | Out-Null
 
 # ---------- M02 hardening: lock/unlock, passwords; P01.1 tenant lifecycle ----------

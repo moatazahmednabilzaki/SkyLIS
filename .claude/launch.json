@@ -10,7 +10,7 @@
     {
       "name": "api",
       "runtimeExecutable": "cmd",
-      "runtimeArgs": ["/c", "cd /d D:\\SAAS\\SkyLIS\\src\\SkyLIS.Api && dotnet run --urls http://localhost:5178"],
+      "runtimeArgs": ["/c", "cd /d D:\\SAAS\\SkyLIS\\src\\SkyLIS.Api && set ASPNETCORE_ENVIRONMENT=Development&& dotnet run --urls http://localhost:5178"],
       "port": 5178
     },
     {

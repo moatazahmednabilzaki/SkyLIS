@@ -118,7 +118,8 @@ public sealed record LoginCommand(string UserName, string Password) : ICommand<A
 
 public sealed record AuthenticatedUserDto(
     Guid UserId, Guid TenantId, string UserName, string FullName,
-    IReadOnlyCollection<string> Roles, IReadOnlyCollection<string> Permissions);
+    IReadOnlyCollection<string> Roles, IReadOnlyCollection<string> Permissions,
+    string RefreshToken);
 
 internal sealed class LoginValidator : AbstractValidator<LoginCommand>
 {
@@ -134,13 +135,19 @@ internal sealed class LoginHandler : IRequestHandler<LoginCommand, Authenticated
     private readonly IUserRepository _users;
     private readonly ITenantRepository _tenants;
     private readonly IPasswordHasher _hasher;
+    private readonly IRefreshTokenStore _refreshTokens;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
 
-    public LoginHandler(IUserRepository users, ITenantRepository tenants, IPasswordHasher hasher, IClock clock)
+    public LoginHandler(
+        IUserRepository users, ITenantRepository tenants, IPasswordHasher hasher,
+        IRefreshTokenStore refreshTokens, IUnitOfWork unitOfWork, IClock clock)
     {
         _users = users;
         _tenants = tenants;
         _hasher = hasher;
+        _refreshTokens = refreshTokens;
+        _unitOfWork = unitOfWork;
         _clock = clock;
     }
 
@@ -148,10 +155,14 @@ internal sealed class LoginHandler : IRequestHandler<LoginCommand, Authenticated
     {
         var user = await _users.FindByUserNameAsync(request.UserName.Trim().ToLowerInvariant(), ct);
         // One indistinguishable failure for unknown user / wrong password / inactive account.
-        if (user is null
-            || !_hasher.Verify(request.Password, user.PasswordHash)
-            || user.Status != Domain.Users.UserStatus.Active)
+        if (user is null || user.Status != Domain.Users.UserStatus.Active)
+            throw new ForbiddenAccessException("Invalid credentials.");
+        if (!_hasher.Verify(request.Password, user.PasswordHash))
         {
+            // §4.3 brute-force guard: the failure counter must survive the aborted login,
+            // so it commits explicitly before the rejection is thrown.
+            user.RecordFailedLogin();
+            await _unitOfWork.SaveChangesAsync(ct);
             throw new ForbiddenAccessException("Invalid credentials.");
         }
 
@@ -165,7 +176,9 @@ internal sealed class LoginHandler : IRequestHandler<LoginCommand, Authenticated
         }
 
         user.RecordLogin(_clock.UtcNow);
+        var refreshToken = await _refreshTokens.IssueAsync(
+            user.Id, IRefreshTokenStore.TenantUser, user.TenantId, ct);
         return new AuthenticatedUserDto(
-            user.Id, user.TenantId, user.UserName, user.FullName, user.Roles, user.Permissions());
+            user.Id, user.TenantId, user.UserName, user.FullName, user.Roles, user.Permissions(), refreshToken);
     }
 }

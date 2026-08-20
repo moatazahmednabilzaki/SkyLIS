@@ -20,6 +20,10 @@ public sealed class User : AggregateRoot, ITenantOwned
     public UserStatus Status { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
     public DateTimeOffset? LastLoginAtUtc { get; private set; }
+    /// <summary>Consecutive failed sign-ins; the account locks at <see cref="MaxFailedLogins"/> (§4.3).</summary>
+    public int FailedLoginCount { get; private set; }
+
+    public const int MaxFailedLogins = 5;
 
     public IReadOnlyCollection<string> Roles => _roles.AsReadOnly();
 
@@ -63,6 +67,16 @@ public sealed class User : AggregateRoot, ITenantOwned
         if (Status != UserStatus.Active)
             throw new DomainException($"User {UserName} is {Status} and cannot sign in.");
         LastLoginAtUtc = nowUtc;
+        FailedLoginCount = 0;
+    }
+
+    /// <summary>§4.3 brute-force guard: the fifth consecutive failure locks the account.</summary>
+    public void RecordFailedLogin()
+    {
+        if (Status != UserStatus.Active) return;
+        FailedLoginCount++;
+        if (FailedLoginCount >= MaxFailedLogins)
+            Lock();
     }
 
     /// <summary>Password change/reset — only ever receives a HASH (§4.3).</summary>
@@ -83,6 +97,7 @@ public sealed class User : AggregateRoot, ITenantOwned
         if (Status != UserStatus.Locked)
             throw new InvalidStateTransitionException(nameof(User), Status.ToString(), UserStatus.Active.ToString());
         Status = UserStatus.Active;
+        FailedLoginCount = 0;
     }
 
     public void Deactivate() => Status = UserStatus.Deactivated;

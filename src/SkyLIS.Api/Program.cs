@@ -13,7 +13,7 @@ builder.Host.UseSerilog((context, config) => config
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddApiServices(builder.Configuration);
+builder.Services.AddApiServices(builder.Configuration, builder.Environment);
 
 // Portal dev servers (Development only; production portals are same-origin behind the gateway).
 builder.Services.AddCors(options => options.AddPolicy("portals", policy => policy

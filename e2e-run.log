@@ -1,0 +1,156 @@
+﻿PASS  platform operator login (bootstrap account, production auth)
+PASS  wrong operator password rejected (indistinguishable failure) (HTTP 403 as expected)
+PASS  platform session refresh works (operator scope preserved)
+PASS  provision tenant A (NileLab)
+PASS  provision tenant B (Delta)
+PASS  tenant directory lists both
+PASS  duplicate subdomain rejected (HTTP 409 as expected)
+PASS  plans: the canonical Egypt plans ship with the platform (P01.3)
+PASS  provisioning with an unknown plan rejected (P01.3) (HTTP 404 as expected)
+PASS  country packs: EG pack ships with the platform (P01.4)
+PASS  tenant A dev token
+PASS  MAIN branch + EG defaults seeded via outbox (P03.2 / FR-TEN-040)
+PASS  add department to MAIN (P03.2)
+PASS  duplicate department code rejected (HTTP 422 as expected)
+PASS  open second branch ZMLK (P03.2)
+PASS  create sample type with condition trees (P03.4)
+PASS  create+approve GLU-F (fasting)
+PASS  create+approve HBA1C (random)
+PASS  create+approve GLU-PP (PP +2h)
+PASS  register patient (P04.2)
+PASS  patient search shows identity triple (P04.1)
+PASS  register visit: consolidation + reservation + branch numbering (P05.2)
+PASS  registering a visit without a branch is rejected (HTTP 400 as expected)
+PASS  collecting reserved sample before window blocked (HTTP 422 as expected)
+PASS  collect ready sample (P08.2)
+PASS  receive sample at accessioning (P07.2)
+PASS  reject sample -> recollection issued (P07.3)
+PASS  visit details: tests rebound to recollection (P05.3)
+PASS  reception worklist: rejection needs patient information (P08.1)
+PASS  phlebotomist worklist: recollection queued, reservation upcoming (P08.2)
+PASS  mark patient informed (P07.3 mandatory step) clears the queue
+PASS  informing twice is rejected (HTTP 422 as expected)
+PASS  partial payment (P17.1)
+PASS  overpayment beyond balance rejected (HTTP 422 as expected)
+PASS  final payment -> Paid
+PASS  paying a Paid invoice is a state conflict (HTTP 409 as expected)
+PASS  set result schema GLU-F (auto-verify on)
+PASS  set result schema HBA1C (no auto-verify)
+PASS  set result schema GLU-PP
+PASS  collect + receive the recollection sample
+PASS  absurd value cannot be saved (HTTP 422 as expected)
+PASS  entry blocked while sample not received (reserved PP) (HTTP 422 as expected)
+PASS  enter clean GLU-F -> auto-verified (P09.1)
+PASS  enter high HBA1C -> technical queue
+PASS  duplicate entry for the same line rejected (HTTP 409 as expected)
+PASS  technical queue shows HBA1C; supervisor accepts (P09.2)
+PASS  SoD: enterer cannot medically validate own result (HTTP 422 as expected)
+PASS  medical sign-out by a different user (P09.3, e-signature)
+PASS  second visit for the critical-value path (branch series advances)
+PASS  critical low glucose flagged, never auto-verifies (P09.4)
+PASS  call without read-back keeps the critical open
+PASS  read-back confirmed closes the critical value
+PASS  rerun voids a result and reopens the line
+PASS  visit2: re-enter after rerun, sign out -> Validated
+PASS  FINAL blocked on partially validated visit1 (interim required) (HTTP 422 as expected)
+PASS  INTERIM renders for visit1 (validated subset)
+PASS  FINAL renders for visit2 -> visit Reported + metering event
+PASS  second FINAL for the same visit rejected (HTTP 409 as expected)
+PASS  report artifact is retrievable and hash-stable
+PASS  delivery via whatsapp logs attempt and marks Delivered
+PASS  public verification: valid hash, initials only, no PHI (anonymous)
+PASS  public verification: tampered hash detected
+PASS  third visit at ZMLK starts its own series (P03.2)
+PASS  FINAL blocked while a critical value is open (P09.4 gate) (HTTP 422 as expected)
+PASS  closing the critical unblocks the FINAL report
+PASS  reporting worklist shows the reported visits
+PASS  dashboard KPIs reconcile with the day's activity (P23.1)
+PASS  analytics detail: TAT, financial, quality (P23.2-P23.4)
+PASS  outbox drains (at-least-once dispatch)
+PASS  metering counted 2 finalized reports against the plan quota (FR-SYS-011/P01.3)
+PASS  open cashier shift at MAIN with float 200 (P17.2)
+PASS  second open shift on the same branch rejected (HTTP 409 as expected)
+PASS  visit4: discount before payment (P17.1)
+PASS  pay the discounted balance in cash -> Paid
+PASS  discount after payment rejected (HTTP 409 as expected)
+PASS  refund beyond captured money rejected (HTTP 422 as expected)
+PASS  refund reopens the balance; credit note closes it as Adjusted (M17)
+PASS  cancel unpaid visit -> automatic credit note (M05/M17)
+PASS  paying a cancelled (adjusted) invoice is a state conflict (HTTP 409 as expected)
+PASS  close shift -> Z-report reconciles cash (P17.2)
+PASS  closing a closed shift rejected (HTTP 409 as expected)
+PASS  Patient 360 aggregates demographics, visits, money, reports (P04.3)
+PASS  cumulative GLU-F trend: 3 validated points (P10.3)
+PASS  SoD: the enterer cannot amend their own result (P09.5) (HTTP 422 as expected)
+PASS  director amends 88 -> 95 with mandatory reason (P09.5)
+PASS  AMENDED report requires an existing FINAL (visit1 has none) (HTTP 422 as expected)
+PASS  AMENDED report renders as a new version with the marking (P09.5/P10)
+PASS  cumulative marks the amended point (P10.3)
+PASS  create panel GLUP: GLU-F + HBA1C bundled at 250 (P03.5)
+PASS  ordering the panel charges the bundle price on one sample (P03.5)
+PASS  a test ordered both individually and in a panel rejected (HTTP 409 as expected)
+PASS  add-on GLU-PP -> supplementary invoice + new reserved sample (P05.4)
+PASS  adding a test already on the visit rejected (HTTP 422 as expected)
+PASS  add-on to a reported visit rejected (HTTP 409 as expected)
+PASS  cancelling the add-on visit credits BOTH invoices (M17)
+PASS  register a duplicate Mona (same mobile) (P04.4)
+PASS  the duplicate accumulates a visit before anyone notices
+PASS  duplicate console flags the pair by mobile (P04.4)
+PASS  merge re-points clinical artifacts; duplicate vanishes from search
+PASS  merging a patient into itself rejected (HTTP 400 as expected)
+PASS  erasure blocked while clinical work is open (P04.5) (HTTP 422 as expected)
+PASS  erasure of the merged (empty) record: approve -> anonymized (P04.5)
+PASS  data export returns the bundle and leaves an audited request (P04.5)
+PASS  platform: add CBC to the master catalogue (P01.7)
+PASS  push to all tenants -> reliable per-tenant fan-out (FR-MDM-071)
+PASS  tenant A receives CBC as PendingActivation via outbox
+PASS  tenant B received it too (isolated copies)
+PASS  tenant A activates CBC with a local price (price gate)
+PASS  attach a requisition scan to visit1 (FR-SYS-007)
+PASS  attachment content round-trips byte-exact
+PASS  oversized attachment rejected (HTTP 400 as expected)
+PASS  global search finds visit, patient, sample, invoice (FR-SYS-008)
+PASS  initial Tenant Admin created via outbox; real login works
+PASS  wrong password rejected (indistinguishable failure) (HTTP 403 as expected)
+PASS  admin creates a Technologist user (P02.1)
+PASS  technologist can read visits with a real token
+PASS  technologist cannot create users (role gate) (HTTP 403 as expected)
+PASS  technologist cannot medically validate (role gate) (HTTP 403 as expected)
+PASS  tenant B admin cannot log into tenant A (HTTP 403 as expected)
+PASS  refresh rotates the session: new access + refresh issued
+PASS  reusing a rotated (revoked) refresh token rejected (HTTP 403 as expected)
+PASS  logout revokes the refresh token
+PASS  refreshing after logout rejected (HTTP 403 as expected)
+PASS  five wrong passwords lock the account automatically (Â§4.3)
+PASS  admin unlock clears the lockout; the correct password works again
+PASS  admin locks the technologist -> sign-in blocked (P02.1)
+PASS  unlock restores sign-in
+PASS  admins cannot lock their own account (HTTP 422 as expected)
+PASS  password change with wrong current password rejected (Â§4.3) (HTTP 403 as expected)
+PASS  self-service password change works; old password dies (Â§4.3)
+PASS  tenant B lifecycle: Trial -> Active (P01.1)
+PASS  activating an Active tenant is a state conflict (HTTP 409 as expected)
+PASS  suspending tenant B blocks its sign-ins (P01.1)
+PASS  resuming tenant B restores sign-in
+PASS  move tenant B to LITE (P01.3 plan change)
+PASS  seat quota: the second LITE seat fits (Â§8)
+PASS  the third seat exceeds the LITE quota (Â§8) (HTTP 422 as expected)
+PASS  a second active branch exceeds the LITE quota (Â§8) (HTTP 422 as expected)
+PASS  platform monitors tenant B users read-only (P01.5)
+PASS  tenant settings: report footer + rejection vocabulary (FR-SYS-004)
+PASS  reports render with the tenant footer note (FR-SYS-004)
+PASS  rejection outside the tenant vocabulary rejected (P07.3) (HTTP 422 as expected)
+PASS  rejection with a coded vocabulary reason passes
+PASS  catalog CSV export contains the catalogue (FR-SYS-009)
+PASS  catalog CSV import: creates drafts, skips existing codes (FR-SYS-009)
+PASS  setup wizard checklist is green (P03.1)
+PASS  audit trail recorded the flow (who/what/when, before/after)
+PASS  audit chain verifies intact
+PASS  TAMPER TEST: superuser edits history -> chain detects it
+PASS  tenant B cannot read tenant A's visit (RLS + filters) (HTTP 404 as expected)
+PASS  tenant B search finds no tenant A patients
+PASS  tenant B sees no tenant A attachments (RLS)
+PASS  tenant B global search finds nothing of tenant A (FR-SYS-008)
+PASS  tenant token cannot use platform endpoints (HTTP 403 as expected)
+
+E2E COMPLETE - visit V-MAIN-260820-0001, invoice INV-MAIN-260820-0001, tenant A 01a01d7d-c11f-7645-a50e-787db7ca4fec, tenant B 01a01d7d-c1e9-70ec-9190-799fc3f948ef

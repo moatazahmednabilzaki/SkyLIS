@@ -8,11 +8,13 @@ namespace SkyLIS.Api.Infrastructure;
 
 public static class ApiServices
 {
-    public static IServiceCollection AddApiServices(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddApiServices(
+        this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, CurrentUser>();
         services.AddScoped<IClientContext, ClientContext>();
+        services.AddSingleton<TokenService>();
         // Enums cross the wire as strings (portals send/receive "SharedRls", "Female", …).
         services.ConfigureHttpJsonOptions(options =>
             options.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
@@ -20,10 +22,10 @@ public static class ApiServices
         services.AddExceptionHandler<ApiExceptionHandler>();
         services.AddHealthChecks();
 
-        // DEV AUTH ONLY: symmetric key from configuration. Production replaces this with
-        // the OpenIddict authority (SRS §2.2); secrets come from the vault, never source.
-        var signingKey = configuration["Auth:DevSigningKey"]
-            ?? throw new InvalidOperationException("Auth:DevSigningKey is not configured.");
+        // Signing key resolution is centralized in TokenService: production requires
+        // Auth:SigningKey from the environment and fails fast without it; the checked-in
+        // dev key is accepted in Development only.
+        var signingKey = TokenService.ResolveSigningKey(configuration, environment);
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
@@ -31,7 +33,7 @@ public static class ApiServices
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
-                    ValidIssuer = configuration["Auth:Issuer"] ?? "skylis-dev",
+                    ValidIssuer = configuration["Auth:Issuer"] ?? "skylis",
                     ValidateAudience = false,
                     ValidateLifetime = true,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),

@@ -36,11 +36,9 @@ public static class DevAuthEndpoints
         "audit.trail.read",
     ];
 
-    private static readonly string[] PlatformPermissions =
-    [
-        "platform.tenant.provision", "platform.tenant.read", "platform.tenant.manage", "platform.outbox.read",
-        "platform.masterdata.read", "platform.masterdata.manage",
-    ];
+    // Platform permissions come from the single domain source used by production login.
+    private static IReadOnlyList<string> PlatformPermissions =>
+        SkyLIS.Domain.Platform.PlatformPermissionCatalog.All;
 
     public static void MapDevAuthEndpoints(this RouteGroupBuilder group, IConfiguration configuration)
     {

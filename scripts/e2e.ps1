@@ -22,11 +22,21 @@ function ExpectError($name, $expectedStatus, $block) {
     }
 }
 
-# ---------- Admin Portal flow ----------
-$platformToken = (Step 'platform dev token' {
-    Invoke-RestMethod -Method Post -Uri "$api/dev/token" -ContentType 'application/json' -Body '{"scope":"platform"}'
-}).token
-$ph = @{ Authorization = "Bearer $platformToken" }
+# ---------- Admin Portal flow (production operator auth) ----------
+$platformAuth = Step 'platform operator login (bootstrap account, production auth)' {
+    Invoke-RestMethod -Method Post -Uri "$api/auth/platform-login" -ContentType 'application/json' -Body (@{
+        userName = 'platform.admin'; password = 'SkyLIS#Platform2026!' } | ConvertTo-Json)
+}
+$ph = @{ Authorization = "Bearer $($platformAuth.token)" }
+ExpectError 'wrong operator password rejected (indistinguishable failure)' 403 {
+    Invoke-RestMethod -Method Post -Uri "$api/auth/platform-login" -ContentType 'application/json' -Body (@{
+        userName = 'platform.admin'; password = 'wrong-password' } | ConvertTo-Json)
+}
+Step 'platform session refresh works (operator scope preserved)' {
+    $r = Invoke-RestMethod -Method Post -Uri "$api/auth/refresh" -ContentType 'application/json' -Body (@{
+        refreshToken = $platformAuth.refreshToken } | ConvertTo-Json)
+    Invoke-RestMethod -Uri "$api/platform/tenants" -Headers @{ Authorization = "Bearer $($r.token)" } | Out-Null
+} | Out-Null
 
 $tenantA = (Step 'provision tenant A (NileLab)' {
     Invoke-RestMethod -Method Post -Uri "$api/platform/tenants" -Headers $ph -ContentType 'application/json' -Body (@{
@@ -837,6 +847,55 @@ ExpectError "tenant B admin cannot log into tenant A" 403 {
     Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
         tenantId = $tenantA; userName = 'delta.admin'; password = 'DeltaLab#Dev2026!' } | ConvertTo-Json)
 }
+
+# ---------- Production sessions: rotating refresh tokens (§4.3) ----------
+Step 'refresh rotates the session: new access + refresh issued' {
+    $r1 = Invoke-RestMethod -Method Post -Uri "$api/auth/refresh" -ContentType 'application/json' -Body (@{
+        refreshToken = $adminAuth.refreshToken } | ConvertTo-Json)
+    if (-not $r1.token -or -not $r1.refreshToken) { throw 'refresh did not issue tokens' }
+    Invoke-RestMethod -Uri "$api/users" -Headers @{ Authorization = "Bearer $($r1.token)" } | Out-Null
+    $script:rotatedSession = $r1
+} | Out-Null
+ExpectError 'reusing a rotated (revoked) refresh token rejected' 403 {
+    Invoke-RestMethod -Method Post -Uri "$api/auth/refresh" -ContentType 'application/json' -Body (@{
+        refreshToken = $adminAuth.refreshToken } | ConvertTo-Json)
+}
+Step 'logout revokes the refresh token' {
+    Invoke-RestMethod -Method Post -Uri "$api/auth/logout" -ContentType 'application/json' -Body (@{
+        refreshToken = $rotatedSession.refreshToken } | ConvertTo-Json) | Out-Null
+} | Out-Null
+ExpectError 'refreshing after logout rejected' 403 {
+    Invoke-RestMethod -Method Post -Uri "$api/auth/refresh" -ContentType 'application/json' -Body (@{
+        refreshToken = $rotatedSession.refreshToken } | ConvertTo-Json)
+}
+
+# ---------- §4.3 brute-force lockout ----------
+Step 'five wrong passwords lock the account automatically (§4.3)' {
+    Invoke-RestMethod -Method Post -Uri "$api/users" -Headers $hAdmin -ContentType 'application/json' -Body (@{
+        userName = 'lockme.test'; fullName = 'Lockout Probe'; password = 'Correct#2026!pass'
+        roles = @('Technologist') } | ConvertTo-Json) | Out-Null
+    for ($i = 0; $i -lt 5; $i++) {
+        try {
+            Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
+                tenantId = $tenantA; userName = 'lockme.test'; password = "wrong-$i" } | ConvertTo-Json) | Out-Null
+        } catch { }
+    }
+    try {
+        Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
+            tenantId = $tenantA; userName = 'lockme.test'; password = 'Correct#2026!pass' } | ConvertTo-Json) | Out-Null
+        throw 'correct password accepted on a locked account!'
+    } catch {
+        if ($_.Exception.Response.StatusCode.value__ -ne 403) { throw }
+    }
+} | Out-Null
+Step 'admin unlock clears the lockout; the correct password works again' {
+    $locked = (Invoke-RestMethod -Uri "$api/users" -Headers $hAdmin) | Where-Object userName -eq 'lockme.test'
+    if ($locked.status -ne 'Locked') { throw "expected Locked, got $($locked.status)" }
+    Invoke-RestMethod -Method Post -Uri "$api/users/$($locked.id)/set-status" -Headers $hAdmin `
+        -ContentType 'application/json' -Body '{"action":"unlock"}' | Out-Null
+    Invoke-RestMethod -Method Post -Uri "$api/auth/login" -ContentType 'application/json' -Body (@{
+        tenantId = $tenantA; userName = 'lockme.test'; password = 'Correct#2026!pass' } | ConvertTo-Json) | Out-Null
+} | Out-Null
 
 # ---------- M02 hardening: lock/unlock, passwords; P01.1 tenant lifecycle ----------
 $allUsers = Invoke-RestMethod -Uri "$api/users" -Headers $hAdmin

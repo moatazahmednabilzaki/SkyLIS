@@ -29,6 +29,35 @@ public interface ITenantContext
     bool HasTenant { get; }
 }
 
+/// <summary>
+/// Write side of the tenant context for ANONYMOUS auth flows only (login realm, token
+/// refresh): the realm is set once, before any tenant-scoped read, and only for a tenant
+/// proven by credentials or a validated refresh token.
+/// </summary>
+public interface ITenantRealm
+{
+    void Set(Guid tenantId);
+}
+
+/// <summary>
+/// Opaque rotating refresh tokens (production sessions). Raw tokens are returned once and
+/// stored hashed; validation is constant-time by hash lookup. Rotation revokes the old
+/// token; a revoked or expired token never validates.
+/// </summary>
+public interface IRefreshTokenStore
+{
+    const string TenantUser = "tenant-user";
+    const string PlatformOperator = "platform-operator";
+
+    Task<string> IssueAsync(Guid principalId, string principalType, Guid? tenantId, CancellationToken ct = default);
+    Task<RefreshTokenInfo?> ValidateAsync(string rawToken, CancellationToken ct = default);
+    /// <summary>Revokes the current token and issues its replacement (rotation).</summary>
+    Task<string> RotateAsync(Guid currentTokenId, Guid principalId, string principalType, Guid? tenantId, CancellationToken ct = default);
+    Task RevokeAsync(string rawToken, CancellationToken ct = default);
+}
+
+public sealed record RefreshTokenInfo(Guid TokenId, Guid PrincipalId, string PrincipalType, Guid? TenantId);
+
 public interface IClock
 {
     DateTimeOffset UtcNow { get; }
@@ -124,6 +153,15 @@ public interface ICountryPackRepository
 {
     Task<CountryPack?> GetByCountryAsync(string countryCode, CancellationToken ct = default);
     void Add(CountryPack pack);
+}
+
+/// <summary>Admin Portal operator accounts (platform-scoped, no tenant filter).</summary>
+public interface IPlatformOperatorRepository
+{
+    Task<PlatformOperator?> GetAsync(Guid id, CancellationToken ct = default);
+    Task<PlatformOperator?> FindByUserNameAsync(string userName, CancellationToken ct = default);
+    Task<bool> AnyAsync(CancellationToken ct = default);
+    void Add(PlatformOperator @operator);
 }
 
 public interface IVisitRepository

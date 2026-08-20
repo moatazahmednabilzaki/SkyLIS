@@ -39,6 +39,8 @@ public sealed class SkyLisDbContext : DbContext, IUnitOfWork
     }
 
     public DbSet<Tenant> Tenants => Set<Tenant>();
+    public DbSet<PlatformOperator> PlatformOperators => Set<PlatformOperator>();
+    public DbSet<Auth.RefreshToken> RefreshTokens => Set<Auth.RefreshToken>();
     public DbSet<CountryPack> CountryPacks => Set<CountryPack>();
     public DbSet<Plan> Plans => Set<Plan>();
     public DbSet<MasterTest> MasterTests => Set<MasterTest>();

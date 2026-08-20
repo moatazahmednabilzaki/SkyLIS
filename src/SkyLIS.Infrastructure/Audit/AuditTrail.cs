@@ -38,7 +38,12 @@ internal sealed class AuditEventConfig : IEntityTypeConfiguration<AuditEvent>
 internal static class AuditCollector
 {
     private static readonly HashSet<Type> ExcludedTypes =
-        [typeof(AuditEvent), typeof(OutboxMessage), typeof(InboxConsumption), typeof(NumberSeries)];
+        [
+            typeof(AuditEvent), typeof(OutboxMessage), typeof(InboxConsumption), typeof(NumberSeries),
+            // Session churn is not business history; login/lockout changes on the
+            // user/operator records themselves ARE audited.
+            typeof(Auth.RefreshToken),
+        ];
 
     private static readonly HashSet<string> OmittedProperties = ["ContentHtml"];
 

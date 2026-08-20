@@ -20,6 +20,7 @@ public static class DependencyInjection
     {
         services.AddScoped<TenantContext>();
         services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
+        services.AddScoped<ITenantRealm>(sp => sp.GetRequiredService<TenantContext>());
 
         services.AddDbContext<SkyLisDbContext>((sp, options) =>
         {
@@ -95,8 +96,11 @@ public static class DependencyInjection
         services.AddScoped<Application.Platform.IOutboxStatusQueries, Outbox.OutboxStatusQueries>();
         services.AddScoped<IUsageMeterStore, Metering.UsageMeterStore>();
 
-        // Users & auth (M02)
+        // Users & auth (M02) + production sessions
         services.AddSingleton<Application.Users.IPasswordHasher, Users.Pbkdf2PasswordHasher>();
+        services.AddScoped<IRefreshTokenStore, Auth.RefreshTokenStore>();
+        services.AddScoped<IPlatformOperatorRepository, Platform.PlatformOperatorRepository>();
+        services.AddHostedService<Platform.PlatformOperatorSeeder>();
         services.AddScoped<Application.Users.IUserRepository, Users.UserRepository>();
         services.AddScoped<Application.Users.IUserQueries, Users.UserQueries>();
         // The integration handlers themselves are registered by AddApplication (they are

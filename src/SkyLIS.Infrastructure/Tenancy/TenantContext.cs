@@ -6,7 +6,7 @@ namespace SkyLIS.Infrastructure.Tenancy;
 /// Scoped per request. Populated by the API's tenant-resolution middleware from trusted
 /// sources ONLY (JWT tenant claim / verified host mapping) — never from a request body.
 /// </summary>
-public sealed class TenantContext : ITenantContext
+public sealed class TenantContext : ITenantContext, ITenantRealm
 {
     private Guid? _tenantId;
 

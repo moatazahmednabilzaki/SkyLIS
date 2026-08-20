@@ -91,6 +91,7 @@ interface GlobalSearch {
         <div class="group">ADMINISTRATION</div>
         <a routerLink="/users" routerLinkActive="on">🔐 Users &amp; Roles</a>
         <a routerLink="/branches" routerLinkActive="on">🏢 Branches</a>
+        <a routerLink="/catalog" routerLinkActive="on">🧪 Test Catalogue</a>
         <a routerLink="/setup" routerLinkActive="on">🧭 Lab Setup</a>
         <div class="foot">Client Portal · v1.0 · SRS Rev 2.0</div>
       </nav>

@@ -76,6 +76,10 @@ export const appRoutes: Routes = [
         loadComponent: () => import('./features/billing/cashier.component').then(m => m.CashierComponent),
       },
       {
+        path: 'catalog',
+        loadComponent: () => import('./features/org/catalog.component').then(m => m.CatalogComponent),
+      },
+      {
         path: 'setup',
         loadComponent: () => import('./features/org/setup.component').then(m => m.SetupComponent),
       },

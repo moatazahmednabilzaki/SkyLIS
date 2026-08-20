@@ -1,7 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { PatientsApi } from '../patients/patients.api';
 import { CatalogApi, OrgApi } from '../org/org.api';
@@ -15,7 +15,7 @@ import { Branch, CatalogPanel, CatalogTest, PatientSearchResult, RegisteredVisit
  */
 @Component({
   selector: 'app-visit-register',
-  imports: [ReactiveFormsModule, DatePipe],
+  imports: [ReactiveFormsModule, DatePipe, RouterLink],
   template: `
     <h1 class="pt">Visit Registration</h1>
     <p class="sub">M05 · P05.2 — registration = the patient's new visit (SRS Rev 2.0 §M04).</p>
@@ -105,7 +105,11 @@ import { Branch, CatalogPanel, CatalogTest, PatientSearchResult, RegisteredVisit
 
         <label class="lbl">TESTS (ACTIVE CATALOG)</label>
         @if (tests().length === 0) {
-          <p class="hint">No active tests in the catalog yet — create and approve tests first (P03.3).</p>
+          <p class="hint">
+            No active tests in the catalogue yet —
+            <a routerLink="/catalog">open the Test Catalogue</a> to create, submit, and approve a test.
+            A visit can only be registered once at least one test is <b>Active</b> (P03.3).
+          </p>
         }
         <div class="picker">
           @for (t of tests(); track t.id) {

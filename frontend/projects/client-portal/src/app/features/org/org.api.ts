@@ -43,4 +43,34 @@ export class CatalogApi {
   listPanels(): Observable<CatalogPanel[]> {
     return this.http.get<CatalogPanel[]>(`${API_BASE_URL}/catalog/panels`);
   }
+
+  // ---- P03.3 catalogue management: create -> submit -> approve (-> Active) ----
+
+  createTest(body: {
+    code: string; name: string; department: string; sampleTypeId: string;
+    requiredConditionId: string | null; price: number; currency: string;
+  }): Observable<{ id: string }> {
+    return this.http.post<{ id: string }>(`${API_BASE_URL}/catalog/tests`, body);
+  }
+
+  submitTest(testId: string): Observable<void> {
+    return this.http.post<void>(`${API_BASE_URL}/catalog/tests/${testId}/submit`, {});
+  }
+
+  approveTest(testId: string): Observable<void> {
+    return this.http.post<void>(`${API_BASE_URL}/catalog/tests/${testId}/approve`, {});
+  }
+
+  activatePushedTest(testId: string, price: number, currency: string): Observable<void> {
+    return this.http.post<void>(`${API_BASE_URL}/catalog/tests/${testId}/activate`, { price, currency });
+  }
+
+  setResultSchema(testId: string, body: {
+    unit: string; refLow: number | null; refHigh: number | null;
+    criticalLow: number | null; criticalHigh: number | null;
+    absurdLow: number | null; absurdHigh: number | null;
+    autoVerify: boolean; deltaThresholdPercent: number | null;
+  }): Observable<void> {
+    return this.http.put<void>(`${API_BASE_URL}/catalog/tests/${testId}/result-schema`, body);
+  }
 }

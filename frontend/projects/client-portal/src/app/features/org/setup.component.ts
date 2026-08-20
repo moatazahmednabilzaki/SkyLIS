@@ -42,8 +42,8 @@ interface ImportResult { created: number; skipped: number; errors: string[]; }
             <td></td>
           </tr>
           <tr>
-            <td>{{ s.activeTests > 0 ? '✅' : '⬜' }} <b>Test catalogue</b> <span class="hint">({{ s.activeTests }} active tests — import below or push from the platform)</span></td>
-            <td></td>
+            <td>{{ s.activeTests > 0 ? '✅' : '⬜' }} <b>Test catalogue</b> <span class="hint">({{ s.activeTests }} active tests — create &amp; approve them, or import below)</span></td>
+            <td style="text-align:right"><a class="btn sm ghost" routerLink="/catalog">Open →</a></td>
           </tr>
           <tr>
             <td>{{ s.panels > 0 ? '✅' : '⬜' }} <b>Panels / profiles</b> <span class="hint">({{ s.panels }} bundles — P03.5)</span></td>

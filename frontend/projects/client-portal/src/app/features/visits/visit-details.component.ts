@@ -247,16 +247,23 @@ export class VisitDetailsComponent implements OnInit {
   async reload(): Promise<void> {
     try {
       this.visit.set(await firstValueFrom(this.api.get(this.id())));
-      const params = new HttpParams().set('entityType', 'visit').set('entityId', this.id());
-      this.attachments.set(await firstValueFrom(
-        this.http.get<AttachmentRow[]>(`${API_BASE_URL}/attachments`, { params })));
-      this.invoice.set(await firstValueFrom(
-        this.http.get<InvoiceDetails>(`${API_BASE_URL}/billing/invoices/by-visit/${this.id()}`)));
-      this.results.set(await firstValueFrom(
-        this.http.get<VisitResult[]>(`${API_BASE_URL}/results/for-visit/${this.id()}`)));
     } catch (e) {
       this.error.set(problemMessage(e));
+      return;
     }
+    // The panels below each own their fetch. They must load independently: an invoice
+    // is created asynchronously by the outbox, so by-visit can still 404 right after
+    // registration — that must not suppress the results or attachments panels (a shared
+    // try/catch made a missing invoice hide the amendment controls).
+    const params = new HttpParams().set('entityType', 'visit').set('entityId', this.id());
+    await Promise.all([
+      firstValueFrom(this.http.get<AttachmentRow[]>(`${API_BASE_URL}/attachments`, { params }))
+        .then(a => this.attachments.set(a)).catch(() => { /* panel stays empty */ }),
+      firstValueFrom(this.http.get<InvoiceDetails>(`${API_BASE_URL}/billing/invoices/by-visit/${this.id()}`))
+        .then(i => this.invoice.set(i)).catch(() => this.invoice.set(null)),
+      firstValueFrom(this.http.get<VisitResult[]>(`${API_BASE_URL}/results/for-visit/${this.id()}`))
+        .then(r => this.results.set(r)).catch(() => { /* panel stays empty */ }),
+    ]);
   }
 
   async amend(r: VisitResult): Promise<void> {

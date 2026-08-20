@@ -44,6 +44,9 @@ test('amend a signed result and re-release it as an AMENDED report', async ({ pa
   // Amend the signed result on the visit page.
   await page.goto(visitUrl);
   const results = page.locator('.card', { hasText: 'Results' });
+  // Wait for the results panel to load (it fetches independently of the invoice panel)
+  // before reaching for the Amend control.
+  await expect(results.getByText('MedicallyValid')).toBeVisible();
   await results.getByRole('button', { name: /Amend/ }).click();
   await page.locator('#amend-value').fill('95');
   await page.locator('#amend-reason').fill('Recalculated after instrument recalibration');

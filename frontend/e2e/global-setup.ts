@@ -34,17 +34,27 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   if (!prov.ok()) throw new Error(`provision failed: ${prov.status()} ${await prov.text()}`);
   const tenantId = (await prov.json()).id as string;
 
-  let ready = false;
+  let adminToken = '';
   for (let i = 0; i < 25; i++) {
     const login = await ctx.post(`${API}/auth/login`, {
       data: { tenantId, userName: admin.userName, password: admin.password },
     });
-    if (login.ok()) { ready = true; break; }
+    if (login.ok()) { adminToken = (await login.json()).token; break; }
     await new Promise(r => setTimeout(r, 1500));
   }
-  if (!ready) throw new Error('tenant admin was not created by the outbox consumer in time');
+  if (!adminToken) throw new Error('tenant admin was not created by the outbox consumer in time');
+
+  // A second user is required for the clinical chain: segregation of duties means the
+  // person who enters a result can never medically validate it. LabDirector can sign out
+  // results and render reports.
+  const doctor = { userName: 'pwdoctor', password: 'Playwright#Doc2026!' };
+  const createDoc = await ctx.post(`${API}/users`, {
+    headers: { Authorization: `Bearer ${adminToken}` },
+    data: { userName: doctor.userName, fullName: 'PW Director', password: doctor.password, roles: ['LabDirector'] },
+  });
+  if (!createDoc.ok()) throw new Error(`create doctor failed: ${createDoc.status()} ${await createDoc.text()}`);
 
   mkdirSync(join(__dirname, '.auth'), { recursive: true });
-  writeFileSync(join(__dirname, '.auth', 'tenant.json'), JSON.stringify({ tenantId, ...admin }));
+  writeFileSync(join(__dirname, '.auth', 'tenant.json'), JSON.stringify({ tenantId, admin, doctor }));
   await ctx.dispose();
 }

@@ -124,18 +124,18 @@ import { CatalogSampleType, CatalogTest, problemMessage } from '../../core/api.t
         <p class="hint" style="margin-bottom:8px">Required before results can be entered (M09). Reference range flags Low/High; critical range never auto-verifies.</p>
         <form [formGroup]="schemaForm" (ngSubmit)="saveSchema(t)">
           <div class="f-row">
-            <div class="f" style="flex:0 0 100px"><label>UNIT</label><input class="mono" formControlName="unit" placeholder="mg/dL"></div>
-            <div class="f"><label>REF LOW</label><input type="number" step="0.01" formControlName="refLow"></div>
-            <div class="f"><label>REF HIGH</label><input type="number" step="0.01" formControlName="refHigh"></div>
-            <div class="f"><label>CRITICAL LOW</label><input type="number" step="0.01" formControlName="criticalLow"></div>
-            <div class="f"><label>CRITICAL HIGH</label><input type="number" step="0.01" formControlName="criticalHigh"></div>
+            <div class="f" style="flex:0 0 100px"><label for="sc-unit">UNIT</label><input id="sc-unit" class="mono" formControlName="unit" placeholder="mg/dL"></div>
+            <div class="f"><label for="sc-refLow">REF LOW</label><input id="sc-refLow" type="number" step="0.01" formControlName="refLow"></div>
+            <div class="f"><label for="sc-refHigh">REF HIGH</label><input id="sc-refHigh" type="number" step="0.01" formControlName="refHigh"></div>
+            <div class="f"><label for="sc-critLow">CRITICAL LOW</label><input id="sc-critLow" type="number" step="0.01" formControlName="criticalLow"></div>
+            <div class="f"><label for="sc-critHigh">CRITICAL HIGH</label><input id="sc-critHigh" type="number" step="0.01" formControlName="criticalHigh"></div>
           </div>
           <div class="f-row">
-            <div class="f"><label>ABSURD LOW</label><input type="number" step="0.01" formControlName="absurdLow"></div>
-            <div class="f"><label>ABSURD HIGH</label><input type="number" step="0.01" formControlName="absurdHigh"></div>
-            <div class="f"><label>DELTA %</label><input type="number" step="0.01" formControlName="deltaThresholdPercent"></div>
+            <div class="f"><label for="sc-absLow">ABSURD LOW</label><input id="sc-absLow" type="number" step="0.01" formControlName="absurdLow"></div>
+            <div class="f"><label for="sc-absHigh">ABSURD HIGH</label><input id="sc-absHigh" type="number" step="0.01" formControlName="absurdHigh"></div>
+            <div class="f"><label for="sc-delta">DELTA %</label><input id="sc-delta" type="number" step="0.01" formControlName="deltaThresholdPercent"></div>
             <div class="f" style="align-self:flex-end">
-              <label><input type="checkbox" formControlName="autoVerify"> Auto-verify clean results</label>
+              <label><input id="sc-autoVerify" type="checkbox" formControlName="autoVerify"> Auto-verify clean results</label>
             </div>
           </div>
           <button class="btn green" type="submit" [disabled]="schemaForm.invalid || busy()">Save schema</button>

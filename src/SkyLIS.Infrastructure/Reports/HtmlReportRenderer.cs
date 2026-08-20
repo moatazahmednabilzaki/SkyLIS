@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using QuestPDF.Drawing;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -11,13 +12,25 @@ namespace SkyLIS.Infrastructure.Reports;
 /// <summary>
 /// Renders both faces of one report: the PDF (QuestPDF, Community license) is the
 /// immutable hash-stamped artifact of record delivered to patients; the self-contained
-/// bilingual (EN/AR) HTML is the portal preview of the same content. Arabic strings
-/// render in the HTML preview; the PDF uses Latin labels until an Arabic-capable font
-/// ships with the binary.
+/// bilingual (EN/AR) HTML is the portal preview of the same content. Both are fully
+/// bilingual: the PDF embeds Noto Naskh Arabic (SIL OFL) as the fallback face, so
+/// Arabic labels and tenant footer notes shape correctly on any host with no system
+/// fonts installed.
 /// </summary>
 internal sealed class HtmlReportRenderer : IReportRenderer
 {
-    static HtmlReportRenderer() => QuestPDF.Settings.License = LicenseType.Community;
+    private const string ArabicFont = "Noto Naskh Arabic";
+
+    static HtmlReportRenderer()
+    {
+        QuestPDF.Settings.License = LicenseType.Community;
+        // Embedded font: PDF rendering must not depend on host-installed fonts.
+        var assembly = typeof(HtmlReportRenderer).Assembly;
+        var resource = assembly.GetManifestResourceNames()
+            .Single(n => n.EndsWith("NotoNaskhArabic-Regular.ttf", StringComparison.OrdinalIgnoreCase));
+        using var stream = assembly.GetManifestResourceStream(resource)!;
+        FontManager.RegisterFont(stream);
+    }
 
     private const string Navy = "#101d2c";
     private const string Blue = "#0284c7";
@@ -32,7 +45,11 @@ internal sealed class HtmlReportRenderer : IReportRenderer
             {
                 page.Size(PageSizes.A4);
                 page.Margin(36);
-                page.DefaultTextStyle(style => style.FontSize(9.5f).FontColor("#26303b"));
+                // Fallback chain: Latin renders in the default face, Arabic runs shape
+                // in the embedded Noto Naskh Arabic.
+                page.DefaultTextStyle(style => style
+                    .FontSize(9.5f).FontColor("#26303b")
+                    .FontFamily(Fonts.Lato, ArabicFont));
 
                 if (kind != ReportKind.Final)
                 {
@@ -49,7 +66,7 @@ internal sealed class HtmlReportRenderer : IReportRenderer
                         row.RelativeItem().Column(left =>
                         {
                             left.Item().Text(content.TenantLegalName).FontSize(16).Bold().FontColor(Navy);
-                            left.Item().Text("LABORATORY REPORT").FontSize(8).Bold().FontColor(Blue).LetterSpacing(0.15f);
+                            left.Item().Text("LABORATORY REPORT — تقرير المختبر").FontSize(8).Bold().FontColor(Blue);
                         });
                         row.ConstantItem(220).Column(right =>
                         {
@@ -67,7 +84,7 @@ internal sealed class HtmlReportRenderer : IReportRenderer
                     {
                         row.RelativeItem().Text(text =>
                         {
-                            text.Span("Patient: ").SemiBold();
+                            text.Span("Patient — المريض: ").SemiBold();
                             text.Span($"{content.PatientFullName} ({content.PatientNumber})");
                         });
                         row.ConstantItem(160).AlignRight().Text($"{content.Gender} · {content.Age} y");
@@ -76,7 +93,7 @@ internal sealed class HtmlReportRenderer : IReportRenderer
                     {
                         row.RelativeItem().Text(text =>
                         {
-                            text.Span("Visit: ").SemiBold();
+                            text.Span("Visit — الزيارة: ").SemiBold();
                             text.Span(content.VisitNumber).FontFamily(Fonts.Consolas);
                         });
                         row.ConstantItem(220).AlignRight()
@@ -97,9 +114,13 @@ internal sealed class HtmlReportRenderer : IReportRenderer
 
                         table.Header(header =>
                         {
-                            foreach (var title in new[] { "Test", "Result", "Unit", "Reference", "Flag", "Interpretation" })
+                            foreach (var title in new[]
+                                     {
+                                         "Test — التحليل", "Result — النتيجة", "Unit",
+                                         "Reference — المرجع", "Flag", "Interpretation — التفسير",
+                                     })
                                 header.Cell().Background(Navy).Padding(5)
-                                    .Text(title).FontColor("#ffffff").FontSize(8.5f).Bold();
+                                    .Text(title).FontColor("#ffffff").FontSize(8f).Bold();
                         });
 
                         foreach (var line in content.Results)
@@ -138,6 +159,10 @@ internal sealed class HtmlReportRenderer : IReportRenderer
                 {
                     if (content.FooterNote is not null)
                         column.Item().Text(content.FooterNote).FontSize(8).SemiBold();
+                    if (content.FooterNoteAr is not null)
+                        column.Item().ContentFromRightToLeft()
+                            .Text(content.FooterNoteAr).FontSize(8).SemiBold()
+                            .FontFamily(ArabicFont).DirectionFromRightToLeft();
                     column.Item().Text(
                         "Electronically signed results (FR-SYS-002). Verify authenticity without exposing content: "
                         + "scan the report QR or open /api/v1/public/reports/<id>/verify — the content hash is "

@@ -8,8 +8,8 @@ RUN dotnet publish src/SkyLIS.Api -c Release -o /app
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
-# curl for the container health check only
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
+# curl for the health check; libfontconfig1 for QuestPDF's native text stack
+RUN apt-get update && apt-get install -y --no-install-recommends curl libfontconfig1 \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app .
 ENV ASPNETCORE_URLS=http://0.0.0.0:8080

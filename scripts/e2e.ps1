@@ -433,6 +433,9 @@ Step 'report artifact is a hash-stable PDF (QuestPDF, P10.1)' {
     $response.RawContentStream.CopyTo($stream)
     $magic = [Text.Encoding]::ASCII.GetString($stream.ToArray()[0..4])
     if ($magic -ne '%PDF-') { throw "artifact is not a PDF (starts with '$magic')" }
+    # Bilingual artifact: the embedded Arabic face must ship inside the PDF itself.
+    $raw = [Text.Encoding]::ASCII.GetString($stream.ToArray())
+    if ($raw -notmatch 'NotoNaskhArabic') { throw 'Arabic font (Noto Naskh Arabic) not embedded in the PDF' }
     $sha = [System.Security.Cryptography.SHA256]::Create()
     $hash = [BitConverter]::ToString($sha.ComputeHash($stream.ToArray())).Replace('-','')
     if ($hash -ne $final.contentHash) { throw "artifact hash mismatch: $hash vs $($final.contentHash)" }

@@ -42,7 +42,8 @@ curl -fsS http://localhost:8080/health          # via the client-portal nginx pr
 
 - Client Portal (lab staff): `http://<host>:8080`
 - Admin Portal (platform console): `http://<host>:8081` — sign in with the bootstrap
-  operator, then remove `PLATFORM_ADMIN_PASSWORD` from `.env`.
+  operator, then remove `PLATFORM_ADMIN_PASSWORD` from `.env`. The password must be at
+  least 12 characters; the API refuses to start and seed a weaker one.
 
 ## 3. TLS
 
@@ -89,12 +90,17 @@ alone is not enough to bring the system back.
 ## 5. Upgrades
 
 ```bash
-git pull            # or unpack the new release
+git pull                                    # or unpack the new release
+# bump SKYLIS_VERSION in .env to the new release (images are tagged with it)
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
+Images are tagged `skylis/<component>:${SKYLIS_VERSION}` so every release is immutable.
 The API applies new migrations on startup. Take a backup first; roll back by restoring
-the dump and starting the previous image.
+the dump, setting `SKYLIS_VERSION` back to the previous tag, and running `up -d` again.
+
+Each service has CPU/memory ceilings under `deploy.resources` in the compose file — tune
+them to your host before go-live.
 
 ## 6. Operations
 

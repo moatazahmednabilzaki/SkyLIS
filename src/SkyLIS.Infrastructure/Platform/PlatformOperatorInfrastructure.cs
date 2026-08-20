@@ -81,6 +81,14 @@ internal sealed class PlatformOperatorSeeder : IHostedService
             return;
         }
 
+        // Fail fast on a weak bootstrap credential rather than seeding it: the first
+        // operator is the master key to every tenant, so hold it to the same floor as a
+        // tenant admin (ProvisionTenant requires 12+). Mirrors the signing-key guard.
+        if (password.Trim().Length < 12)
+            throw new InvalidOperationException(
+                "Platform:BootstrapOperator:Password must be at least 12 characters. "
+                + "Set a strong PLATFORM_ADMIN_PASSWORD before first boot.");
+
         var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
         db.PlatformOperators.Add(PlatformOperator.Create(
             Guid.CreateVersion7(), userName, fullName ?? userName, hasher.Hash(password), DateTimeOffset.UtcNow));

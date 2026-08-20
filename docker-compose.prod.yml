@@ -19,12 +19,19 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    # Resource ceilings for a single on-prem host — tune to your hardware. Honored by
+    # `docker compose up` (Compose v2). Reservations are soft floors, limits are hard caps.
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 2G }
+        reservations: { cpus: "0.5", memory: 512M }
 
   api:
     build:
       context: .
       dockerfile: src/SkyLIS.Api/Dockerfile
-    image: skylis/api:latest
+    # Pin a version per release for immutable rollback; SKYLIS_VERSION in .env drives it.
+    image: skylis/api:${SKYLIS_VERSION:-2026.08.0}
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Production
@@ -42,30 +49,42 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 1536M }
+        reservations: { cpus: "0.5", memory: 512M }
 
   client-portal:
     build:
       context: .
       dockerfile: frontend/Dockerfile
       args: { PORTAL: client-portal }
-    image: skylis/client-portal:latest
+    image: skylis/client-portal:${SKYLIS_VERSION:-2026.08.0}
     restart: unless-stopped
     ports:
       - "${CLIENT_PORTAL_PORT:-8080}:80"
     depends_on:
       - api
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 128M }
+        reservations: { cpus: "0.1", memory: 32M }
 
   admin-portal:
     build:
       context: .
       dockerfile: frontend/Dockerfile
       args: { PORTAL: admin-portal }
-    image: skylis/admin-portal:latest
+    image: skylis/admin-portal:${SKYLIS_VERSION:-2026.08.0}
     restart: unless-stopped
     ports:
       - "${ADMIN_PORTAL_PORT:-8081}:80"
     depends_on:
       - api
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 128M }
+        reservations: { cpus: "0.1", memory: 32M }
 
 volumes:
   skylis-pgdata:

@@ -100,3 +100,57 @@ jobs:
           $failures = $output | Where-Object { $_ -match '^FAIL' }
           if ($failures) { exit 1 }
           if (-not ($output | Where-Object { $_ -match 'E2E COMPLETE' })) { exit 1 }
+
+  onprem-stack:
+    name: On-prem — production compose stack smoke test
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create .env (CI smoke values)
+        run: |
+          cat > .env <<'EOF'
+          SKYLIS_DB_PASSWORD=ci-smoke-db-password-123
+          AUTH_SIGNING_KEY=ci-smoke-signing-key-0123456789abcdefghijklmnop
+          PLATFORM_ADMIN_USERNAME=platform.admin
+          PLATFORM_ADMIN_FULLNAME=CI Operator
+          PLATFORM_ADMIN_PASSWORD=CiSmoke#Operator2026!
+          CLIENT_PORTAL_PORT=8080
+          ADMIN_PORTAL_PORT=8081
+          EOF
+
+      - name: Build & start the production stack
+        run: docker compose -f docker-compose.prod.yml up -d --build
+
+      - name: Wait for health through the nginx proxy
+        run: |
+          for i in $(seq 1 45); do
+            curl -fsS http://localhost:8080/health && exit 0 || sleep 4
+          done
+          echo '--- api logs ---'; docker compose -f docker-compose.prod.yml logs api
+          exit 1
+
+      - name: 'Smoke: migrations + RLS + seeders ran; production login works'
+        run: |
+          # Portal serves the SPA
+          curl -fsS http://localhost:8080/ | grep -qi '<app-root' || (echo 'client portal SPA missing' && exit 1)
+          curl -fsS http://localhost:8081/ | grep -qi '<app-root' || (echo 'admin portal SPA missing' && exit 1)
+          # Bootstrap operator can sign in through the admin portal proxy (production auth)
+          TOKEN=$(curl -fsS -X POST http://localhost:8081/api/v1/auth/platform-login \
+            -H 'Content-Type: application/json' \
+            -d '{"userName":"platform.admin","password":"CiSmoke#Operator2026!"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["token"])')
+          test -n "$TOKEN"
+          # Platform endpoints answer with the issued token; country packs were seeded
+          curl -fsS http://localhost:8081/api/v1/platform/country-packs -H "Authorization: Bearer $TOKEN" | grep -q '"EG"'
+          # The dev token endpoint must NOT exist in Production
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:8081/api/v1/dev/token -H 'Content-Type: application/json' -d '{"scope":"platform"}')
+          test "$CODE" = "404" || (echo "dev endpoint reachable in Production ($CODE)!" && exit 1)
+
+      - name: Stack logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.prod.yml logs
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.prod.yml down -v

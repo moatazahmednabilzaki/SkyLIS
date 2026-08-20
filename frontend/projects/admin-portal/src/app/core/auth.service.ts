@@ -2,7 +2,10 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
-export const API_BASE_URL = 'http://localhost:5178/api/v1';
+// Dev server runs on :4201 against the API on :5178 (CORS); any other origin is a
+// production deployment where nginx proxies /api same-origin.
+export const API_BASE_URL =
+  location.port === '4201' ? 'http://localhost:5178/api/v1' : '/api/v1';
 const TOKEN_KEY = 'skylis.admin.token';
 const REFRESH_KEY = 'skylis.admin.refresh';
 const OPERATOR_KEY = 'skylis.admin.operator';

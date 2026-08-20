@@ -88,6 +88,8 @@ public static class DependencyInjection
         services.AddSingleton<INotificationSender, DevNotificationSender>();
 
         // Platform seed data: canonical country packs (P01.4) and plans (P01.3)
+        // On-prem: migrations + RLS on startup (flag-gated) — MUST start before the seeders.
+        services.AddHostedService<Persistence.StartupMigrator>();
         services.AddHostedService<Platform.CountryPackSeeder>();
         services.AddHostedService<Platform.PlanSeeder>();
 

@@ -4,6 +4,10 @@
     <ProjectReference Include="..\SkyLIS.Domain\SkyLIS.Domain.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Shipped inside the binary so on-prem startup migration can re-apply RLS. -->
+    <EmbeddedResource Include="Persistence\Scripts\enable-rls.sql" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.0" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.2" />
     <PackageReference Include="EFCore.NamingConventions" Version="9.0.0" />

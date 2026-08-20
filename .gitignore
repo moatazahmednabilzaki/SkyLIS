@@ -6,3 +6,6 @@ obj/
 *.user
 .vs/
 TestResults/
+
+# On-prem secrets
+.env

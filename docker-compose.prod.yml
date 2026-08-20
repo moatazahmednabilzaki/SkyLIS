@@ -1,0 +1,69 @@
+# Sky LIS — on-premises production stack.
+#   cp .env.example .env   (fill every value!)
+#   docker compose -f docker-compose.prod.yml up -d --build
+# Client Portal: http://<host>:${CLIENT_PORTAL_PORT}   Admin Portal: http://<host>:${ADMIN_PORTAL_PORT}
+name: skylis
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: skylis
+      POSTGRES_PASSWORD: ${SKYLIS_DB_PASSWORD:?set SKYLIS_DB_PASSWORD in .env}
+      POSTGRES_DB: skylis
+    volumes:
+      - skylis-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U skylis"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: src/SkyLIS.Api/Dockerfile
+    image: skylis/api:latest
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=skylis;Username=skylis;Password=${SKYLIS_DB_PASSWORD}
+      Auth__SigningKey: ${AUTH_SIGNING_KEY:?set AUTH_SIGNING_KEY in .env (at least 32 random characters)}
+      Auth__Issuer: skylis
+      Auth__AccessTokenMinutes: ${ACCESS_TOKEN_MINUTES:-60}
+      Auth__RefreshTokenHours: ${REFRESH_TOKEN_HOURS:-12}
+      Database__MigrateOnStartup: "true"
+      Platform__BootstrapOperator__UserName: ${PLATFORM_ADMIN_USERNAME:-}
+      Platform__BootstrapOperator__FullName: ${PLATFORM_ADMIN_FULLNAME:-Platform Administrator}
+      Platform__BootstrapOperator__Password: ${PLATFORM_ADMIN_PASSWORD:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  client-portal:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args: { PORTAL: client-portal }
+    image: skylis/client-portal:latest
+    restart: unless-stopped
+    ports:
+      - "${CLIENT_PORTAL_PORT:-8080}:80"
+    depends_on:
+      - api
+
+  admin-portal:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args: { PORTAL: admin-portal }
+    image: skylis/admin-portal:latest
+    restart: unless-stopped
+    ports:
+      - "${ADMIN_PORTAL_PORT:-8081}:80"
+    depends_on:
+      - api
+
+volumes:
+  skylis-pgdata:

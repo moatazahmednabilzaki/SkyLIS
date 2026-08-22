@@ -32,7 +32,7 @@ services:
       context: .
       dockerfile: src/SkyLIS.Api/Dockerfile
     # Pin a version per release for immutable rollback; SKYLIS_VERSION in .env drives it.
-    image: skylis/api:${SKYLIS_VERSION:-2026.08.0}
+    image: skylis/api:${SKYLIS_VERSION:-2026.08.1}
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Production
@@ -65,7 +65,7 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
       args: { PORTAL: client-portal }
-    image: skylis/client-portal:${SKYLIS_VERSION:-2026.08.0}
+    image: skylis/client-portal:${SKYLIS_VERSION:-2026.08.1}
     restart: unless-stopped
     ports:
       - "${CLIENT_PORTAL_PORT:-8080}:80"
@@ -82,7 +82,7 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
       args: { PORTAL: admin-portal }
-    image: skylis/admin-portal:${SKYLIS_VERSION:-2026.08.0}
+    image: skylis/admin-portal:${SKYLIS_VERSION:-2026.08.1}
     restart: unless-stopped
     ports:
       - "${ADMIN_PORTAL_PORT:-8081}:80"

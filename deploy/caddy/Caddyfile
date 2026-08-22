@@ -1,0 +1,28 @@
+# Sky LIS — TLS-terminating reverse proxy, Caddy edition.
+# Simpler than nginx and renews certificates automatically. Pick this OR the nginx
+# config in deploy/nginx/ — not both.
+#
+#   caddy run --config deploy/caddy/Caddyfile
+#
+# Caddy sets sane security defaults (HSTS, modern TLS) and forwards X-Forwarded-* on its
+# own. reverse_proxy streams WebSockets (SignalR) without extra config.
+
+# Client Portal (lab staff)
+lab.example.local {
+	reverse_proxy 127.0.0.1:8080
+	request_body {
+		max_size 25MB   # attachments (FR-SYS-007)
+	}
+	# Public hostname + reachable :80/:443 → Caddy gets a Let's Encrypt cert automatically.
+	# Internal-only hostname (e.g. *.local)? Uncomment to use Caddy's own local CA instead:
+	#tls internal
+}
+
+# Admin Portal (platform console)
+admin.example.local {
+	reverse_proxy 127.0.0.1:8081
+	request_body {
+		max_size 25MB
+	}
+	#tls internal
+}

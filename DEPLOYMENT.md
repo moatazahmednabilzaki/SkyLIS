@@ -47,29 +47,23 @@ curl -fsS http://localhost:8080/health          # via the client-portal nginx pr
 
 ## 3. TLS
 
-Terminate TLS in front of the two portal containers with the host's reverse proxy
-(nginx/Caddy/Traefik) or your existing corporate proxy. Minimal host-nginx example:
+Terminate TLS in front of the two portal containers with a reverse proxy. Two drafted,
+hardened configs ship in the repo — use one, not both:
 
-```nginx
-server {
-    listen 443 ssl;
-    server_name lab.example.local;
-    ssl_certificate     /etc/ssl/skylis/fullchain.pem;
-    ssl_certificate_key /etc/ssl/skylis/privkey.pem;
-    location / {
-        proxy_pass http://127.0.0.1:8080;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-Proto https;
-        # WebSockets (SignalR live worklists)
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_read_timeout 3600s;
-    }
-}
-```
+- **nginx** — `deploy/nginx/skylis-tls.conf` + `deploy/nginx/tls-params.conf`. Copy both to
+  `/etc/nginx/conf.d/`, edit the `server_name` lines and `ssl_certificate` paths, place certs
+  under `/etc/ssl/skylis/` (`chmod 600` the keys), then `nginx -t && systemctl reload nginx`.
+- **Caddy** — `deploy/caddy/Caddyfile`. Simpler, and renews certificates automatically
+  (Let's Encrypt for public hostnames, or `tls internal` for `.local`). Run with
+  `caddy run --config deploy/caddy/Caddyfile`.
 
-Repeat for the Admin Portal on its own hostname. Do not expose port 5432.
+Both cover HTTP→HTTPS redirect, TLS 1.2/1.3, HSTS + security headers, the 25 MB attachment
+body limit, and the WebSocket upgrade SignalR needs. Do not expose port 5432.
+
+> **Client IPs behind the proxy.** The API reads the direct connection address, so the
+> per-IP auth rate limit and audit `IpAddress` see the proxy, not the real client, unless
+> the API is configured to honor `X-Forwarded-For` (the drafted configs already send it).
+> Enable forwarded headers on the API before relying on per-client rate limiting.
 
 ## 4. Backups
 

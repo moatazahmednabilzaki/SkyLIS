@@ -14,6 +14,7 @@ services:
       POSTGRES_DB: skylis
     volumes:
       - skylis-pgdata:/var/lib/postgresql/data
+    networks: [skylis-net]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U skylis"]
       interval: 5s
@@ -44,8 +45,13 @@ services:
       Platform__BootstrapOperator__UserName: ${PLATFORM_ADMIN_USERNAME:-}
       Platform__BootstrapOperator__FullName: ${PLATFORM_ADMIN_FULLNAME:-Platform Administrator}
       Platform__BootstrapOperator__Password: ${PLATFORM_ADMIN_PASSWORD:-}
+      # Trust X-Forwarded-For only from this stack's network, so the rate limiter and audit
+      # trail see real client IPs behind the portal nginx / TLS edge. Must match the subnet
+      # of skylis-net below.
+      ForwardedHeaders__KnownNetworks__0: ${SKYLIS_NET_SUBNET:-172.28.0.0/16}
     volumes:
       - skylis-api-logs:/app/logs
+    networks: [skylis-net]
     depends_on:
       postgres:
         condition: service_healthy
@@ -63,6 +69,7 @@ services:
     restart: unless-stopped
     ports:
       - "${CLIENT_PORTAL_PORT:-8080}:80"
+    networks: [skylis-net]
     depends_on:
       - api
     deploy:
@@ -79,12 +86,21 @@ services:
     restart: unless-stopped
     ports:
       - "${ADMIN_PORTAL_PORT:-8081}:80"
+    networks: [skylis-net]
     depends_on:
       - api
     deploy:
       resources:
         limits: { cpus: "0.5", memory: 128M }
         reservations: { cpus: "0.1", memory: 32M }
+
+networks:
+  skylis-net:
+    driver: bridge
+    ipam:
+      config:
+        # Fixed subnet so the API's trusted-proxy range (ForwardedHeaders) is deterministic.
+        - subnet: ${SKYLIS_NET_SUBNET:-172.28.0.0/16}
 
 volumes:
   skylis-pgdata:

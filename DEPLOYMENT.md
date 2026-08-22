@@ -60,10 +60,12 @@ hardened configs ship in the repo — use one, not both:
 Both cover HTTP→HTTPS redirect, TLS 1.2/1.3, HSTS + security headers, the 25 MB attachment
 body limit, and the WebSocket upgrade SignalR needs. Do not expose port 5432.
 
-> **Client IPs behind the proxy.** The API reads the direct connection address, so the
-> per-IP auth rate limit and audit `IpAddress` see the proxy, not the real client, unless
-> the API is configured to honor `X-Forwarded-For` (the drafted configs already send it).
-> Enable forwarded headers on the API before relying on per-client rate limiting.
+> **Client IPs behind the proxy.** The API honors `X-Forwarded-For` from the stack's own
+> network (`SKYLIS_NET_SUBNET`, default `172.28.0.0/16`), so the per-IP auth rate limit and
+> audit `IpAddress` record the real client, not the proxy — the drafted edge configs send
+> the header. If your TLS edge sits on a different network or you add extra hops, set
+> `ForwardedHeaders__KnownNetworks__N` (CIDRs) and `ForwardedHeaders__ForwardLimit` on the
+> API accordingly.
 
 ## 4. Backups
 

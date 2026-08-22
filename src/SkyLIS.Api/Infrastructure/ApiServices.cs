@@ -12,6 +12,29 @@ public static class ApiServices
         this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
         services.AddHttpContextAccessor();
+
+        // Behind the portal nginx (and an optional TLS edge), the real client address arrives
+        // in X-Forwarded-For. Honor it ONLY from trusted networks — the compose network, given
+        // in ForwardedHeaders:KnownNetworks — so the per-IP auth rate limit and the audit trail
+        // record the client, not the proxy, without letting arbitrary callers spoof an address.
+        // With nothing configured (e.g. local dev) the loopback-only default stands and any
+        // X-Forwarded-For from a non-loopback peer is ignored — safe, just proxy-blind.
+        services.Configure<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>(options =>
+        {
+            options.ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor
+                | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto;
+            var trusted = configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>();
+            if (trusted is { Length: > 0 })
+            {
+                options.KnownIPNetworks.Clear();
+                options.KnownProxies.Clear();
+                foreach (var cidr in trusted)
+                    options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(cidr));
+                // At most two hops in front of the API: TLS edge -> portal nginx -> API.
+                options.ForwardLimit = configuration.GetValue<int?>("ForwardedHeaders:ForwardLimit") ?? 2;
+            }
+        });
+
         services.AddScoped<ICurrentUser, CurrentUser>();
         services.AddScoped<IClientContext, ClientContext>();
         services.AddSingleton<TokenService>();

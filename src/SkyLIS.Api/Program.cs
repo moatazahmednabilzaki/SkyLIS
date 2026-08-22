@@ -40,6 +40,10 @@ builder.Services.AddCors(options => options.AddPolicy("portals", policy => polic
 
 var app = builder.Build();
 
+// Must run first: rewrites RemoteIpAddress/scheme from X-Forwarded-* (trusted networks only)
+// so request logging, the rate limiter, and the audit trail all see the real client.
+app.UseForwardedHeaders();
+
 app.UseSerilogRequestLogging();
 app.UseExceptionHandler();
 if (app.Environment.IsDevelopment())
